@@ -200,3 +200,16 @@ Access is enforced inside Postgres at two levels, so a bug in a page cannot leak
 - Access is decided in the database, so a bug in a page cannot leak another customer's data. `tests/rls.test.ts` proves this, including attempts to forge requests, post internal comments as a customer, or escalate a profile.
 - Customers can never write internal content. A comment on an internal item is forced internal by a trigger.
 - The seed script refuses to run against anything but a local database.
+
+## Product documents
+
+`docs/` keeps the product documents from the first Helm prototype:
+
+| Document | What it is |
+|---|---|
+| `7B-Client-OS-Refined-PRD.md` | The full target product and its release gates. |
+| `Helm-Design-System.md`, `DESIGN.md` | The design contract and the reference it is based on. |
+| `Rocketlane-Reference-Walkthrough.md` | The reference product walkthrough. |
+| `Helm-Build-Coverage.md`, `Helm-Verification.md` | Coverage and verification notes for the **1 October browser prototype**, not for this build. |
+
+That prototype stored its demo data in the browser. It remains in git history (commit `b35391c`) for reference. This repository's `main` is the production build described above: Supabase, row and field security, two-step sign-in, email, and the HubSpot and Zoho integrations.
