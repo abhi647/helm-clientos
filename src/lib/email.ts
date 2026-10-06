@@ -7,13 +7,14 @@ const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 
 /** One branded, accessible HTML layout for every notification email. */
 export function renderEmail({ title, body, link, cta }: { title: string; body: string; link: string; cta: string }) {
+  const site = new URL(link).origin   // the logo is served by the app itself (public/brand)
   const paragraphs = body
     ? body.split(/\n+/).map((p) => `<p style="margin:0 0 10px">${esc(p)}</p>`).join('')
     : ''
   const html = `<!doctype html><html><body style="margin:0;background:#f4f6f7;font-family:'IBM Plex Sans',Arial,sans-serif;color:#13343b">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:28px 12px"><tr><td align="center">
 <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border:1px solid #e2e7e9;border-radius:6px">
-<tr><td style="padding:20px 24px 4px"><span style="display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;border-radius:5px;background:#13343b;color:#fff;font-weight:700;font-size:11px">7B</span><span style="font-weight:600;font-size:13px;margin-left:8px">Seven Billion</span></td></tr>
+<tr><td style="padding:20px 24px 4px"><img src="${site}/brand/mark-64.png" width="26" height="26" alt="Seven Billion" style="display:inline-block;vertical-align:middle;border:0;border-radius:6px"><span style="font-weight:600;font-size:13px;margin-left:8px">Seven Billion</span></td></tr>
 <tr><td style="padding:10px 24px 4px"><h1 style="margin:0;font-size:18px;line-height:1.35">${esc(title)}</h1></td></tr>
 <tr><td style="padding:6px 24px 6px;font-size:14px;line-height:1.55;color:#4a5b60">${paragraphs}</td></tr>
 <tr><td style="padding:4px 24px 22px"><a href="${esc(link)}" style="display:inline-block;background:#13343b;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:10px 16px;border-radius:4px">${esc(cta)}</a></td></tr>

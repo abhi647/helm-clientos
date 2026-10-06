@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import { LoginForm } from './login-form'
+import { BrandMark } from '@/components/brand'
 
 export const metadata: Metadata = { title: 'Sign in' }
 
@@ -16,7 +17,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="flex items-center justify-center bg-white px-4 py-10">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex items-center gap-2.5">
-            <span className="flex size-8 items-center justify-center rounded-md bg-ink text-xs font-bold text-white">7B</span>
+            <BrandMark size={34} />
             <span className="text-sm font-semibold">Seven Billion · Client OS</span>
           </div>
           <h1 className="m-0 mb-1 text-xl font-semibold">Sign in</h1>

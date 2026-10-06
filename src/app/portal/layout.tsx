@@ -3,6 +3,7 @@ import { Tabs } from '@/components/shell/nav'
 import { UserMenu } from '@/components/shell/user-menu'
 import { requireCustomer } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { BrandMark } from '@/components/brand'
 
 /** The customer portal: a deliberately simple navigation that never exposes internal structure. */
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -14,7 +15,7 @@ export default async function PortalLayout({ children }: { children: React.React
       <header className="border-b border-line bg-white">
         <div className="mx-auto flex max-w-[1360px] flex-wrap items-center gap-x-5 px-5">
           <Link href="/portal" className="flex h-12 items-center gap-2.5 text-ink no-underline">
-            <span className="flex size-[26px] items-center justify-center rounded-[5px] bg-ink text-[11px] font-bold text-white">7B</span>
+            <BrandMark size={28} />
             <span className="text-sm font-semibold">Seven Billion</span><span className="text-muted">×</span><span className="text-sm font-semibold">{customer?.name}</span>
           </Link>
           <div className="flex-1"><Tabs items={[

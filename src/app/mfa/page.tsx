@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { MfaForm } from './mfa-form'
+import { BrandMark } from '@/components/brand'
 
 export const metadata: Metadata = { title: 'Two-step sign-in' }
 
@@ -16,7 +17,7 @@ export default async function MfaPage({ searchParams }: { searchParams: Promise<
     <main className="flex min-h-screen items-center justify-center bg-head px-4 py-10">
       <div className="card w-full max-w-[420px] p-6">
         <div className="mb-5 flex items-center gap-2.5">
-          <span className="flex size-8 items-center justify-center rounded-md bg-ink text-xs font-bold text-white">7B</span>
+          <BrandMark size={34} />
           <span className="text-sm font-semibold">Seven Billion · Client OS</span>
         </div>
         <MfaForm next={safeNext} />

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Building2, Folder, House, Inbox, MessageSquareHeart, Receipt, Settings, SquareCheck } from 'lucide-react'
 import { cn } from '@/components/ui'
+import { BrandMark } from '@/components/brand'
 
 const RAIL = [
   { href: '/home', label: 'Home', icon: House },
@@ -22,7 +23,7 @@ export function Rail({ hide = [] }: { hide?: string[] }) {
   const path = usePathname()
   return (
     <nav aria-label="Main" className="flex w-12 flex-none flex-col items-center gap-1 bg-rail py-2.5 max-sm:w-full max-sm:flex-row max-sm:overflow-x-auto max-sm:px-2">
-      <Link href="/home" aria-label="Seven Billion home" className="mb-2 flex size-[30px] items-center justify-center rounded-md bg-brand text-xs font-bold text-rail no-underline max-sm:mb-0">7B</Link>
+      <Link href="/home" aria-label="Seven Billion home" className="mb-2 flex size-[32px] items-center justify-center no-underline max-sm:mb-0"><BrandMark size={32} /></Link>
       {RAIL.filter((r) => !hide.includes(r.href)).map(({ href, label, icon: Icon }) => {
         const active = path === href || path.startsWith(`${href}/`)
         return (
