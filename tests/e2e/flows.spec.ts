@@ -36,7 +36,13 @@ async function signIn(page: Page, email: string) {
   await page.getByLabel('Work email').fill(email)
   await page.getByRole('button', { name: 'Email me a sign-in link' }).click()
   await expect(page.getByText('Check your inbox')).toBeVisible()
-  await page.goto(await latestLink(email, started))
+  const link = await latestLink(email, started)
+  // a mail scanner (e.g. Microsoft Safe Links) opens the link first: that must not use it up
+  await page.request.get(link)
+  await page.goto(link)
+  await page.getByRole('button', { name: /^(Continue|Open your workspace)$/ }).click()
+  // "/" redirects on to the right home (or to /mfa for staff)
+  await page.waitForURL((u) => !u.pathname.startsWith('/auth') && u.pathname !== '/')
   if (!page.url().includes('/mfa')) return
   // staff: set up the authenticator the first time, then enter the current code
   const heading = page.getByRole('heading', { name: /Set up two-step sign-in|Enter your code/ })

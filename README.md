@@ -90,6 +90,8 @@ CI (`.github/workflows/ci.yml`) runs lint, types, the database tests and the flo
    - Set the Site URL to `https://<your-domain>`.
    - Add `https://<your-domain>/auth/confirm` to the redirect URLs.
 5. In **Authentication → Emails**, paste `supabase/templates/magic_link.html` and `invite.html` into the Magic Link and Invite user templates. They use `token_hash` links, which work across devices. Set the subjects to "Your sign-in link for Helm" and "You are invited to Helm by Seven Billion".
+   - Opening a link shows a "Continue" button; the link is only used when it is pressed. This stops email security scanners (Microsoft Safe Links and similar), which open every link first, from using it up.
+   - Under **Authentication → Sign In / Providers → Email**, set "Email OTP Expiration" to `86400` (24 hours) so a late-arriving invite still works.
 6. In **Authentication → Emails → SMTP Settings**, send auth emails through Resend. Supabase's built-in sender is rate-limited and is for testing only.
 
    | Field | Value |
