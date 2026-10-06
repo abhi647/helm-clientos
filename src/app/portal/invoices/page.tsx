@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import { PaymentsCard } from '@/components/payments'
 import { Card, Chip, Empty, cn } from '@/components/ui'
 import { daysFromToday, money, shortDate } from '@/lib/format'
 import { requireCustomer } from '@/lib/session'
@@ -18,12 +19,12 @@ export default async function PortalInvoices() {
       <Card flush className="overflow-x-auto">
         {data?.length ? (
           <div className="min-w-[620px]">
-            <div className="row row-head grid-cols-[110px_minmax(0,1fr)_minmax(0,1fr)_100px_100px_110px]"><span>Invoice</span><span className="text-right">Amount</span><span className="text-right">Balance</span><span>Issued</span><span>Due</span><span>Status</span></div>
+            <div className="row row-head grid-cols-[130px_minmax(0,1fr)_minmax(0,1fr)_100px_100px_110px]"><span>Invoice</span><span className="text-right">Amount</span><span className="text-right">Balance</span><span>Issued</span><span>Due</span><span>Status</span></div>
             {data.map((i) => {
               const late = i.status !== 'paid' && (daysFromToday(i.due_on) ?? 0) < 0
               return (
-                <div key={i.id} className="row min-h-10 grid-cols-[110px_minmax(0,1fr)_minmax(0,1fr)_100px_100px_110px]">
-                  <span className="font-mono text-xs">{i.number}</span>
+                <div key={i.id} className="row min-h-10 grid-cols-[130px_minmax(0,1fr)_minmax(0,1fr)_100px_100px_110px]">
+                  <span className="truncate font-mono text-xs" title={i.number}>{i.number}</span>
                   <span className="text-right font-mono text-xs">{money(i.total, i.currency)}</span>
                   <span className="text-right font-mono text-xs">{money(i.balance, i.currency)}</span>
                   <span className="font-mono text-xs text-muted">{shortDate(i.issued_on)}</span>
@@ -35,6 +36,7 @@ export default async function PortalInvoices() {
           </div>
         ) : <Empty title="No invoices yet" />}
       </Card>
+      <PaymentsCard customerId={me.customer_id!} staff={false} />
     </div>
   )
 }

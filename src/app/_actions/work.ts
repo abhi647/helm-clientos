@@ -71,3 +71,16 @@ export async function logTime(_prev: ActionResult | null, form: FormData): Promi
   const { error } = await supabase.from('time_entries').insert({ ...parsed.data, customer_id: task.customer_id, user_id: me.id, note: parsed.data.note || null })
   return error ? dbFail(error) : done(`${parsed.data.hours} h logged.`)
 }
+
+const projectState = z.object({ health: z.enum(['on_track', 'needs_attention', 'at_risk']).optional(), status: z.enum(['active', 'on_hold', 'completed']).optional() })
+
+/** Health and status drive the playbook: At Risk alerts the PM and CEO, Completed sends the closure form. */
+export async function setProjectState(projectId: string, change: z.input<typeof projectState>): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!['admin', 'ceo', 'pm'].includes(me.internal_role ?? '')) return fail('Only a PM, the CEO or an admin can change this.')
+  const parsed = projectState.safeParse(change)
+  if (!uuid.safeParse(projectId).success || !parsed.success) return fail('Unknown project or value.')
+  const supabase = await createClient()
+  const { error } = await supabase.from('projects').update(parsed.data).eq('id', projectId)
+  return error ? dbFail(error) : done()
+}

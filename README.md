@@ -15,7 +15,33 @@ Client delivery workspace for Seven Billion. Internal teams run projects, reques
 | Files | `src/components/upload.tsx`, `/api/documents/[id]` | The browser uploads straight to a private Storage bucket (this avoids Vercel's request size limit). Downloads use short-lived signed URLs. |
 | HubSpot | `/api/webhooks/hubspot` | A deal moving to Closed Won becomes a pending engagement. The PM creates the project in one click from a template. |
 | Zoho Books | `/api/cron/zoho-sync` | Invoices are read from Zoho and upserted. Amounts are shown exactly as Zoho reports them; the app never calculates money. |
+| Playbook automations | `supabase/migrations/*_mvp_completion.sql`, Admin screen | Six database rules (see below). Each can be switched off per organisation in **Admin**, and each run is logged as an internal activity entry. |
+| Meetings | `/projects/[id]/meetings`, `/meetings/[id]`, `/portal/meetings` | Notes, action lines that become plan tasks in one click (customer-owned ones land on the customer's home page), and decisions numbered `DEC-xxx`. |
+| Forms | `src/lib/forms.ts`, `/portal/forms/[key]`, project **Forms** tab | Kickoff, Data access, UAT feedback and Project closure are stored as submissions. New, Change and Access requests use the request lifecycle. A form builder is phase 2. |
+| @mentions | `src/components/mention-textarea.tsx` | `cmdk` picker anchored at the caret (`textarea-caret`). The database keeps a mention only if that person can read the comment. |
+| Documents | `add_document_version` RPC | New versions keep the earlier files in history, and they're downloadable with `?v=N`. |
+| Navigation | `src/components/shell/command-palette.tsx` | ⌘K / Ctrl+K jumps to any page, project, customer or open request (`cmdk`). |
 | UI | `src/app/globals.css`, `src/components/ui.tsx` | Compact enterprise design system: IBM Plex, 13 px body, 32 px rows, and an indicator palette checked for colour blindness. |
+
+### Playbook rules
+
+| When | Then |
+|---|---|
+| Kickoff form submitted | Data access form sent to the customer lead |
+| First task in a UAT phase starts | UAT feedback form sent to the customer lead |
+| All Seven Billion UAT tasks done, or the customer accepts UAT | UAT sign-off approval requested from the customer lead |
+| UAT feedback reports issues | A bug request is raised (critical if blocking) |
+| Project health turns At Risk | PM and CEO notified |
+| A request is raised as critical | PM and the customer's account owner notified |
+| Project marked Completed | Closure form sent to the customer lead |
+
+### Who sees which home
+
+- **CEO / PM:** the exceptions view and the portfolio.
+- **Consultant:** My Work.
+- **Finance:** invoices and payments.
+- **Customer executive:** engagement status, decisions waiting on them, recent decisions, deliverables and commercial status. They can also open their team's action centre.
+- **Customer team member:** the action centre.
 
 Routes: staff pages live under `src/app/(internal)` (`/home`, `/projects`, `/requests`, `/my-work`, `/finance`, `/customers`, `/inbox`). The customer portal lives under `/portal`.
 
@@ -37,8 +63,10 @@ npm run dev
 | Command | What it does |
 |---|---|
 | `npm run typecheck` / `npm run lint` | TypeScript and ESLint |
-| `npm run test:db` | 40 RLS and security tests against the local database |
-| `npm run test:e2e` | Playwright flows (needs `npm run build && npm start` first). Set `PW_CHROMIUM_PATH` to use a pre-installed Chromium. |
+| `npm run test:db` | 57 RLS, security and playbook tests against the local database |
+| `npm run test:e2e` | 9 Playwright flows (needs `npm run build && npm start` first). Set `PW_CHROMIUM_PATH` to use a pre-installed Chromium. |
+
+CI (`.github/workflows/client-os.yml`) runs lint, types, the database tests and the flows on every push that touches `client-os/`. It uses a throwaway local Supabase.
 | `npm run db:types` | Regenerate `src/lib/database.types.ts` after a migration |
 
 ## Going live
@@ -64,6 +92,13 @@ npm run dev
    | Port | `465` |
    | User | `resend` |
    | Password | your Resend API key |
+
+7. Optional: **Google sign-in for your team**.
+   - In Google Cloud, create an OAuth client with the redirect URI `https://<ref>.supabase.co/auth/v1/callback`.
+   - Enable the Google provider in **Authentication → Sign In / Providers**.
+   - Set `NEXT_PUBLIC_GOOGLE_SIGNIN=true`.
+
+   Sign-ups stay off, so only people you have invited can sign in with Google.
 
 ### 2. Resend
 
@@ -91,8 +126,10 @@ npm run dev
        'kind', 'internal', 'internal_role', 'admin', 'org_id', '<org id from above>', 'full_name', 'Your Name')
      where email = 'you@sevenbillion.ai';
    ```
-   A trigger turns this into your profile. Repeat for colleagues, with `internal_role` set to `ceo`, `pm`, `consultant` or `finance`.
-3. Add customers, then invite their people from the customer page in the app.
+   A trigger turns this into your profile.
+3. Everything else happens in the app:
+   - **Admin:** invite colleagues, change roles or remove access, add customers and set their account owner, switch playbook rules, and check integrations.
+   - **Customers:** invite their people from each customer page.
    - Choose **Customer executive** or **Customer team member** for each person.
    - Only people you tick for invoices can see them.
 
@@ -106,9 +143,11 @@ npm run dev
 ### 6. Zoho Books (optional)
 
 1. In the [Zoho API console](https://api-console.zoho.in), create a Self Client.
-2. Generate a code with scope `ZohoBooks.invoices.READ` and exchange it for a refresh token.
+2. Generate a code with scopes `ZohoBooks.invoices.READ,ZohoBooks.customerpayments.READ` and exchange it for a refresh token.
 3. Set the `ZOHO_*` variables. `ZOHO_DOMAIN` is the data centre, for example `zoho.in`.
-4. Invoices are matched to customers by Zoho customer id, falling back to the customer name.
+4. Invoices and payments received are matched to customers by Zoho customer id, falling back to the customer name.
+   - Draft and void invoices are never imported.
+   - Finance can also press **Sync now**.
 
 ## Security notes
 

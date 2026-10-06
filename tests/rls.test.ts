@@ -20,8 +20,9 @@ async function as(email: string): Promise<SupabaseClient> {
 
 const VISIBILITY_TABLES = ['phases', 'tasks', 'comments', 'documents', 'meetings', 'decisions', 'activity']
 const CUSTOMER_TABLES = ['customers', 'projects', 'phases', 'tasks', 'requests', 'request_events', 'approvals', 'approval_events',
-  'action_items', 'comments', 'documents', 'meetings', 'decisions', 'updates', 'invoices', 'activity']
-const STAFF_ONLY = ['project_commercials', 'task_estimates', 'time_entries']
+  'action_items', 'comments', 'documents', 'meetings', 'decisions', 'updates', 'invoices', 'activity',
+  'meeting_actions', 'form_submissions', 'document_versions', 'payments']
+const STAFF_ONLY = ['project_commercials', 'task_estimates', 'time_entries', 'automation_rules']
 const SERVICE_ONLY = ['email_outbox', 'integration_events']
 
 let nesma: string, cbd: string
@@ -49,7 +50,7 @@ describe('customer users never see internal rows', () => {
     }
     // and the internal rows really exist, so the test is not passing on empty data
     const all = await service.from(table).select('id').eq('customer_id', nesma).eq('visibility', 'internal')
-    if (['tasks', 'comments', 'documents'].includes(table)) expect(all.data!.length).toBeGreaterThan(0)
+    if (['tasks', 'comments', 'documents', 'meetings'].includes(table)) expect(all.data!.length).toBeGreaterThan(0)
   })
 
   it.each(CUSTOMER_TABLES)('%s: nothing from another customer', async (table) => {
@@ -175,5 +176,122 @@ describe('anonymous callers', () => {
       expect(data ?? []).toHaveLength(0)
     }
     expect((await anon.rpc('decide_approval', { p_approval: '00000000-0000-0000-0000-000000000000', p_decision: 'approved' })).error).not.toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------- MVP completion: meetings, forms, mentions, versions, playbook
+const uid = async (c: SupabaseClient) => (await c.auth.getUser()).data.user!.id
+const idOf = async (email: string) => (await service.from('profiles').select('id').eq('email', email).single()).data!.id
+const notificationsFor = async (email: string, kind: string) =>
+  (await service.from('notifications').select('title, kind').eq('user_id', await idOf(email)).eq('kind', kind)).data ?? []
+
+describe('meetings and action lines', () => {
+  it('customers see action lines of shared meetings only, and cannot add them', async () => {
+    const { data: internal } = await service.from('meetings').select('id').eq('customer_id', nesma).eq('visibility', 'internal').single()
+    await service.from('meeting_actions').insert({ meeting_id: internal!.id, customer_id: nesma, text: 'Internal follow-up' })
+    const { data } = await michel.from('meeting_actions').select('text')
+    expect(data!.length).toBeGreaterThan(0)
+    expect(data!.some((a) => a.text === 'Internal follow-up')).toBe(false)
+    const { data: shared } = await service.from('meetings').select('id').eq('customer_id', nesma).eq('visibility', 'shared').single()
+    expect((await omar.from('meeting_actions').insert({ meeting_id: shared!.id, customer_id: nesma, text: 'Sneaky' })).error).not.toBeNull()
+  })
+
+  it('an action line becomes a plan task in one call, once', async () => {
+    const { data: a } = await service.from('meeting_actions').select('id').eq('text', 'Share the region master file').single()
+    const first = await rahul.rpc('create_task_from_meeting_action', { p_action: a!.id })
+    const again = await rahul.rpc('create_task_from_meeting_action', { p_action: a!.id })
+    expect(first.error).toBeNull()
+    expect(again.data).toBe(first.data)
+    const { data: task } = await service.from('tasks').select('owner_side, visibility, phase_id').eq('id', first.data!).single()
+    expect(task).toMatchObject({ owner_side: 'customer', visibility: 'shared' })
+    expect(task!.phase_id).not.toBeNull()
+    // a customer-owned shared task lands on Omar's home page
+    expect((await omar.from('action_items').select('id').eq('task_id', first.data!)).data).toHaveLength(1)
+    expect((await omar.rpc('create_task_from_meeting_action', { p_action: a!.id })).error).not.toBeNull()
+  })
+})
+
+describe('@mentions', () => {
+  it('notify people who can read the comment and drop everyone else', async () => {
+    const { data: task } = await service.from('tasks').select('id').eq('title', 'Data mapping').single()
+    const [mi, cl, sa] = await Promise.all([idOf('michel@nesma.example.com'), idOf('lead@cbd.example.com'), idOf('sahil@example.com')])
+    const { data: internal } = await rahul.from('comments').insert({ customer_id: nesma, entity_type: 'task', entity_id: task!.id, author_id: await uid(rahul),
+      body: 'internal @Michel @Sahil', visibility: 'internal', mentions: [mi, sa, cl] }).select('mentions').single()
+    expect(internal!.mentions).toEqual([sa])                      // customer and other-company mentions removed
+    const { data: shared } = await rahul.from('comments').insert({ customer_id: nesma, entity_type: 'task', entity_id: task!.id, author_id: await uid(rahul),
+      body: 'shared @Michel', visibility: 'shared', mentions: [mi, cl] }).select('mentions').single()
+    expect(shared!.mentions).toEqual([mi])
+    expect((await notificationsFor('michel@nesma.example.com', 'comment.mention')).length).toBe(1)
+    expect(await notificationsFor('lead@cbd.example.com', 'comment.mention')).toHaveLength(0)
+  })
+})
+
+describe('forms', () => {
+  it('a customer submits only for their own company, and UAT issues become a tracked bug', async () => {
+    const { data: cbdProject } = await service.from('projects').select('id').eq('customer_id', cbd).limit(1).single()
+    expect((await omar.from('form_submissions').insert({ customer_id: cbd, project_id: cbdProject!.id, form_key: 'uat_feedback', submitted_by: await uid(omar), answers: {} })).error).not.toBeNull()
+    const { data: pbi } = await service.from('projects').select('id').eq('name', 'Power BI Implementation').single()
+    const res = await omar.from('form_submissions').insert({ customer_id: nesma, project_id: pbi!.id, form_key: 'uat_feedback', submitted_by: await uid(omar),
+      answers: { outcome: 'issues', issues: 'Totals differ from SAP for March', severity: 'blocking', tested_by: 'Omar' } })
+    expect(res.error).toBeNull()
+    const { data: bug } = await service.from('requests').select('type, priority').eq('what', 'Totals differ from SAP for March').single()
+    expect(bug).toMatchObject({ type: 'bug', priority: 'critical' })
+    expect((await omar.from('form_submissions').update({ answers: {} }).eq('customer_id', nesma).select()).data ?? []).toHaveLength(0)
+  })
+})
+
+describe('document versions', () => {
+  it('customers cannot version internal documents', async () => {
+    const { data: doc } = await service.from('documents').select('id').eq('visibility', 'internal').eq('customer_id', nesma).limit(1).single()
+    const { error } = await michel.rpc('add_document_version', { p_document: doc!.id, p_path: `${nesma}/${doc!.id}/x.pdf`, p_name: 'x.pdf' })
+    expect(error).not.toBeNull()
+  })
+  it('a new version keeps the previous file in history', async () => {
+    const { data: doc } = await service.from('documents').insert({ customer_id: nesma, name: 'Spec.pdf', storage_path: `${nesma}/00000000-0000-0000-0000-00000000aaaa/spec.pdf`, visibility: 'shared' }).select('id').single()
+    const v = await rahul.rpc('add_document_version', { p_document: doc!.id, p_path: `${nesma}/${doc!.id}/spec-v2.pdf`, p_name: 'spec-v2.pdf' })
+    expect(v.data).toBe(2)
+    expect((await michel.from('document_versions').select('version').eq('document_id', doc!.id)).data).toEqual([{ version: 1 }])
+    expect((await cbdLead.from('document_versions').select('version').eq('document_id', doc!.id)).data).toHaveLength(0)
+  })
+})
+
+describe('playbook automations', () => {
+  it('rule 1: kickoff submitted → data access form for the customer lead', async () => {
+    const { data } = await service.from('action_items').select('form_key, assignee_id').eq('customer_id', nesma).eq('form_key', 'data_access')
+    expect(data).toHaveLength(1)
+    expect(data![0]!.assignee_id).toBe(await idOf('michel@nesma.example.com'))
+  })
+  it('rules 2 and 3: UAT starts → feedback request; UAT tasks done → sign-off approval', async () => {
+    const { data: fixes } = await service.from('tasks').select('id').eq('title', 'Fixes').single()
+    await rahul.from('tasks').update({ status: 'in_progress' }).eq('id', fixes!.id)
+    expect((await michel.from('action_items').select('form_key').eq('type', 'uat')).data).toEqual([{ form_key: 'uat_feedback' }])
+    await rahul.from('tasks').update({ status: 'done' }).eq('id', fixes!.id)
+    const { data: approval } = await michel.from('approvals').select('kind, status, approver_id').eq('kind', 'uat_signoff').single()
+    expect(approval).toMatchObject({ status: 'pending', approver_id: await idOf('michel@nesma.example.com') })
+  })
+  it('rule 4: At Risk notifies the CEO', async () => {
+    const { data: pbi } = await service.from('projects').select('id').eq('name', 'Power BI Implementation').single()
+    await rahul.from('projects').update({ health: 'at_risk' }).eq('id', pbi!.id)
+    expect((await notificationsFor('abhijit@example.com', 'project.at_risk')).length).toBe(1)
+  })
+  it('rule 5: a critical request notifies the account owner', async () => {
+    await michel.from('requests').insert({ customer_id: nesma, title: 'Dashboard down', what: 'Nothing loads', priority: 'critical', requested_by: await uid(michel) })
+    expect((await notificationsFor('abhijit@example.com', 'request.critical')).filter((n) => n.title.includes('Dashboard down'))).toHaveLength(1)
+  })
+  it('rules can be switched off by an admin only', async () => {
+    const { data: org } = await service.from('orgs').select('id').single()
+    expect((await finance.from('automation_rules').upsert({ org_id: org!.id, key: 'closure_form', enabled: false })).error).not.toBeNull()
+    const admin = await as('admin@example.com')
+    expect((await admin.from('automation_rules').upsert({ org_id: org!.id, key: 'closure_form', enabled: false })).error).toBeNull()
+    const { data: cx } = await service.from('projects').select('id').eq('name', 'Support Engagement').single()
+    await service.from('projects').update({ customer_lead_id: await idOf('lead@cbd.example.com') }).eq('id', cx!.id)  // any lead; the rule is off
+    await rahul.from('projects').update({ status: 'completed' }).eq('id', cx!.id)
+    expect((await service.from('action_items').select('id').eq('project_id', cx!.id).eq('form_key', 'closure')).data).toHaveLength(0)
+    await admin.from('automation_rules').upsert({ org_id: org!.id, key: 'closure_form', enabled: true })
+  })
+  it('rule 6: closing a project sends the closure form', async () => {
+    const { data: pbi } = await service.from('projects').select('id').eq('name', 'Power BI Implementation').single()
+    await rahul.from('projects').update({ status: 'completed' }).eq('id', pbi!.id)
+    expect((await michel.from('action_items').select('form_key').eq('form_key', 'closure')).data).toHaveLength(1)
   })
 })

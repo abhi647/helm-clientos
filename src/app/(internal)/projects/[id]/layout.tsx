@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { ProjectState } from '@/components/project-state'
 import { Tabs } from '@/components/shell/nav'
 import { Chip, Health, Progress } from '@/components/ui'
 import { shortDate } from '@/lib/format'
-import { canSeeCommercials, requireStaff } from '@/lib/session'
+import { canManage, canSeeCommercials, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { templateByKey } from '@/lib/templates'
 
@@ -35,13 +36,16 @@ export default async function ProjectLayout({ children, params }: { children: Re
           <span className="text-xs text-muted">PM <b className="font-medium text-ink">{p.pm?.full_name ?? '–'}</b></span>
           <span className="text-xs text-muted">Customer lead <b className="font-medium text-ink">{p.lead?.full_name ?? '–'}</b></span>
           {p.template_key ? <span className="text-xs text-muted">Template <b className="font-medium text-ink">{templateByKey(p.template_key)?.name ?? p.template_key}</b></span> : null}
+          {canManage(me) ? <span className="ml-auto"><ProjectState projectId={p.id} health={p.health} status={p.status} /></span> : null}
         </div>
         <Tabs items={[
           { href: base, label: 'Plan', exact: true },
           { href: `${base}/requests`, label: <>Requests {openReq ? <Chip className="ml-1 h-4 px-1.5">{openReq}</Chip> : null}</> },
           { href: `${base}/updates`, label: 'Updates' },
           { href: `${base}/documents`, label: 'Documents' },
+          { href: `${base}/meetings`, label: 'Meetings' },
           { href: `${base}/decisions`, label: 'Decisions' },
+          { href: `${base}/forms`, label: 'Forms' },
           { href: `${base}/activity`, label: 'Activity' },
           ...(canSeeCommercials(me) ? [{ href: `${base}/commercials`, label: <>Commercials <Chip className="ml-1 h-4 border border-dashed border-internal-line bg-internal-bg px-1.5 text-internal-ink">Internal</Chip></> }] : []),
         ]} />

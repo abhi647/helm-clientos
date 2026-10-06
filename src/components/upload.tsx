@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { recordDocument } from '@/app/_actions/collab'
+import { addDocumentVersion, recordDocument } from '@/app/_actions/collab'
 import { createClient } from '@/lib/supabase/client'
 
 const MAX = 50 * 1024 * 1024
@@ -48,5 +48,32 @@ export function UploadForm({ customerId, projectId, projects, folders, staff }: 
         {msg ? <span role={msg.ok ? 'status' : 'alert'} className={msg.ok ? 'text-xs font-medium text-good-ink' : 'text-xs text-crit-ink'}>{msg.text}</span> : null}
       </div>
     </form>
+  )
+}
+
+/** "New version" for an existing document: uploads next to the current file and moves the old one into history. */
+export function NewVersionButton({ documentId, customerId }: { documentId: string; customerId: string }) {
+  const [pending, start] = useTransition()
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const inputId = `v-${documentId}`
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <label htmlFor={inputId} className="cursor-pointer text-xs font-medium text-link">{pending ? 'Uploading…' : 'New version'}</label>
+      <input id={inputId} type="file" className="sr-only" aria-label="Upload a new version" disabled={pending} onChange={(e) => {
+        const file = e.target.files?.[0]
+        e.target.value = ''
+        if (!file) return
+        if (file.size > MAX) return setMsg({ ok: false, text: 'Up to 50 MB.' })
+        start(async () => {
+          const name = file.name.replace(/[^\w.\- ]+/g, '_').slice(0, 120)
+          const path = `${customerId}/${documentId}/${Date.now()}-${name}`
+          const up = await createClient().storage.from('documents').upload(path, file, { contentType: file.type || 'application/octet-stream' })
+          if (up.error) return setMsg({ ok: false, text: 'Upload failed.' })
+          const res = await addDocumentVersion(documentId, path, name)
+          setMsg(res.ok ? { ok: true, text: res.message ?? 'Uploaded.' } : { ok: false, text: res.error })
+        })
+      }} />
+      {msg ? <span role={msg.ok ? 'status' : 'alert'} className={msg.ok ? 'text-xs text-good-ink' : 'text-xs text-crit-ink'}>{msg.text}</span> : null}
+    </span>
   )
 }

@@ -24,7 +24,7 @@ export default async function Search({ searchParams }: { searchParams: Promise<{
     { title: 'Tasks', items: (tasks?.data ?? []).map((t) => ({ key: t.id, href: `/projects/${t.project_id}?task=${t.id}`, label: t.title, vis: t.visibility })) },
     { title: 'Decisions', items: (dec?.data ?? []).map((d) => ({ key: d.id, href: `/projects/${d.project_id}/decisions`, label: `${d.number} ${d.decision}`, vis: d.visibility })) },
     { title: 'Documents', items: (docs?.data ?? []).map((d) => ({ key: d.id, href: d.project_id ? `/projects/${d.project_id}/documents` : `/customers/${d.customer_id}`, label: d.name, vis: d.visibility })) },
-    { title: 'Meetings', items: (mtg?.data ?? []).map((m) => ({ key: m.id, href: `/projects/${m.project_id}/activity`, label: m.title, vis: m.visibility })) },
+    { title: 'Meetings', items: (mtg?.data ?? []).map((m) => ({ key: m.id, href: `/meetings/${m.id}`, label: m.title, vis: m.visibility })) },
   ].filter((g) => g.items.length)
   return (
     <>

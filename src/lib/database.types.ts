@@ -7,13 +7,13 @@ export type Database = {
           Tables: {
             "action_items": {
                   Row: {
-                    "approval_id": string | null,"assignee_id": string | null,"completed_at": string | null,"created_at": string,"customer_id": string,"due_date": string | null,"id": string,"priority": Database["public"]['Enums']["priority"],"project_id": string | null,"request_id": string | null,"status": Database["public"]['Enums']["action_status"],"task_id": string | null,"title": string,"type": Database["public"]['Enums']["action_type"]
+                    "approval_id": string | null,"assignee_id": string | null,"completed_at": string | null,"created_at": string,"customer_id": string,"due_date": string | null,"form_key": string | null,"id": string,"priority": Database["public"]['Enums']["priority"],"project_id": string | null,"request_id": string | null,"status": Database["public"]['Enums']["action_status"],"task_id": string | null,"title": string,"type": Database["public"]['Enums']["action_type"]
                   }
                   Insert: {
-                    "approval_id"?: string | null,"assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"customer_id": string,"due_date"?: string | null,"id"?: string,"priority"?: Database["public"]['Enums']["priority"],"project_id"?: string | null,"request_id"?: string | null,"status"?: Database["public"]['Enums']["action_status"],"task_id"?: string | null,"title": string,"type": Database["public"]['Enums']["action_type"]
+                    "approval_id"?: string | null,"assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"customer_id": string,"due_date"?: string | null,"form_key"?: string | null,"id"?: string,"priority"?: Database["public"]['Enums']["priority"],"project_id"?: string | null,"request_id"?: string | null,"status"?: Database["public"]['Enums']["action_status"],"task_id"?: string | null,"title": string,"type": Database["public"]['Enums']["action_type"]
                   }
                   Update: {
-                    "approval_id"?: string | null,"assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"customer_id"?: string,"due_date"?: string | null,"id"?: string,"priority"?: Database["public"]['Enums']["priority"],"project_id"?: string | null,"request_id"?: string | null,"status"?: Database["public"]['Enums']["action_status"],"task_id"?: string | null,"title"?: string,"type"?: Database["public"]['Enums']["action_type"]
+                    "approval_id"?: string | null,"assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"customer_id"?: string,"due_date"?: string | null,"form_key"?: string | null,"id"?: string,"priority"?: Database["public"]['Enums']["priority"],"project_id"?: string | null,"request_id"?: string | null,"status"?: Database["public"]['Enums']["action_status"],"task_id"?: string | null,"title"?: string,"type"?: Database["public"]['Enums']["action_type"]
                   }
                   Relationships: [
                     {
@@ -165,15 +165,34 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"comments": {
+                },"automation_rules": {
                   Row: {
-                    "author_id": string,"body": string,"created_at": string,"customer_id": string,"entity_id": string,"entity_type": string,"id": string,"visibility": Database["public"]['Enums']["visibility"]
+                    "enabled": boolean,"key": string,"org_id": string,"updated_at": string
                   }
                   Insert: {
-                    "author_id": string,"body": string,"created_at"?: string,"customer_id": string,"entity_id": string,"entity_type": string,"id"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
+                    "enabled"?: boolean,"key": string,"org_id": string,"updated_at"?: string
                   }
                   Update: {
-                    "author_id"?: string,"body"?: string,"created_at"?: string,"customer_id"?: string,"entity_id"?: string,"entity_type"?: string,"id"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
+                    "enabled"?: boolean,"key"?: string,"org_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "automation_rules_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "orgs"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"comments": {
+                  Row: {
+                    "author_id": string,"body": string,"created_at": string,"customer_id": string,"entity_id": string,"entity_type": string,"id": string,"mentions": (string)[],"visibility": Database["public"]['Enums']["visibility"]
+                  }
+                  Insert: {
+                    "author_id": string,"body": string,"created_at"?: string,"customer_id": string,"entity_id": string,"entity_type": string,"id"?: string,"mentions"?: (string)[],"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Update: {
+                    "author_id"?: string,"body"?: string,"created_at"?: string,"customer_id"?: string,"entity_id"?: string,"entity_type"?: string,"id"?: string,"mentions"?: (string)[],"visibility"?: Database["public"]['Enums']["visibility"]
                   }
                   Relationships: [
                     {
@@ -192,16 +211,22 @@ isOneToOne: false
                   ]
                 },"customers": {
                   Row: {
-                    "created_at": string,"hubspot_company_id": string | null,"id": string,"name": string,"org_id": string,"zoho_customer_id": string | null
+                    "account_owner_id": string | null,"created_at": string,"hubspot_company_id": string | null,"id": string,"name": string,"org_id": string,"zoho_customer_id": string | null
                   }
                   Insert: {
-                    "created_at"?: string,"hubspot_company_id"?: string | null,"id"?: string,"name": string,"org_id": string,"zoho_customer_id"?: string | null
+                    "account_owner_id"?: string | null,"created_at"?: string,"hubspot_company_id"?: string | null,"id"?: string,"name": string,"org_id": string,"zoho_customer_id"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"hubspot_company_id"?: string | null,"id"?: string,"name"?: string,"org_id"?: string,"zoho_customer_id"?: string | null
+                    "account_owner_id"?: string | null,"created_at"?: string,"hubspot_company_id"?: string | null,"id"?: string,"name"?: string,"org_id"?: string,"zoho_customer_id"?: string | null
                   }
                   Relationships: [
                     {
+      foreignKeyName: "customers_account_owner_id_fkey"
+      columns: ["account_owner_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "customers_org_id_fkey"
       columns: ["org_id"]
 isOneToOne: false
@@ -240,15 +265,46 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"documents": {
+                },"document_versions": {
                   Row: {
-                    "created_at": string,"customer_id": string,"folder": string,"id": string,"name": string,"project_id": string | null,"request_id": string | null,"storage_path": string | null,"uploaded_by": string | null,"version": number,"visibility": Database["public"]['Enums']["visibility"]
+                    "created_at": string,"customer_id": string,"document_id": string,"id": string,"name": string,"note": string,"storage_path": string,"uploaded_by": string | null,"version": number
                   }
                   Insert: {
-                    "created_at"?: string,"customer_id": string,"folder"?: string,"id"?: string,"name": string,"project_id"?: string | null,"request_id"?: string | null,"storage_path"?: string | null,"uploaded_by"?: string | null,"version"?: number,"visibility"?: Database["public"]['Enums']["visibility"]
+                    "created_at": string,"customer_id": string,"document_id": string,"id"?: string,"name": string,"note"?: string,"storage_path": string,"uploaded_by"?: string | null,"version": number
                   }
                   Update: {
-                    "created_at"?: string,"customer_id"?: string,"folder"?: string,"id"?: string,"name"?: string,"project_id"?: string | null,"request_id"?: string | null,"storage_path"?: string | null,"uploaded_by"?: string | null,"version"?: number,"visibility"?: Database["public"]['Enums']["visibility"]
+                    "created_at"?: string,"customer_id"?: string,"document_id"?: string,"id"?: string,"name"?: string,"note"?: string,"storage_path"?: string,"uploaded_by"?: string | null,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "document_versions_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "document_versions_document_id_fkey"
+      columns: ["document_id"]
+isOneToOne: false
+      referencedRelation: "documents"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "document_versions_uploaded_by_fkey"
+      columns: ["uploaded_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"documents": {
+                  Row: {
+                    "created_at": string,"customer_id": string,"folder": string,"id": string,"name": string,"note": string,"project_id": string | null,"request_id": string | null,"storage_path": string | null,"uploaded_by": string | null,"version": number,"visibility": Database["public"]['Enums']["visibility"]
+                  }
+                  Insert: {
+                    "created_at"?: string,"customer_id": string,"folder"?: string,"id"?: string,"name": string,"note"?: string,"project_id"?: string | null,"request_id"?: string | null,"storage_path"?: string | null,"uploaded_by"?: string | null,"version"?: number,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Update: {
+                    "created_at"?: string,"customer_id"?: string,"folder"?: string,"id"?: string,"name"?: string,"note"?: string,"project_id"?: string | null,"request_id"?: string | null,"storage_path"?: string | null,"uploaded_by"?: string | null,"version"?: number,"visibility"?: Database["public"]['Enums']["visibility"]
                   }
                   Relationships: [
                     {
@@ -321,6 +377,43 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"form_submissions": {
+                  Row: {
+                    "action_item_id": string | null,"answers": NonNullable<Json>,"created_at": string,"customer_id": string,"form_key": string,"id": string,"project_id": string | null,"submitted_by": string
+                  }
+                  Insert: {
+                    "action_item_id"?: string | null,"answers"?: NonNullable<Json>,"created_at"?: string,"customer_id": string,"form_key": string,"id"?: string,"project_id"?: string | null,"submitted_by": string
+                  }
+                  Update: {
+                    "action_item_id"?: string | null,"answers"?: NonNullable<Json>,"created_at"?: string,"customer_id"?: string,"form_key"?: string,"id"?: string,"project_id"?: string | null,"submitted_by"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "form_submissions_action_item_id_fkey"
+      columns: ["action_item_id"]
+isOneToOne: false
+      referencedRelation: "action_items"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "form_submissions_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "form_submissions_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "form_submissions_submitted_by_fkey"
+      columns: ["submitted_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"integration_events": {
                   Row: {
                     "created_at": string,"error": string | null,"external_id": string,"id": number,"payload": NonNullable<Json>,"processed_at": string | null,"source": string
@@ -353,15 +446,52 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"meetings": {
+                },"meeting_actions": {
                   Row: {
-                    "created_at": string,"customer_id": string,"held_on": string,"id": string,"project_id": string | null,"summary": string,"title": string,"visibility": Database["public"]['Enums']["visibility"]
+                    "assignee_id": string | null,"created_at": string,"customer_id": string,"due_date": string | null,"id": string,"meeting_id": string,"owner_side": Database["public"]['Enums']["owner_side"],"position": number,"task_id": string | null,"text": string
                   }
                   Insert: {
-                    "created_at"?: string,"customer_id": string,"held_on": string,"id"?: string,"project_id"?: string | null,"summary"?: string,"title": string,"visibility"?: Database["public"]['Enums']["visibility"]
+                    "assignee_id"?: string | null,"created_at"?: string,"customer_id": string,"due_date"?: string | null,"id"?: string,"meeting_id": string,"owner_side"?: Database["public"]['Enums']["owner_side"],"position"?: number,"task_id"?: string | null,"text": string
                   }
                   Update: {
-                    "created_at"?: string,"customer_id"?: string,"held_on"?: string,"id"?: string,"project_id"?: string | null,"summary"?: string,"title"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
+                    "assignee_id"?: string | null,"created_at"?: string,"customer_id"?: string,"due_date"?: string | null,"id"?: string,"meeting_id"?: string,"owner_side"?: Database["public"]['Enums']["owner_side"],"position"?: number,"task_id"?: string | null,"text"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "meeting_actions_assignee_id_fkey"
+      columns: ["assignee_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "meeting_actions_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "meeting_actions_meeting_id_fkey"
+      columns: ["meeting_id"]
+isOneToOne: false
+      referencedRelation: "meetings"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "meeting_actions_task_id_fkey"
+      columns: ["task_id"]
+isOneToOne: false
+      referencedRelation: "tasks"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"meetings": {
+                  Row: {
+                    "attendees": string,"created_at": string,"customer_id": string,"held_on": string,"id": string,"project_id": string | null,"summary": string,"title": string,"visibility": Database["public"]['Enums']["visibility"]
+                  }
+                  Insert: {
+                    "attendees"?: string,"created_at"?: string,"customer_id": string,"held_on": string,"id"?: string,"project_id"?: string | null,"summary"?: string,"title": string,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Update: {
+                    "attendees"?: string,"created_at"?: string,"customer_id"?: string,"held_on"?: string,"id"?: string,"project_id"?: string | null,"summary"?: string,"title"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
                   }
                   Relationships: [
                     {
@@ -409,6 +539,31 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"payments": {
+                  Row: {
+                    "amount": number | null,"currency": string,"customer_id": string,"id": string,"invoice_id": string | null,"mode": string | null,"number": string | null,"paid_on": string,"reference": string | null,"synced_at": string,"zoho_payment_id": string | null
+                  }
+                  Insert: {
+                    "amount"?: number | null,"currency"?: string,"customer_id": string,"id"?: string,"invoice_id"?: string | null,"mode"?: string | null,"number"?: string | null,"paid_on": string,"reference"?: string | null,"synced_at"?: string,"zoho_payment_id"?: string | null
+                  }
+                  Update: {
+                    "amount"?: number | null,"currency"?: string,"customer_id"?: string,"id"?: string,"invoice_id"?: string | null,"mode"?: string | null,"number"?: string | null,"paid_on"?: string,"reference"?: string | null,"synced_at"?: string,"zoho_payment_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "payments_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "payments_invoice_id_fkey"
+      columns: ["invoice_id"]
+isOneToOne: false
+      referencedRelation: "invoices"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"phases": {
                   Row: {
@@ -733,8 +888,14 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "complete_action_item":
+            "add_document_version":
+{ Args: { "p_document": string,"p_name": string,"p_note"?: string,"p_path": string }; Returns: number
+                           },
+"complete_action_item":
 { Args: { "p_action": string }; Returns: undefined
+                           },
+"create_task_from_meeting_action":
+{ Args: { "p_action": string,"p_phase"?: string }; Returns: string
                            },
 "decide_approval":
 { Args: { "p_approval": string,"p_comment"?: string,"p_decision": Database["public"]['Enums']["approval_action"] }; Returns: undefined

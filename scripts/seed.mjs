@@ -132,7 +132,16 @@ async function main() {
   await one('requests', { customer_id: custx.id, project_id: cxProj.id, title: 'New report: supplier OTIF', what: 'On-time in-full by supplier and month.', why: 'Quarterly supplier review.', type: 'new_report', priority: 'critical', desired_date: day(-2), owner_id: sahil })
 
   // ---------------------------------------------------------------- meetings, decisions, updates, documents
-  const mtg = await one('meetings', { customer_id: nesma.id, project_id: pbi.id, title: 'Weekly project review', held_on: day(-5), summary: 'Reviewed extraction progress and UAT dates.' })
+  ok(await db.from('customers').update({ account_owner_id: abhijit }).eq('id', nesma.id), 'account owner')
+  const mtg = await one('meetings', { customer_id: nesma.id, project_id: pbi.id, title: 'Weekly project review', held_on: day(-5), attendees: 'Rahul, Sahil, Michel, Omar', summary: 'Reviewed extraction progress and UAT dates.\nAgreed to measure forecast accuracy with WMAPE.\nNesma to confirm the warehouse hierarchy this week.' })
+  await many('meeting_actions', [
+    { meeting_id: mtg.id, customer_id: nesma.id, text: 'Share the region master file', owner_side: 'customer', assignee_id: omar, due_date: day(3), position: 1 },
+    { meeting_id: mtg.id, customer_id: nesma.id, text: 'Draft the UAT test scenarios', owner_side: 'seven_billion', assignee_id: sahil, due_date: day(10), position: 2 },
+  ])
+  await one('meetings', { customer_id: nesma.id, project_id: pbi.id, title: 'Internal delivery check', held_on: day(-2), attendees: 'Rahul, Sahil', summary: 'OData fallback ready if the API stays unstable.', visibility: 'internal' })
+  // the kickoff form was filled in at the start; the playbook then asked for data access
+  await one('form_submissions', { customer_id: nesma.id, project_id: pbi.id, form_key: 'kickoff', submitted_by: michel,
+    answers: { goals: 'One version of sales and stock for every region.', success: 'Regional managers plan from the dashboard every Monday.', data_owner: 'Omar', systems: 'SAP S/4HANA, Excel', cadence: 'weekly_call' } })
   await one('decisions', { customer_id: nesma.id, project_id: pbi.id, meeting_id: mtg.id, decision: 'Forecast accuracy will be measured using WMAPE at SKU-region level.', decided_on: day(-5), decided_by: 'Seven Billion + Nesma' })
   await one('updates', { customer_id: nesma.id, project_id: pbi.id, week_of: day(-5), health: 'on_track', completed: 'SAP sales extraction\nProduct mapping', in_progress: 'Data mapping\nWireframes v2', waiting_on_customer: 'Warehouse hierarchy confirmation', next_week: 'Semantic model; dashboard build starts', status: 'published', published_at: new Date().toISOString(), author_id: rahul })
   await many('documents', [

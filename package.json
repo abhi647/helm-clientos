@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "db:start": "supabase start",
     "db:reset": "supabase db reset",
-    "db:types": "supabase gen types typescript --local --schema public > src/lib/database.types.ts",
+    "db:types": "supabase gen types typescript --local --schema public > .types.tmp && test -s .types.tmp && mv .types.tmp src/lib/database.types.ts",
     "seed": "node --env-file=.env.local scripts/seed.mjs",
     "test:db": "vitest run tests/rls.test.ts",
     "test:e2e": "playwright test"
@@ -19,6 +19,7 @@
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "lucide-react": "^1.52.0",
     "next": "16.3.8",
     "react": "19.2.8",
@@ -26,6 +27,7 @@
     "resend": "^6.32.0",
     "server-only": "^0.0.1",
     "tailwind-merge": "^3.7.0",
+    "textarea-caret": "^3.1.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -34,6 +36,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/textarea-caret": "^3.0.4",
     "dotenv": "^18.0.5",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",

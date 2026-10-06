@@ -1,8 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { createCustomer } from '@/app/_actions/admin'
+import { ActionForm } from '@/components/forms'
 import { Card, Empty, Health, PageHeader } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
-import { requireStaff } from '@/lib/session'
+import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { title: 'Customers' }
@@ -10,12 +12,26 @@ export const metadata: Metadata = { title: 'Customers' }
 const WORST: Enums<'health'>[] = ['at_risk', 'needs_attention', 'on_track']
 
 export default async function Customers() {
-  await requireStaff()
+  const me = await requireStaff()
   const supabase = await createClient()
-  const { data } = await supabase.from('customers').select('id, name, projects(id, health, status), requests(id, status), profiles(id)').order('name')
+  const { data } = await supabase.from('customers').select('id, name, projects(id, health, status), requests(id, status), profiles!profiles_customer_id_fkey(id)').order('name')
   return (
     <>
-      <PageHeader title="Customers" meta={<span className="text-xs text-muted">{data?.length ?? 0} workspaces</span>} />
+      <PageHeader title="Customers" meta={<span className="text-xs text-muted">{data?.length ?? 0} workspaces</span>}
+        actions={canManage(me) ? (
+          <details className="relative">
+            <summary className="btn btn-primary list-none">+ Add customer</summary>
+            <div className="card absolute right-0 z-20 mt-1 w-[300px] p-3 shadow-[0_4px_16px_rgba(15,42,48,.12)]">
+              <ActionForm action={createCustomer} submit="Add customer">
+                <input name="name" required aria-label="Customer name" placeholder="Company name" className="input" />
+                <input type="hidden" name="account_owner_id" value={me.id} />
+                <input name="hubspot_company_id" aria-label="HubSpot company id" placeholder="HubSpot company id (optional)" className="input" />
+                <input name="zoho_customer_id" aria-label="Zoho customer id" placeholder="Zoho customer id (optional)" className="input" />
+                <p className="m-0 text-xs text-muted">You become the account owner. Change it in Admin.</p>
+              </ActionForm>
+            </div>
+          </details>
+        ) : null} />
       <div className="p-4">
         <Card flush className="overflow-x-auto">
           {data?.length ? (

@@ -7,6 +7,8 @@ type ZohoInvoice = {
   date: string; due_date: string; total: number; balance: number; currency_code: string
 }
 
+const HIDDEN = new Set(['draft', 'void'])
+
 async function accessToken(): Promise<string> {
   const e = env()
   const res = await fetch(`https://accounts.${e.ZOHO_DOMAIN}/oauth/v2/token`, {
@@ -24,7 +26,7 @@ async function accessToken(): Promise<string> {
  * Pulls invoices from Zoho Books (read only) and upserts them by Zoho id. Customers are matched on their Zoho
  * customer id, or on an exact name match the first time (which then stores the Zoho id). Unmatched invoices are skipped.
  */
-export async function syncZohoInvoices(): Promise<{ fetched: number; upserted: number; unmatched: number; skipped?: string }> {
+export async function syncZohoInvoices(): Promise<{ fetched: number; upserted: number; unmatched: number; payments?: number; skipped?: string }> {
   const e = env()
   if (!e.ZOHO_CLIENT_ID || !e.ZOHO_REFRESH_TOKEN || !e.ZOHO_ORGANIZATION_ID) return { fetched: 0, upserted: 0, unmatched: 0, skipped: 'Zoho is not configured' }
   const token = await accessToken()
@@ -46,7 +48,10 @@ export async function syncZohoInvoices(): Promise<{ fetched: number; upserted: n
 
   let unmatched = 0
   const rows = []
-  for (const inv of invoices) {
+  // drafts and voided invoices are not real bills, so they never reach the app (or a customer's screen)
+  const hidden = invoices.filter((i) => HIDDEN.has(i.status)).map((i) => i.invoice_id)
+  if (hidden.length) await db.from('invoices').delete().in('zoho_invoice_id', hidden)
+  for (const inv of invoices.filter((i) => !HIDDEN.has(i.status))) {
     let customerId = byZoho.get(inv.customer_id)
     if (!customerId) {
       const match = byName.get(inv.customer_name.trim().toLowerCase())
@@ -66,5 +71,43 @@ export async function syncZohoInvoices(): Promise<{ fetched: number; upserted: n
     const { error } = await db.from('invoices').upsert(rows, { onConflict: 'zoho_invoice_id' })
     if (error) throw error
   }
-  return { fetched: invoices.length, upserted: rows.length, unmatched }
+  const payments = await syncPayments(token, byZoho)
+  return { fetched: invoices.length, upserted: rows.length, unmatched, payments }
+}
+
+type ZohoPayment = {
+  payment_id: string; payment_number: string; customer_id: string; invoice_numbers: string; date: string
+  payment_mode: string; amount: number; reference_number: string; currency_code?: string
+}
+
+/** Payments received (read only). Linked to the first invoice they settle when that invoice is known. */
+async function syncPayments(token: string, byZoho: Map<string, string>): Promise<number> {
+  const e = env()
+  const db = createAdminClient()
+  const payments: ZohoPayment[] = []
+  for (let page = 1; page <= 10; page++) {
+    const url = new URL(`https://www.zohoapis.${e.ZOHO_DOMAIN}/books/v3/customerpayments`)
+    url.search = new URLSearchParams({ organization_id: e.ZOHO_ORGANIZATION_ID, page: String(page), per_page: '200', sort_column: 'date', sort_order: 'D' }).toString()
+    const res = await fetch(url, { headers: { Authorization: `Zoho-oauthtoken ${token}` }, cache: 'no-store' })
+    if (!res.ok) throw new Error(`Zoho payments request failed: ${res.status}`)
+    const json = (await res.json()) as { customerpayments: ZohoPayment[]; page_context?: { has_more_page?: boolean } }
+    payments.push(...json.customerpayments)
+    if (!json.page_context?.has_more_page) break
+  }
+  const known = payments.filter((p) => byZoho.has(p.customer_id))
+  if (!known.length) return 0
+  const numbers = [...new Set(known.map((p) => p.invoice_numbers.split(',')[0]!.trim()).filter(Boolean))]
+  const { data: invs } = numbers.length ? await db.from('invoices').select('id, number, customer_id, currency').in('number', numbers) : { data: [] }
+  const rows = known.map((p) => {
+    const customer_id = byZoho.get(p.customer_id)!
+    const inv = (invs ?? []).find((i) => i.number === p.invoice_numbers.split(',')[0]!.trim() && i.customer_id === customer_id)
+    return {
+      customer_id, zoho_payment_id: p.payment_id, invoice_id: inv?.id ?? null, number: p.payment_number,
+      currency: p.currency_code ?? inv?.currency ?? 'INR', amount: p.amount, paid_on: p.date, mode: p.payment_mode || null,
+      reference: p.reference_number || null, synced_at: new Date().toISOString(),
+    }
+  })
+  const { error } = await db.from('payments').upsert(rows, { onConflict: 'zoho_payment_id' })
+  if (error) throw error
+  return rows.length
 }

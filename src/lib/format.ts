@@ -51,3 +51,6 @@ export const TASK_STATUS: Record<Enums<'task_status'>, string> = {
 }
 export const REQUEST_STATUS_ORDER: Enums<'request_status'>[] = ['submitted', 'under_review', 'clarification', 'estimated', 'approved', 'scheduled', 'in_development', 'uat', 'delivered']
 export const HEALTH: Record<Enums<'health'>, string> = { on_track: 'On track', needs_attention: 'Needs attention', at_risk: 'At risk' }
+
+/** True when the timestamp is in the future (server-side checks). */
+export const isFuture = (iso: string | null | undefined) => !!iso && Date.parse(iso) > Date.now()

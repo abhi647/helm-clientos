@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { canManage, requireStaff } from '@/lib/session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { syncZohoInvoices } from '@/lib/integrations/zoho'
 import { templateByKey } from '@/lib/templates'
 import { type ActionResult, dbFail, done, fail, formObject, uuid } from './shared'
 
@@ -99,4 +100,105 @@ export async function dismissEngagement(setupId: string): Promise<ActionResult> 
   const supabase = await createClient()
   const { error } = await supabase.from('engagement_setups').update({ status: 'dismissed' }).eq('id', setupId)
   return error ? dbFail(error) : done()
+}
+
+// ---------------------------------------------------------------- admin: team, customers, automations, sync
+
+const isAdmin = (role: string | null) => role === 'admin' || role === 'ceo'
+
+const staffSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Enter a valid email.'),
+  full_name: z.string().trim().min(1, 'Enter their name.').max(120),
+  internal_role: z.enum(['admin', 'ceo', 'pm', 'consultant', 'finance']),
+})
+
+/** Invites a Seven Billion team member. Their role lives in app_metadata, which only the server can write. */
+export async function inviteStaff(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!isAdmin(me.internal_role)) return fail('Only an admin or the CEO can invite team members.')
+  const parsed = staffSchema.safeParse(formObject(form))
+  if (!parsed.success) return fail(parsed.error.issues[0]!.message)
+  const admin = createAdminClient()
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(parsed.data.email, {
+    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm?next=/home`,
+  })
+  if (error || !data.user) return dbFail(error, error?.message.includes('already') ? 'That email already has an account.' : 'Invitation failed.')
+  const { error: metaError } = await admin.auth.admin.updateUserById(data.user.id, {
+    app_metadata: { kind: 'internal', org_id: me.org_id, internal_role: parsed.data.internal_role, full_name: parsed.data.full_name },
+  })
+  return metaError ? dbFail(metaError) : done(`Invitation sent to ${parsed.data.email}.`)
+}
+
+const ROLES = ['admin', 'ceo', 'pm', 'consultant', 'finance'] as const
+
+/** Changes a team member's role (or removes access). You cannot change your own role, so an org always keeps an admin. */
+export async function setStaffRole(userId: string, role: (typeof ROLES)[number] | 'remove'): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!isAdmin(me.internal_role)) return fail('Only an admin or the CEO can change roles.')
+  if (userId === me.id) return fail('Ask another admin to change your own role.')
+  if (!uuid.safeParse(userId).success || !(role === 'remove' || ROLES.includes(role))) return fail('Unknown person or role.')
+  const supabase = await createClient()
+  const { data: target } = await supabase.from('profiles').select('id, org_id, kind').eq('id', userId).maybeSingle()
+  if (!target || target.kind !== 'internal' || target.org_id !== me.org_id) return fail('Person not found.')
+  const admin = createAdminClient()
+  if (role === 'remove') {
+    // block sign-in; their name stays on history
+    const { error } = await admin.auth.admin.updateUserById(userId, { ban_duration: '876000h' })
+    return error ? dbFail(error) : done('Access removed.')
+  }
+  const { data: u } = await admin.auth.admin.getUserById(userId)
+  const { error } = await admin.auth.admin.updateUserById(userId, { app_metadata: { ...(u.user?.app_metadata ?? {}), internal_role: role }, ban_duration: 'none' })
+  return error ? dbFail(error) : done('Role updated.')
+}
+
+const customerSchema = z.object({
+  name: z.string().trim().min(2, 'Enter the customer name.').max(160),
+  account_owner_id: z.preprocess((v) => (v === '' ? null : v), uuid.nullable()),
+  hubspot_company_id: z.preprocess((v) => (v === '' ? null : v), z.string().trim().max(40).nullable()),
+  zoho_customer_id: z.preprocess((v) => (v === '' ? null : v), z.string().trim().max(40).nullable()),
+})
+
+export async function createCustomer(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!canManage(me)) return fail('Only a PM, the CEO or an admin can add customers.')
+  const parsed = customerSchema.safeParse(formObject(form))
+  if (!parsed.success) return fail(parsed.error.issues[0]!.message)
+  const supabase = await createClient()
+  const { data, error } = await supabase.from('customers').insert({ ...parsed.data, org_id: me.org_id! }).select('id').single()
+  if (error || !data) return dbFail(error, error?.code === '23505' ? 'A customer with that HubSpot or Zoho id already exists.' : undefined)
+  done()
+  redirect(`/customers/${data.id}`)
+}
+
+export async function setAccountOwner(customerId: string, ownerId: string): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!canManage(me)) return fail('Not allowed.')
+  const supabase = await createClient()
+  const { error } = await supabase.from('customers').update({ account_owner_id: ownerId || null }).eq('id', customerId)
+  return error ? dbFail(error) : done()
+}
+
+const RULES = ['kickoff_data_access', 'uat_start_action', 'uat_done_approval', 'at_risk_alert', 'critical_request_alert', 'closure_form'] as const
+
+export async function setAutomation(key: (typeof RULES)[number], enabled: boolean): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!isAdmin(me.internal_role)) return fail('Only an admin or the CEO can change automations.')
+  if (!RULES.includes(key)) return fail('Unknown rule.')
+  const supabase = await createClient()
+  const { error } = await supabase.from('automation_rules').upsert({ org_id: me.org_id!, key, enabled, updated_at: new Date().toISOString() })
+  return error ? dbFail(error) : done(enabled ? 'Rule switched on.' : 'Rule switched off.')
+}
+
+/** Runs the Zoho Books sync now (the daily cron does this on its own). */
+export async function syncZohoNow(): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!['admin', 'ceo', 'finance'].includes(me.internal_role ?? '')) return fail('Only finance, the CEO or an admin can sync.')
+  try {
+    const r = await syncZohoInvoices()
+    if (r.skipped) return fail(`${r.skipped}. Add the ZOHO_* settings first.`)
+    return done(`Synced ${r.upserted} invoices and ${r.payments ?? 0} payments${r.unmatched ? ` (${r.unmatched} for customers not in the app)` : ''}.`)
+  } catch (e) {
+    console.error('[zoho] manual sync failed', e)
+    return fail('Zoho sync failed. Check the Zoho settings and try again.')
+  }
 }

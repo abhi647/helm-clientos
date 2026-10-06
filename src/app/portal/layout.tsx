@@ -18,8 +18,10 @@ export default async function PortalLayout({ children }: { children: React.React
             <span className="text-sm font-semibold">Seven Billion</span><span className="text-muted">×</span><span className="text-sm font-semibold">{customer?.name}</span>
           </Link>
           <div className="flex-1"><Tabs items={[
-            { href: '/portal', label: 'Home', exact: true }, { href: '/portal/requests', label: 'Requests' },
-            { href: '/portal/documents', label: 'Documents' }, ...(me.can_view_invoices ? [{ href: '/portal/invoices', label: 'Invoices' }] : []),
+            { href: '/portal', label: 'Home', exact: true },
+            ...(me.customer_role === 'customer_exec' ? [{ href: '/portal?view=actions', label: 'Team actions' }] : []),
+            { href: '/portal/requests', label: 'Requests' }, { href: '/portal/meetings', label: 'Meetings' },
+            { href: '/portal/decisions', label: 'Decisions' }, { href: '/portal/documents', label: 'Documents' }, ...(me.can_view_invoices ? [{ href: '/portal/invoices', label: 'Invoices' }] : []),
           ]} /></div>
           <Link href="/portal/requests/new" className="btn btn-primary">+ New request</Link>
           <UserMenu profile={me} base="/portal" />

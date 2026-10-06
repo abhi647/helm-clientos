@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import { syncZohoNow } from '@/app/_actions/admin'
+import { ActionButton } from '@/components/forms'
+import { PaymentsCard } from '@/components/payments'
 import { Card, Chip, Empty, PageHeader, cn } from '@/components/ui'
 import { daysFromToday, label, money, relativeTime, shortDate } from '@/lib/format'
 import { canSeeCommercials, canSeeFinance, requireStaff } from '@/lib/session'
@@ -19,18 +22,19 @@ export default async function Finance() {
   const lastSync = invoices?.reduce<string | null>((a, i) => (!a || i.synced_at > a ? i.synced_at : a), null)
   return (
     <>
-      <PageHeader title="Finance" meta={<span className="text-xs text-muted">Synced from Zoho Books{lastSync ? ` · last sync ${relativeTime(lastSync)}` : ''}</span>} />
+      <PageHeader title="Finance" meta={<span className="text-xs text-muted">Synced from Zoho Books{lastSync ? ` · last sync ${relativeTime(lastSync)}` : ''}</span>}
+        actions={<ActionButton run={syncZohoNow}>Sync now</ActionButton>} />
       <div className="flex flex-col gap-3 p-4">
         <Card flush title="Invoices" className="overflow-x-auto">
           {invoices?.length ? (
             <div className="min-w-[760px]">
-              <div className="row row-head grid-cols-[100px_minmax(0,1fr)_120px_120px_24px_90px_90px_110px]"><span>Invoice</span><span>Customer</span><span className="text-right">Total</span><span className="text-right">Balance</span><span /><span>Issued</span><span>Due</span><span>Status</span></div>
+              <div className="row row-head grid-cols-[130px_minmax(0,1fr)_120px_120px_24px_90px_90px_110px]"><span>Invoice</span><span>Customer</span><span className="text-right">Total</span><span className="text-right">Balance</span><span /><span>Issued</span><span>Due</span><span>Status</span></div>
               {invoices.map((i) => {
                 const late = -(daysFromToday(i.due_on) ?? 0)
                 const overdue = i.status !== 'paid' && late > 0
                 return (
-                  <div key={i.id} className="row grid-cols-[100px_minmax(0,1fr)_120px_120px_24px_90px_90px_110px]">
-                    <span className="font-mono text-xs">{i.number}</span>
+                  <div key={i.id} className="row grid-cols-[130px_minmax(0,1fr)_120px_120px_24px_90px_90px_110px]">
+                    <span className="truncate font-mono text-xs" title={i.number}>{i.number}</span>
                     <span className="truncate">{i.customers?.name}</span>
                     <span className="text-right font-mono text-xs">{money(i.total, i.currency)}</span>
                     <span className="text-right font-mono text-xs">{money(i.balance, i.currency)}</span><span />
@@ -43,6 +47,7 @@ export default async function Finance() {
             </div>
           ) : <Empty title="No invoices yet">They appear after the first Zoho Books sync.</Empty>}
         </Card>
+        <PaymentsCard staff />
         {commercials ? (
           <Card flush title="Commercials" extra="Internal · CEO, finance and admin">
             {commercials.length ? commercials.map((c) => (

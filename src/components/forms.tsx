@@ -3,6 +3,7 @@
 import { useActionState, useRef, useState, useTransition } from 'react'
 import { Lock, Users } from 'lucide-react'
 import type { ActionResult } from '@/app/_actions/shared'
+import { MentionTextarea, type Person } from '@/components/mention-textarea'
 import { cn } from '@/components/ui'
 
 type FormAction = (prev: ActionResult | null, form: FormData) => Promise<ActionResult>
@@ -36,16 +37,19 @@ export function ActionForm({ action, children, submit, className, resetOnSuccess
 }
 
 /** Comment box. Staff choose Internal (default) or Shared; customers always post Shared. */
-export function CommentBox({ action, entityType, entityId, customerId, staff, defaultShared = false }: {
-  action: FormAction; entityType: string; entityId: string; customerId: string; staff: boolean; defaultShared?: boolean
+export function CommentBox({ action, entityType, entityId, customerId, staff, defaultShared = false, people = [] }: {
+  action: FormAction; entityType: string; entityId: string; customerId: string; staff: boolean; defaultShared?: boolean; people?: Person[]
 }) {
   const [vis, setVis] = useState<'internal' | 'shared'>(defaultShared ? 'shared' : 'internal')
   const ref = useRef<HTMLFormElement>(null)
+  const box = useRef<{ clear: () => void }>(null)
   const [state, run, pending] = useActionState<ActionResult | null, FormData>(async (prev, form) => {
     const res = await action(prev, form)
-    if (res.ok) ref.current?.reset()
+    if (res.ok) { ref.current?.reset(); box.current?.clear() }
     return res
   }, null)
+  // internal comments can only mention Seven Billion people
+  const mentionable = staff && vis === 'internal' ? people.filter((p) => !p.customer) : people
   const id = `reply-${entityId}`
   return (
     <form ref={ref} action={run} className="flex flex-col gap-2">
@@ -54,8 +58,9 @@ export function CommentBox({ action, entityType, entityId, customerId, staff, de
       <input type="hidden" name="customer_id" value={customerId} />
       <input type="hidden" name="visibility" value={staff ? vis : 'shared'} />
       <label htmlFor={id} className="label">Reply</label>
-      <textarea id={id} name="body" rows={2} required placeholder={staff && vis === 'internal' ? 'Internal note for the Seven Billion team…' : 'Write a reply…'}
-        className={cn('textarea', staff && vis === 'internal' && 'border-dashed border-internal-line bg-[#f7f8f9]')} />
+      <MentionTextarea ref={box} id={id} name="body" required people={mentionable}
+        placeholder={staff && vis === 'internal' ? 'Internal note for the Seven Billion team… (@ to mention)' : 'Write a reply… (@ to mention)'}
+        className={cn(staff && vis === 'internal' && 'border-dashed border-internal-line bg-[#f7f8f9]')} />
       <div className="flex flex-wrap items-center gap-2">
         {staff ? (
           <span role="radiogroup" aria-label="Who can see this comment" className="inline-flex h-7 overflow-hidden rounded-md border border-[#d5dcdf]">

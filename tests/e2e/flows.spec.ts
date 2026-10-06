@@ -47,12 +47,20 @@ test('unknown emails get the same answer and no link', async ({ page }) => {
   await shot(page, '01-login')
 })
 
-test('customer: action centre, request changes, raise a request', async ({ page }) => {
+test('customer team member: action centre', async ({ page }) => {
+  await signIn(page, 'omar@nesma.example.com')
+  await expect(page).toHaveURL(/\/portal$/)
+  await expect(page.getByRole('heading', { name: /, Omar$/ })).toBeVisible()
+  await expect(page.getByText(/items? need your attention|Nothing needs your attention/)).toBeVisible()
+  await shot(page, '02-portal-home')
+})
+
+test('customer executive: status view, request changes, raise a request', async ({ page }) => {
   await signIn(page, 'michel@nesma.example.com')
   await expect(page).toHaveURL(/\/portal$/)
   await expect(page.getByRole('heading', { name: /, Michel$/ })).toBeVisible()
-  await expect(page.getByText(/items? need your attention/)).toBeVisible()
-  await shot(page, '02-portal-home')
+  await expect(page.getByRole('heading', { name: 'Engagement status' })).toBeVisible()
+  await shot(page, '02b-portal-exec')
 
   // the approval opens the request, where only the named approver can decide
   await page.getByRole('link', { name: 'Review & approve' }).click()
@@ -127,6 +135,57 @@ test('customer approves v2 and sees only shared discussion', async ({ page }) =>
   await expect(page.getByText('Internal: keep the OData fallback warm.')).toHaveCount(0)
   await expect(page.getByText('API fallback spike')).toHaveCount(0)
   await shot(page, '10-portal-project')
+})
+
+test('PM: meeting action becomes a task, @mention, send a form', async ({ page }) => {
+  await signIn(page, 'rahul@example.com')
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Power BI Implementation' }).click()
+  await page.getByRole('link', { name: 'Meetings' }).click()
+  await page.getByRole('link', { name: /Weekly project review/ }).click()
+  await page.locator('.row', { hasText: 'Draft the UAT test scenarios' }).getByRole('button', { name: 'Create task' }).click()
+  await expect(page.locator('.row', { hasText: 'Draft the UAT test scenarios' }).getByText('In the plan →')).toBeVisible()
+
+  const reply = page.getByLabel('Reply')
+  await reply.fill('@Mi')
+  await page.getByRole('listbox').getByRole('option', { name: /Michel/ }).click()
+  await reply.pressSequentially('please confirm the hierarchy by Friday')
+  await page.getByRole('button', { name: 'Post' }).click()
+  await expect(page.locator('p', { hasText: 'please confirm the hierarchy by Friday' }).locator('b', { hasText: '@Michel' })).toBeVisible()
+  await shot(page, '13-meeting')
+
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Power BI Implementation' }).click()
+  await page.getByRole('link', { name: 'Forms' }).click()
+  await page.locator('.row', { hasText: 'UAT feedback' }).getByRole('button', { name: 'Send' }).click()
+  await expect(page.getByText('UAT feedback form sent.')).toBeVisible()
+  await shot(page, '14-forms')
+})
+
+test('customer executive fills in the UAT form and sees the mention', async ({ page }) => {
+  await signIn(page, 'michel@nesma.example.com')
+  await page.goto('/portal?view=actions')
+  await page.getByRole('link', { name: 'Give feedback' }).first().click()
+  await page.getByLabel('Accepted: ready to sign off').check()
+  await page.getByLabel('Tested by *').fill('Michel and Omar')
+  await shot(page, '15-portal-form')
+  await page.getByRole('button', { name: 'Submit' }).click()
+  await expect(page.getByText('Thank you. Your UAT feedback form was sent to Seven Billion.')).toBeVisible()
+  // accepting UAT asks for sign-off automatically
+  await expect(page.getByText('UAT sign-off: Power BI Implementation')).toBeVisible()
+  await page.goto('/portal/inbox')
+  await expect(page.getByText('Rahul mentioned you')).toBeVisible()
+})
+
+test('admin switches a playbook rule', async ({ page }) => {
+  await signIn(page, 'admin@example.com')
+  await page.goto('/admin')
+  const rule = page.locator('.row', { hasText: 'Project is marked Completed' })
+  await rule.getByRole('switch').click()
+  await expect(rule.getByRole('switch')).toHaveAttribute('aria-checked', 'false')
+  await shot(page, '16-admin')
+  await rule.getByRole('switch').click()
+  await expect(rule.getByRole('switch')).toHaveAttribute('aria-checked', 'true')
 })
 
 test('CEO sees the portfolio and finance', async ({ page }) => {

@@ -7,8 +7,10 @@ import { Greeting, GreetingChip } from '@/components/shell/greeting'
 import { Card, Chip, Empty, Health, Progress, cn } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
 import { daysFromToday, isoDaysAgo, money, shortDate } from '@/lib/format'
+import { formByKey } from '@/lib/forms'
 import { requireCustomer } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { ExecHome } from './exec-home'
 
 export const metadata: Metadata = { title: 'Home' }
 
@@ -21,8 +23,12 @@ const TYPE: Record<Enums<'action_type'>, { label: string; tone: 'review' | 'warn
 }
 
 /** The customer's action centre: what needs me, where are we, what happened, what's next. */
-export default async function PortalHome() {
+export default async function PortalHome({ searchParams }: { searchParams: Promise<{ submitted?: string; view?: string }> }) {
   const me = await requireCustomer()
+  const sp = await searchParams
+  const thanks = sp.submitted ? formByKey(sp.submitted) : undefined
+  // executives get the status view; they can still open the team's action centre
+  if (me.customer_role === 'customer_exec' && sp.view !== 'actions') return <>{thanks ? <Thanks title={thanks.title} /> : null}<ExecHome me={me} /></>
   const supabase = await createClient()
   const [{ data: actions }, { data: projects }, { data: progress }, { data: phases }, { data: tasks }, { data: updates }, { data: invoices }, { count: doneThisWeek }] = await Promise.all([
     supabase.from('action_items').select('*, projects(name)').eq('status', 'open').order('due_date', { ascending: true, nullsFirst: false }),
@@ -46,6 +52,7 @@ export default async function PortalHome() {
 
   return (
     <div className="flex flex-col gap-3.5">
+      {thanks ? <Thanks title={thanks.title} /> : null}
       <Greeting name={first}
         lines={{
           morning: n ? `A calm start. ${n} small ${n === 1 ? 'thing needs' : 'things need'} you today.` : 'You are all caught up. Nothing needs you right now, enjoy the day.',
@@ -77,6 +84,7 @@ export default async function PortalHome() {
                       <span className={cn('font-mono text-xs', late && 'font-semibold text-crit-ink')}>{late ? `${-(daysFromToday(a.due_date) ?? 0)}d late` : shortDate(a.due_date)}</span>
                       <span className="text-right">
                         {a.type === 'approval' ? <Link href={a.request_id ? `/portal/requests/${a.request_id}` : `/portal/approvals/${a.approval_id}`} className="btn btn-primary">{ty.cta}</Link>
+                          : a.form_key ? <Link href={`/portal/forms/${a.form_key}?project=${a.project_id ?? ''}&action=${a.id}`} className="btn btn-primary">{a.form_key === 'uat_feedback' ? 'Give feedback' : 'Fill in form'}</Link>
                           : <ActionButton run={completeAction.bind(null, a.id)}>{ty.cta}</ActionButton>}
                       </span>
                     </div>
@@ -123,8 +131,8 @@ export default async function PortalHome() {
           {invoices ? (
             <Card flush title="Invoices" extra={<Link href="/portal/invoices">All invoices</Link>}>
               {invoices.length ? invoices.map((i) => (
-                <div key={i.id} className="row grid-cols-[80px_minmax(0,1fr)_70px_70px] text-[13px]">
-                  <span className="font-mono text-xs">{i.number}</span><span className="text-right font-mono text-xs">{money(i.balance, i.currency)}</span>
+                <div key={i.id} className="row grid-cols-[110px_minmax(0,1fr)_70px_70px] text-[13px]">
+                  <span className="truncate font-mono text-xs" title={i.number}>{i.number}</span><span className="text-right font-mono text-xs">{money(i.balance, i.currency)}</span>
                   <span className="font-mono text-xs">{shortDate(i.due_on)}</span><span><Chip tone={(daysFromToday(i.due_on) ?? 0) < 0 ? 'crit' : 'info'}>{(daysFromToday(i.due_on) ?? 0) < 0 ? 'Overdue' : 'Due'}</Chip></span>
                 </div>
               )) : <Empty title="Nothing due" />}
@@ -134,4 +142,8 @@ export default async function PortalHome() {
       </div>
     </div>
   )
+}
+
+function Thanks({ title }: { title: string }) {
+  return <p role="status" className="m-0 rounded-md border border-good-bg bg-good-bg px-3 py-2 text-[13px] font-medium text-good-ink">Thank you. Your {title} form was sent to Seven Billion.</p>
 }

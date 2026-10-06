@@ -1,5 +1,5 @@
 import { Download } from 'lucide-react'
-import { UploadForm } from '@/components/upload'
+import { NewVersionButton, UploadForm } from '@/components/upload'
 import { Card, Empty, Health, Visibility } from '@/components/ui'
 import { relativeTime, shortDate } from '@/lib/format'
 import type { Profile } from '@/lib/session'
@@ -37,6 +37,9 @@ export async function DocumentsPanel({ me, customerId, projectId, projects }: { 
   let q = supabase.from('documents').select('id, name, folder, visibility, version, created_at, storage_path, project_id, uploader:profiles!documents_uploaded_by_fkey(full_name)').eq('customer_id', customerId).order('folder').order('created_at', { ascending: false })
   if (projectId) q = q.eq('project_id', projectId)
   const { data: docs } = await q
+  const { data: versions } = docs?.length
+    ? await supabase.from('document_versions').select('document_id, version, name, created_at').in('document_id', docs.map((d) => d.id)).order('version', { ascending: false })
+    : { data: [] }
   const staff = me.kind === 'internal'
   const grouped = Object.keys(FOLDERS).map((f) => ({ f, docs: (docs ?? []).filter((d) => d.folder === f) })).filter((g) => g.docs.length)
   return (
@@ -46,8 +49,19 @@ export async function DocumentsPanel({ me, customerId, projectId, projects }: { 
           <div key={g.f}>
             <div className="row row-head grid-cols-1"><span>{FOLDERS[g.f]}</span></div>
             {g.docs.map((d) => (
-              <div key={d.id} className="row grid-cols-[minmax(0,1fr)_110px_90px_84px_36px] hover:bg-head">
-                <span className="truncate font-medium">{d.name} <span className="font-mono text-xs font-normal text-muted">v{d.version}</span></span>
+              <div key={d.id} className="row grid-cols-[minmax(0,1fr)_96px_110px_90px_84px_36px] hover:bg-head">
+                <span className="flex min-w-0 flex-col py-1">
+                  <span className="truncate font-medium">{d.name} <span className="font-mono text-xs font-normal text-muted">v{d.version}</span></span>
+                  {(versions ?? []).some((v) => v.document_id === d.id) ? (
+                    <details className="text-xs text-muted">
+                      <summary className="cursor-pointer">Earlier versions</summary>
+                      {(versions ?? []).filter((v) => v.document_id === d.id).map((v) => (
+                        <a key={v.version} href={`/api/documents/${d.id}?v=${v.version}`} className="block py-0.5">v{v.version} · {v.name} · {relativeTime(v.created_at)}</a>
+                      ))}
+                    </details>
+                  ) : null}
+                </span>
+                <span>{d.storage_path && (staff || d.visibility === 'shared') ? <NewVersionButton documentId={d.id} customerId={customerId} /> : null}</span>
                 <span className="truncate text-xs text-muted">{d.uploader?.full_name}</span>
                 <span className="text-xs text-muted">{relativeTime(d.created_at)}</span>
                 <span>{staff ? <Visibility value={d.visibility} /> : null}</span>

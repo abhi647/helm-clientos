@@ -11,6 +11,7 @@ const commentSchema = z.object({
   customer_id: uuid,
   body: z.string().trim().min(1, 'Write a comment first.').max(10_000),
   visibility: visibility.default('internal'),
+  mentions: z.preprocess((v) => (typeof v === 'string' && v ? v.split(',') : []), z.array(uuid).max(20)),
 })
 
 /** Posts a comment. Customers can only post shared comments; the database also forces internal on internal items. */
@@ -63,4 +64,17 @@ export async function markAllRead(): Promise<void> {
   const supabase = await createClient()
   await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('user_id', me.id).is('read_at', null)
   done()
+}
+
+/** Records a new version of a document whose file the browser already uploaded. The old file stays in the history. */
+export async function addDocumentVersion(documentId: string, path: string, name: string): Promise<ActionResult> {
+  await requireProfile()
+  if (!uuid.safeParse(documentId).success || !path.includes(`/${documentId}/`) || !name) return fail('That upload could not be recorded.')
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc('add_document_version', { p_document: documentId, p_path: path, p_name: name.slice(0, 160) })
+  if (error) {
+    await supabase.storage.from('documents').remove([path])
+    return dbFail(error)
+  }
+  return done(`Version ${data} uploaded.`)
 }
