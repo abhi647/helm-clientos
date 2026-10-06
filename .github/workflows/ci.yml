@@ -1,0 +1,63 @@
+name: ci
+
+# Lint, types, the database security tests and the end-to-end flows, against a throwaway local Supabase.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      # virus scanner used by the upload flow (downloads current signatures on start)
+      clamav:
+        image: clamav/clamav:stable
+        ports: ["3310:3310"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start Supabase
+        run: supabase start -x vector,logflare,supavisor,imgproxy,postgres-meta,studio,realtime,edge-runtime
+      - name: Write .env.local from the local stack (throwaway keys)
+        run: |
+          eval "$(supabase status -o env)"
+          {
+            echo "NEXT_PUBLIC_SITE_URL=http://localhost:3000"
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY"
+            echo "SUPABASE_SECRET_KEY=$SECRET_KEY"
+            echo "CRON_SECRET=$(openssl rand -hex 24)"
+            echo "EMAIL_FROM=Seven Billion <ci@example.com>"
+            echo "CLAMAV_HOST=127.0.0.1"
+          } > .env.local
+      - name: Database security and playbook tests
+        run: npm run test:db
+
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: End-to-end flows
+        run: |
+          npx wait-on -t 300000 tcp:127.0.0.1:3310
+          (set -a; . ./.env.local; set +a; npm start > next.log 2>&1 &)
+          npx wait-on -t 60000 http://localhost:3000/login
+          npm run test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: |
+            test-results
+            next.log

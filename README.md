@@ -72,7 +72,7 @@ npm run dev
 | `npm run test:db` | 79 row, field, two-step, lock-out, file, playbook and CSAT tests against the local database |
 | `npm run test:e2e` | 11 Playwright flows (staff complete two-step sign-in; set `CLAMAV_HOST` to run the virus-scan flow) (needs `npm run build && npm start` first). Set `PW_CHROMIUM_PATH` to use a pre-installed Chromium. |
 
-CI (`.github/workflows/client-os.yml`) runs lint, types, the database tests and the flows on every push that touches `client-os/`. It uses a throwaway local Supabase.
+CI (`.github/workflows/ci.yml`) runs lint, types, the database tests and the flows on every push to `main` and on every pull request. It uses a throwaway local Supabase and a ClamAV service.
 | `npm run db:types` | Regenerate `src/lib/database.types.ts` after a migration |
 
 ## Going live
@@ -114,7 +114,7 @@ CI (`.github/workflows/client-os.yml`) runs lint, types, the database tests and 
 
 ### 3. Vercel
 
-1. Import the repository and set the root directory to `client-os/`.
+1. Import the repository. The app is at the repository root, so leave the root directory as is.
 2. Add every variable from `.env.example` under **Settings → Environment Variables**:
    - `NEXT_PUBLIC_SITE_URL` is your production URL.
    - `SUPABASE_SECRET_KEY` is the secret key from **Supabase → Project Settings → API Keys**.
@@ -126,7 +126,7 @@ CI (`.github/workflows/client-os.yml`) runs lint, types, the database tests and 
 Run this once from your computer. It creates the organisation and emails you an invitation:
 
 ```bash
-# client-os/.env.production.local holds NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY and NEXT_PUBLIC_SITE_URL
+# .env.production.local holds NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY and NEXT_PUBLIC_SITE_URL
 # for production. The file is ignored by git; never commit it.
 npm run bootstrap -- --email you@sevenbillion.co --name "Your Name"
 ```
