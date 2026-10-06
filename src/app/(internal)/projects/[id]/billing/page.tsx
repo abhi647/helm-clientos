@@ -41,12 +41,16 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
   const me = await requireStaff()
   if (!canSeeFinance(me)) notFound()   // admin, CEO and finance only
   const supabase = await createClient()
-  const [{ data: project }, { data: cards }, { data: statements }] = await Promise.all([
+  const [{ data: project }, { data: cards }, { data: statements }, { data: deals }, { data: invoices }] = await Promise.all([
     supabase.from('projects').select('id, name').eq('id', id).maybeSingle(),
     supabase.from('rate_cards').select('*, rate_card_lines(*)').eq('project_id', id).order('version', { ascending: false }),
     supabase.from('billing_statements').select('id, period_start, period_end, status, zoho_invoice_number, invoice_error, created_at, rate_cards(currency), statement_lines(amount, quantity)')
       .eq('project_id', id).order('period_start', { ascending: false }),
+    // history imported from HubSpot (one deal per billing period) and Zoho (the invoices)
+    supabase.from('project_deals').select('id, deal_name, stage_label, closed_on, invoice_number').eq('project_id', id).order('closed_on', { ascending: false }),
+    supabase.from('invoices').select('number, total, balance, currency, status, issued_on').eq('project_id', id),
   ])
+  const invoiceByNumber = new Map((invoices ?? []).map((i) => [i.number, i]))
   if (!project) notFound()
   const live = cards?.find((c) => c.status === 'approved')
   const open = cards?.find((c) => ['draft', 'pending', 'changes_requested'].includes(c.status))
@@ -126,6 +130,28 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
           </Empty>
         ) : <Empty title="Not approved yet">Statements can be prepared once the customer approves the rate card.</Empty>}
       </Card>
+
+      {deals?.length ? (
+        <Card flush title="History from HubSpot & Zoho" extra={`${deals.length} billing period${deals.length === 1 ? '' : 's'}`}>
+          <div className="overflow-x-auto">
+            <div className="min-w-[680px]">
+              <div className="row row-head grid-cols-[minmax(0,1fr)_140px_130px_120px_110px]"><span>Deal</span><span>Stage</span><span>Invoice</span><span className="text-right">Total</span><span>Zoho status</span></div>
+              {deals.map((d) => {
+                const inv = d.invoice_number ? invoiceByNumber.get(d.invoice_number) : undefined
+                return (
+                  <div key={d.id} className="row grid-cols-[minmax(0,1fr)_140px_130px_120px_110px]">
+                    <span className="truncate" title={d.deal_name}>{d.deal_name}</span>
+                    <span className="truncate text-xs text-muted">{d.stage_label}</span>
+                    <span className="font-mono text-xs">{d.invoice_number ?? '–'}</span>
+                    <span className="text-right font-mono text-xs">{inv ? money(inv.total, inv.currency, { exact: true }) : '–'}</span>
+                    <span className="text-xs">{inv ? inv.status : d.invoice_number ? <span className="text-muted">Not synced</span> : '–'}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </Card>
+      ) : null}
 
       {/* ------------------------------------------------ statements */}
       <Card flush title="Statements" extra="Approved by the customer, then a draft invoice in Zoho">

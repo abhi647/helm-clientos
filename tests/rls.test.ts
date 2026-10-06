@@ -4,6 +4,9 @@ import { execSync } from 'node:child_process'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import * as OTPAuth from 'otpauth'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { applyPlan } from '@/lib/backfill-apply'
+import { planImport } from '@/lib/backfill-plan'
+import type { Database } from '@/lib/database.types'
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
@@ -32,7 +35,7 @@ const VISIBILITY_TABLES = ['phases', 'tasks', 'comments', 'documents', 'meetings
 const CUSTOMER_TABLES = ['customers', 'projects', 'phases', 'tasks', 'requests', 'request_events', 'approvals', 'approval_events',
   'action_items', 'comments', 'documents', 'meetings', 'decisions', 'updates', 'invoices', 'activity',
   'meeting_actions', 'form_submissions', 'document_versions', 'payments', 'csat_surveys', 'feedback']
-const STAFF_ONLY = ['project_commercials', 'task_estimates', 'time_entries', 'automation_rules']
+const STAFF_ONLY = ['project_commercials', 'task_estimates', 'time_entries', 'automation_rules', 'customer_contacts', 'project_deals']
 const SERVICE_ONLY = ['email_outbox', 'integration_events']
 
 let nesma: string, cbd: string
@@ -571,5 +574,66 @@ describe('billing: rate cards and statements', () => {
     await michel.rpc('decide_rate_card', { p_card: v2 as string, p_approve: true })
     expect((await service.from('rate_cards').select('status').eq('id', card).single()).data!.status).toBe('superseded')
     expect((await service.from('rate_cards').select('status, version').eq('id', v2 as string).single()).data).toMatchObject({ status: 'approved', version: 2 })
+  })
+})
+
+describe('import from HubSpot and Zoho', () => {
+  const deals = [
+    { id: 'hs-1', name: 'Acme Foods BI Data Eng October (TEST/25-26/10)', stageId: 'won', stageLabel: 'Closed Won', closeDate: '2025-11-01T00:00:00Z', createDate: '2025-10-01T00:00:00Z', companyId: 'co-acme', companyName: 'Acme Foods' },
+    { id: 'hs-2', name: 'Acme Foods BI Data Eng November (TEST/25-26/12)', stageId: 'won', stageLabel: 'Closed Won', closeDate: '2025-12-05T00:00:00Z', createDate: '2025-11-01T00:00:00Z', companyId: 'co-acme', companyName: 'Acme Foods' },
+    { id: 'hs-3', name: 'CEO Dashboard', stageId: 'won', stageLabel: 'Closed Won', closeDate: '2026-09-01T00:00:00Z', createDate: '2026-08-01T00:00:00Z', companyId: 'co-acme', companyName: 'Acme Foods' },
+  ]
+  const invoices = [
+    { number: 'TEST/25-26/10', customerId: 'z-acme', customerName: 'ACME FOODS PVT LTD' },
+    { number: 'TEST/25-26/12', customerId: 'z-acme', customerName: 'ACME FOODS PVT LTD' },
+  ]
+  const contacts = [{ companyId: 'co-acme', hubspotId: 'ct-1', fullName: 'Asha Rao', email: 'asha@acme.example.com', phone: null, title: 'CFO' }]
+  let orgId: string
+  // what the Zoho sync does: invoices arrive for customers that carry their Zoho id
+  const fakeSync = async () => {
+    const { data: c } = await service.from('customers').select('id').eq('zoho_customer_id', 'z-acme').single()
+    await service.from('invoices').upsert(invoices.map((i, n) => ({ customer_id: c!.id, zoho_invoice_id: `zi-${n}`, number: i.number, currency: 'INR', total: 1000, balance: 0, status: 'paid', issued_on: '2025-11-01' })), { onConflict: 'zoho_invoice_id' })
+  }
+  const plan = async (overrides?: Record<string, string>) => {
+    const { data: existing } = await service.from('customers').select('id, name, zoho_customer_id, hubspot_company_id')
+    return planImport({ deals, invoices, existing: existing!, activeStageIds: [], today: '2026-10-06', overrides })
+  }
+
+  beforeAll(async () => {
+    orgId = (await service.from('orgs').select('id').limit(1).single()).data!.id
+  })
+
+  it('creates the customer, groups the deals into projects, links invoices and lists contacts to invite', async () => {
+    const s = await applyPlan(service as unknown as SupabaseClient<Database>, await plan(), { orgId, contacts, syncInvoices: fakeSync })
+    expect(s).toMatchObject({ customersCreated: 1, projectsCreated: 2, dealsLinked: 3, invoicesLinked: 2, contactsAdded: 1 })
+    const { data: c } = await service.from('customers').select('id, name, zoho_customer_id, hubspot_company_id').eq('zoho_customer_id', 'z-acme').single()
+    expect(c).toMatchObject({ name: 'ACME FOODS PVT LTD', hubspot_company_id: 'co-acme' })
+    const { data: projects } = await service.from('projects').select('name, status, start_date, end_date').eq('customer_id', c!.id).order('name')
+    expect(projects).toEqual([
+      { name: 'BI Data Eng', status: 'completed', start_date: '2025-10-01', end_date: '2025-12-05' },
+      { name: 'CEO Dashboard', status: 'active', start_date: '2026-08-01', end_date: '2026-09-01' },
+    ])
+    const { data: inv } = await service.from('invoices').select('project_id').eq('customer_id', c!.id)
+    expect(inv!.every((i) => i.project_id)).toBe(true)
+    // nobody was invited
+    const { data: users } = await service.from('profiles').select('id').eq('customer_id', c!.id)
+    expect(users).toHaveLength(0)
+  })
+
+  it('running it again adds nothing; renaming a deal in the preview moves it', async () => {
+    const again = await applyPlan(service as unknown as SupabaseClient<Database>, await plan(), { orgId, contacts, syncInvoices: fakeSync })
+    expect(again).toMatchObject({ customersCreated: 0, projectsCreated: 0, contactsAdded: 0 })
+    const moved = await applyPlan(service as unknown as SupabaseClient<Database>, await plan({ 'hs-3': 'BI Data Eng' }), { orgId, contacts: null, syncInvoices: fakeSync })
+    expect(moved.projectsCreated).toBe(0)
+    expect(moved.notes.join(' ')).toMatch(/contacts\.read/)
+    const { data: d } = await service.from('project_deals').select('project_id, projects(name)').eq('hubspot_deal_id', 'hs-3').single()
+    expect((d!.projects as unknown as { name: string }).name).toBe('BI Data Eng')
+  })
+
+  it('deal history is for admin, CEO and finance; contacts are for staff, never customers', async () => {
+    expect((await finance.from('project_deals').select('id')).data!.length).toBeGreaterThan(0)
+    expect((await rahul.from('project_deals').select('id')).data).toHaveLength(0)
+    expect((await rahul.from('customer_contacts').select('id')).data!.length).toBeGreaterThan(0)
+    expect((await michel.from('customer_contacts').select('id')).data).toHaveLength(0)
   })
 })

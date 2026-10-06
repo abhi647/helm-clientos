@@ -150,7 +150,10 @@ export default async function Admin() {
                 <span className="text-right">{i.ok ? <Chip tone="good">Connected</Chip> : <Chip tone="warn">Not set up</Chip>}</span>
               </div>
             ))}
-            {zoho ? <div className="border-t border-line-soft p-3"><ActionButton run={syncZohoNow}>Sync Zoho now</ActionButton></div> : null}
+            <div className="flex flex-wrap gap-2 border-t border-line-soft p-3">
+              {zoho ? <ActionButton run={syncZohoNow}>Sync Zoho now</ActionButton> : null}
+              <Link href="/admin/import" className="btn">Import from HubSpot &amp; Zoho</Link>
+            </div>
           </Card>
         </div>
       </div>

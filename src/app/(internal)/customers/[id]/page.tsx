@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { inviteCustomerUser, setCustomerAccess } from '@/app/_actions/admin'
+import { dismissContact, inviteCustomerUser, setCustomerAccess } from '@/app/_actions/admin'
 import { ActionButton, ActionForm } from '@/components/forms'
 import { ActivityList, DocumentsPanel } from '@/components/project-parts'
 import { Avatar, Card, Chip, Empty, Health, PageHeader, Progress } from '@/components/ui'
@@ -19,12 +19,16 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
   const supabase = await createClient()
   const { data: c } = await supabase.from('customers_internal').select('*').eq('id', id).maybeSingle().overrideTypes<CustomerInternalRow, { merge: false }>()
   if (!c) notFound()
-  const [{ data: projects }, { data: progress }, { data: people }] = await Promise.all([
+  const [{ data: projects }, { data: progress }, { data: people }, { data: contacts }] = await Promise.all([
     supabase.from('projects').select('id, name, health, status, end_date, pm:profiles!projects_pm_id_fkey(full_name)').eq('customer_id', id).order('status').order('name'),
     supabase.from('project_progress').select('*'),
     supabase.from('directory').select('id, full_name, email, customer_role, can_view_invoices, access_revoked_at').eq('customer_id', id).order('full_name')
       .overrideTypes<Pick<DirectoryRow, 'id' | 'full_name' | 'email' | 'customer_role' | 'can_view_invoices' | 'access_revoked_at'>[], { merge: false }>(),
+    // imported from HubSpot, not yet invited
+    supabase.from('customer_contacts').select('id, full_name, email, job_title').eq('customer_id', id).is('invited_at', null).order('full_name'),
   ])
+  const hasAccess = new Set((people ?? []).map((u) => u.email?.toLowerCase()))
+  const toInvite = (contacts ?? []).filter((x) => !hasAccess.has(x.email))
   const prog = new Map((progress ?? []).map((p) => [p.project_id, p.total ? (100 * (p.done ?? 0)) / p.total : 0]))
   return (
     <>
@@ -55,6 +59,24 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
               ))}
               {!people?.length ? <p className="m-0 text-xs text-muted">No one from {c.name} has access yet.</p> : null}
             </div>
+            {canManage(me) && toInvite.length ? (
+              <div className="mt-3 border-t border-line-soft pt-2.5">
+                <p className="label mt-0 mb-1.5">People to invite ({toInvite.length}, from HubSpot)</p>
+                {toInvite.map((x) => (
+                  <details key={x.id} className="border-b border-line-soft py-1.5 last:border-b-0">
+                    <summary className="cursor-pointer text-[13px]">{x.full_name} <span className="text-xs text-muted">{x.email}{x.job_title ? ` · ${x.job_title}` : ''}</span></summary>
+                    <ActionForm action={inviteCustomerUser} submit="Send invitation" className="mt-2">
+                      <input type="hidden" name="customer_id" value={c.id} />
+                      <input type="hidden" name="full_name" value={x.full_name} />
+                      <input type="hidden" name="email" value={x.email} />
+                      <select name="customer_role" defaultValue="customer_member" aria-label={`Role for ${x.full_name}`} className="input"><option value="customer_member">Member (working team)</option><option value="customer_exec">Executive</option></select>
+                      <label className="flex items-center gap-1.5 text-xs"><input type="checkbox" name="can_view_invoices" /> Can see invoices</label>
+                    </ActionForm>
+                    <ActionButton run={dismissContact.bind(null, x.id)} className="btn-ghost mt-1 h-6 px-2 text-xs">Not inviting</ActionButton>
+                  </details>
+                ))}
+              </div>
+            ) : null}
             {canManage(me) ? (
               <details className="mt-3 border-t border-line-soft pt-2.5">
                 <summary className="cursor-pointer text-xs font-medium text-link">Invite someone from {c.name}</summary>

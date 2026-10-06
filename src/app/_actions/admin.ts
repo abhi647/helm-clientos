@@ -38,7 +38,10 @@ export async function inviteCustomerUser(_prev: ActionResult | null, form: FormD
   const { error: metaError } = await admin.auth.admin.updateUserById(data.user.id, {
     app_metadata: { kind: 'customer', customer_id: customer.id, customer_role: parsed.data.customer_role, can_view_invoices: parsed.data.can_view_invoices, full_name: parsed.data.full_name },
   })
-  return metaError ? dbFail(metaError) : done(`Invitation sent to ${parsed.data.email}.`)
+  if (metaError) return dbFail(metaError)
+  // an imported contact is no longer waiting to be invited
+  await supabase.from('customer_contacts').update({ invited_at: new Date().toISOString() }).eq('customer_id', customer.id).eq('email', parsed.data.email)
+  return done(`Invitation sent to ${parsed.data.email}.`)
 }
 
 const addDays = (start: Date, d: number) => new Date(start.getTime() + d * 86_400_000).toISOString().slice(0, 10)
@@ -229,4 +232,36 @@ export async function setCustomerAccess(userId: string, revoked: boolean): Promi
   if (error) return dbFail(error)
   await admin.auth.admin.updateUserById(userId, { ban_duration: 'none' })
   return done('Access restored.')
+}
+
+/** Admin import: HubSpot deals → customers and projects, Zoho invoices → linked to them, contacts → people to invite. */
+export async function runBackfill(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!['admin', 'ceo'].includes(me.internal_role ?? '')) return fail('Only an admin or the CEO can run the import.')
+  const overrides: Record<string, string> = {}
+  for (const [k, v] of form.entries()) {
+    if (k.startsWith('p_') && typeof v === 'string' && v.trim()) overrides[k.slice(2)] = v.trim().slice(0, 120)
+  }
+  try {
+    const { runImport } = await import('@/lib/integrations/backfill')
+    const s = await runImport(overrides)
+    const parts = [
+      `${s.customersCreated} customers created, ${s.customersLinked} linked`,
+      `${s.projectsCreated} projects created`,
+      `${s.dealsLinked} deals and ${s.invoicesLinked} invoices linked`,
+      `${s.contactsAdded} people to invite`,
+    ]
+    return done(`Import finished: ${parts.join('; ')}.${s.notes.length ? ` ${s.notes.join(' ')}` : ''}`)
+  } catch (e) {
+    console.error('[import]', e)
+    return fail(e instanceof Error ? e.message : 'The import failed.')
+  }
+}
+
+/** Marks an imported contact as handled once they have been invited (or removes them from the list). */
+export async function dismissContact(contactId: string): Promise<ActionResult> {
+  await requireStaff()
+  const supabase = await createClient()
+  const { error } = await supabase.from('customer_contacts').update({ invited_at: new Date().toISOString() }).eq('id', contactId)
+  return error ? dbFail(error) : done()
 }

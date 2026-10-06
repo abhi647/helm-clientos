@@ -345,7 +345,24 @@ test('billing (finance only): rate card approved by the customer, a statement ap
   await signIn(page, 'finance@example.com')
   await expect(async () => {
     await page.goto(statementUrl)
-    await expect(page.getByText(/Zoho is not connected/)).toBeVisible({ timeout: 1000 })
+    await expect(page.getByText(/Zoho is not connected|has no Zoho customer id/)).toBeVisible({ timeout: 1000 })   // never reaches the real Zoho
   }).toPass({ timeout: 15_000 })
   await expect(page.getByRole('button', { name: 'Retry Zoho' })).toBeVisible()
+})
+
+test('admin previews and runs the HubSpot + Zoho import', async ({ page }) => {
+  test.setTimeout(180_000)
+  await signIn(page, 'admin@example.com')
+  await page.goto('/admin')
+  await page.getByRole('link', { name: 'Import from HubSpot & Zoho' }).click()
+  await expect(page.getByRole('heading', { name: 'Import from HubSpot & Zoho' })).toBeVisible()
+  // without live credentials (CI) the page explains what is missing and does nothing else
+  if (await page.getByText('HubSpot is not connected').isVisible()) return
+  await expect(page.getByText(/won HubSpot deals/)).toBeVisible()
+  await shot(page, '24-import-preview')
+  await page.getByRole('button', { name: 'Import', exact: true }).click()
+  await expect(page.getByText(/Import finished/)).toBeVisible({ timeout: 120_000 })
+  await shot(page, '25-import-done')
+  await page.goto('/customers')
+  await shot(page, '26-customers-after-import')
 })

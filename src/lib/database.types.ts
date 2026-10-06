@@ -427,6 +427,31 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"customer_contacts": {
+                  Row: {
+                    "created_at": string,"customer_id": string,"email": string,"external_id": string | null,"full_name": string,"id": string,"invited_at": string | null,"job_title": string | null,"phone": string | null,"source": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"customer_id": string,"email": string,"external_id"?: string | null,"full_name": string,"id"?: string,"invited_at"?: string | null,"job_title"?: string | null,"phone"?: string | null,"source"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"customer_id"?: string,"email"?: string,"external_id"?: string | null,"full_name"?: string,"id"?: string,"invited_at"?: string | null,"job_title"?: string | null,"phone"?: string | null,"source"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "customer_contacts_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "customer_contacts_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"customers": {
                   Row: {
                     "account_owner_id": string | null,"created_at": string,"hubspot_company_id": string | null,"id": string,"name": string,"org_id": string,"zoho_customer_id": string | null
@@ -786,13 +811,13 @@ isOneToOne: false
                   ]
                 },"invoices": {
                   Row: {
-                    "balance": number | null,"currency": string,"customer_id": string,"due_on": string | null,"id": string,"issued_on": string,"number": string,"status": string,"synced_at": string,"total": number | null,"zoho_invoice_id": string | null
+                    "balance": number | null,"currency": string,"customer_id": string,"due_on": string | null,"id": string,"issued_on": string,"number": string,"project_id": string | null,"status": string,"synced_at": string,"total": number | null,"zoho_invoice_id": string | null
                   }
                   Insert: {
-                    "balance"?: number | null,"currency"?: string,"customer_id": string,"due_on"?: string | null,"id"?: string,"issued_on": string,"number": string,"status": string,"synced_at"?: string,"total"?: number | null,"zoho_invoice_id"?: string | null
+                    "balance"?: number | null,"currency"?: string,"customer_id": string,"due_on"?: string | null,"id"?: string,"issued_on": string,"number": string,"project_id"?: string | null,"status": string,"synced_at"?: string,"total"?: number | null,"zoho_invoice_id"?: string | null
                   }
                   Update: {
-                    "balance"?: number | null,"currency"?: string,"customer_id"?: string,"due_on"?: string | null,"id"?: string,"issued_on"?: string,"number"?: string,"status"?: string,"synced_at"?: string,"total"?: number | null,"zoho_invoice_id"?: string | null
+                    "balance"?: number | null,"currency"?: string,"customer_id"?: string,"due_on"?: string | null,"id"?: string,"issued_on"?: string,"number"?: string,"project_id"?: string | null,"status"?: string,"synced_at"?: string,"total"?: number | null,"zoho_invoice_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -806,6 +831,18 @@ isOneToOne: false
       columns: ["customer_id"]
 isOneToOne: false
       referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invoices_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invoices_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
       referencedColumns: ["id"]
     }
                   ]
@@ -1065,6 +1102,43 @@ isOneToOne: true
       foreignKeyName: "project_commercials_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: true
+      referencedRelation: "projects_internal"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"project_deals": {
+                  Row: {
+                    "closed_on": string | null,"customer_id": string,"deal_name": string,"hubspot_deal_id": string,"id": string,"imported_at": string,"invoice_number": string | null,"project_id": string,"stage_label": string
+                  }
+                  Insert: {
+                    "closed_on"?: string | null,"customer_id": string,"deal_name": string,"hubspot_deal_id": string,"id"?: string,"imported_at"?: string,"invoice_number"?: string | null,"project_id": string,"stage_label"?: string
+                  }
+                  Update: {
+                    "closed_on"?: string | null,"customer_id"?: string,"deal_name"?: string,"hubspot_deal_id"?: string,"id"?: string,"imported_at"?: string,"invoice_number"?: string | null,"project_id"?: string,"stage_label"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "project_deals_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "project_deals_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "project_deals_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "project_deals_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
       referencedRelation: "projects_internal"
       referencedColumns: ["id"]
     }

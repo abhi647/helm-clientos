@@ -10,9 +10,9 @@ type ZohoInvoice = {
 const HIDDEN = new Set(['draft', 'void'])
 
 /** Zoho's API host for the data centre: zoho.in → www.zohoapis.in, zoho.com → www.zohoapis.com, zoho.eu → www.zohoapis.eu */
-const apiBase = () => `https://www.zohoapis.${env().ZOHO_DOMAIN.replace(/^zoho\./, '')}`
+export const apiBase = () => `https://www.zohoapis.${env().ZOHO_DOMAIN.replace(/^zoho\./, '')}`
 
-async function accessToken(): Promise<string> {
+export async function accessToken(): Promise<string> {
   const e = env()
   const res = await fetch(`https://accounts.${e.ZOHO_DOMAIN}/oauth/v2/token`, {
     method: 'POST',

@@ -140,7 +140,7 @@ Open the email link, set up two-step sign-in with an authenticator app, and you'
 
 ### 5. HubSpot (optional)
 
-1. Create a private app with the scopes `crm.objects.deals.read` and `crm.objects.companies.read`, and set `HUBSPOT_ACCESS_TOKEN`.
+1. Create a private app with the scopes `crm.objects.deals.read`, `crm.objects.companies.read` and `crm.objects.contacts.read` (for the import's people to invite), and set `HUBSPOT_ACCESS_TOKEN`.
 2. Under **Webhooks**, set the target URL to `https://<your-domain>/api/webhooks/hubspot` and subscribe to `deal.propertyChange` for `dealstage`.
 3. Set `HUBSPOT_WEBHOOK_SECRET` to the app's client secret. Requests are checked with signature v3.
 4. If your pipeline uses custom stage ids, list the Closed Won ones in `HUBSPOT_CLOSED_WON_STAGES`.
@@ -154,6 +154,20 @@ Open the email link, set up two-step sign-in with an authenticator app, and you'
    - Draft and void invoices are never imported.
    - Finance can also press **Sync now**.
 5. For billing statements, set each customer's **Zoho customer id** in Admin → Customers. Optionally put a Zoho **item id** on a rate card line so Zoho applies that item's tax and HSN/SAC code.
+
+### Import from HubSpot & Zoho (Admin → Import)
+
+A one-off backfill, which is also safe to re-run later. Admin and CEO only.
+
+1. **Preview.** Helm reads HubSpot (won deals: from the stages in `HUBSPOT_CLOSED_WON_STAGES` onwards, in every pipeline) and Zoho (invoices). Nothing is written yet.
+   - Each deal is a billing period, so deals are grouped into one project per customer and service line. The service line comes from the deal name, without the customer name, months, day ranges and invoice number: "DFM Foods BI Data Eng October (SBAPL/25-26/10)" → **BI Data Eng**.
+   - Change any deal's project name to merge or split projects.
+2. **Customers** are matched through the Zoho invoice number in the deal name. When an invoice number can't be matched, the deal's HubSpot company is used, then the company name. Existing Helm customers are reused, not duplicated.
+3. **Projects** get their dates from their deals. A project is active if a deal is still in delivery or was billed in the last 120 days; otherwise it's completed. Projects have no PM yet; set one per project.
+4. **Deals** are kept as each project's billing history (`project_deals`, Billing tab). **Zoho invoices and payments** are synced and linked to projects by invoice number. Both are admin, CEO and finance only.
+5. **Contacts** from HubSpot are listed on each customer page as *People to invite*. Nobody is emailed until someone presses Send invitation. This needs the private app scope `crm.objects.contacts.read`.
+
+Running the import again links what already exists and only adds new deals, projects, invoices and contacts.
 
 ### Billing: rate cards, statements and Zoho drafts
 
