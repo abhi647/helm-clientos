@@ -58,17 +58,19 @@ npm ci
 supabase start                      # Postgres, Auth, Storage, Mailpit on :54324
 cp .env.example .env.local          # fill the Supabase values from `supabase status -o env`
 npm run seed                        # demo org, customers, projects and users (local only)
+docker run -d -p 3310:3310 clamav/clamav:stable   # optional: virus scanning (set CLAMAV_HOST=127.0.0.1)
 npm run dev
 ```
 
 1. Sign in with a seeded email, for example `rahul@example.com` (PM), `abhijit@example.com` (CEO) or `michel@nesma.example.com` (customer).
 2. Open the magic link in Mailpit at http://127.0.0.1:54324.
+3. Staff accounts then set up two-step sign-in: scan the QR code with any authenticator app, or type the setup key.
 
 | Command | What it does |
 |---|---|
 | `npm run typecheck` / `npm run lint` | TypeScript and ESLint |
-| `npm run test:db` | 73 row, field, security, playbook and CSAT tests against the local database |
-| `npm run test:e2e` | 10 Playwright flows (needs `npm run build && npm start` first). Set `PW_CHROMIUM_PATH` to use a pre-installed Chromium. |
+| `npm run test:db` | 79 row, field, two-step, lock-out, file, playbook and CSAT tests against the local database |
+| `npm run test:e2e` | 11 Playwright flows (staff complete two-step sign-in; set `CLAMAV_HOST` to run the virus-scan flow) (needs `npm run build && npm start` first). Set `PW_CHROMIUM_PATH` to use a pre-installed Chromium. |
 
 CI (`.github/workflows/client-os.yml`) runs lint, types, the database tests and the flows on every push that touches `client-os/`. It uses a throwaway local Supabase.
 | `npm run db:types` | Regenerate `src/lib/database.types.ts` after a migration |
@@ -173,7 +175,30 @@ Access is enforced inside Postgres at two levels, so a bug in a page cannot leak
   - Form answers are visible to whoever submitted them and to the customer's executives.
   - CSAT answers are visible only to the person who was asked.
 
-`tests/rls.test.ts` checks every one of these rules (73 tests), signing in as customers, staff and anonymous callers.
+- **Two-step sign-in for staff:** every Seven Billion sign-in needs an authenticator-app code (TOTP). The database enforces it as well as the app: a staff session without the code sees no staff data at all. Customers sign in with an email link.
+- **Instant lock-out:**
+  - "Remove access" (Admin for staff, the customer page for customer users) blocks every database check from the person's next click, ends all their sessions and stops them signing in again.
+  - Their name stays on history.
+- **Files:**
+  - Only PDF, Office, CSV, text, images and ZIP files are accepted, up to 50 MB; the storage bucket enforces this.
+  - Each file's content must match its extension.
+  - With `CLAMAV_HOST` set, every upload is virus-scanned before anyone can open it. A failed file is deleted, the uploader is told, and the event is logged.
+  - PDFs and images can be previewed. They're served from the storage domain on a 60-second link, never from the app.
+  - Staff can archive files, which hides them from the customer.
+  - Requests have their own file area.
+
+`tests/rls.test.ts` checks every one of these rules (79 tests). It signs in as customers, as staff (with a real TOTP code), as staff without two-step sign-in, and as anonymous callers.
+
+### Before real customers: go-live checklist
+
+| | Where | What |
+|---|---|---|
+| 1 | Supabase → Authentication → Multi-Factor | Confirm **TOTP (authenticator app)** is enabled. The app asks each staff member to set it up at their next sign-in, and Admin → Security lists anyone who hasn't yet. |
+| 2 | Hosting for ClamAV | Run the official `clamav/clamav` Docker image on a private network (Fly.io, Railway, a small VM). Set `CLAMAV_HOST`, then set `REQUIRE_VIRUS_SCAN=true` so nothing opens unscanned. Don't expose port 3310 publicly; restrict it to Vercel's egress or a private network. |
+| 3 | Supabase → Database → Backups | Turn on **Point-in-Time Recovery** (Pro plan add-on), which allows restoring to any second in the retention window. Daily backups alone can lose up to a day. |
+| 4 | Supabase project region | Pick the region at creation; it can't be moved later. Mumbai (`ap-south-1`) is next to Vercel `bom1`. If a customer's contract requires their data to stay in a specific country or region, check Supabase's region list before creating the project. |
+| 5 | Supabase → Authentication → URL configuration and Rate limits | Use only your production domain for redirects. Keep the default sign-in rate limits. |
+| 6 | Vercel | Mark the server-only keys (`SUPABASE_SECRET_KEY`, `RESEND_API_KEY`, `CRON_SECRET`, `ZOHO_*`, `HUBSPOT_*`) as **Sensitive**. Never prefix them with `NEXT_PUBLIC_`. |
 
 - The secret key is server-only (`src/lib/supabase/admin.ts` imports `server-only`). It is used for the email outbox, integrations and invites.
 - Access is decided in the database, so a bug in a page cannot leak another customer's data. `tests/rls.test.ts` proves this, including attempts to forge requests, post internal comments as a customer, or escalate a profile.

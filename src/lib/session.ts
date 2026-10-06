@@ -23,9 +23,17 @@ export async function requireProfile(): Promise<Profile> {
   return p
 }
 
+/** Assurance level of this session: 'aal2' once the authenticator code was entered. */
+export const getAal = cache(async (): Promise<string | undefined> => {
+  const supabase = await createClient()
+  const { data } = await supabase.auth.getClaims()
+  return (data?.claims as { aal?: string } | undefined)?.aal
+})
+
 export async function requireStaff(): Promise<Profile> {
   const p = await requireProfile()
   if (p.kind !== 'internal') redirect('/portal')
+  if ((await getAal()) !== 'aal2') redirect('/mfa')
   return p
 }
 

@@ -17,6 +17,9 @@ const schema = z.object({
   ZOHO_REFRESH_TOKEN: z.string().optional().default(''),
   ZOHO_ORGANIZATION_ID: z.string().optional().default(''),
   ZOHO_DOMAIN: z.string().optional().default('zoho.in'),
+  CLAMAV_HOST: z.string().optional().default(''),
+  CLAMAV_PORT: z.coerce.number().int().optional().default(3310),
+  REQUIRE_VIRUS_SCAN: z.preprocess((v) => v === 'true', z.boolean()).default(false),
 })
 
 export type Env = z.infer<typeof schema>

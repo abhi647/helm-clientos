@@ -2,7 +2,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { decideApproval, requestApproval, resubmitApproval, setRequestStatus } from '@/app/_actions/requests'
 import { ActionForm, DecisionForm } from '@/components/forms'
+import { FileRows } from '@/components/file-rows'
+import { FOLDERS } from '@/components/project-parts'
 import { Thread } from '@/components/thread'
+import { UploadForm } from '@/components/upload'
 import { ApprovalStatusChip, Card, PriorityText, RequestStatusChip, Visibility, cn } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
 import { REQUEST_STATUS_ORDER, label, relativeTime, shortDate } from '@/lib/format'
@@ -73,6 +76,7 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
               <div><div className="label mb-1">Why</div><p className="m-0 whitespace-pre-wrap">{r.why || '–'}</p></div>
             </div>
           </Card>
+          <RequestFiles requestId={r.id} customerId={r.customer_id} projectId={r.project_id} me={me} />
           <Card title="Discussion">
             <Thread entityType="request" entityId={r.id} customerId={r.customer_id} me={me} defaultShared />
           </Card>
@@ -148,5 +152,29 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
         </div>
       </div>
     </div>
+  )
+}
+
+/** Files attached to this request: customers attach examples and specs, staff attach estimates and deliverables. */
+async function RequestFiles({ requestId, customerId, projectId, me }: { requestId: string; customerId: string; projectId: string | null; me: Profile }) {
+  const supabase = await createClient()
+  const { data } = await supabase.from('documents')
+    .select('id, name, version, visibility, created_at, storage_path, scan_status, archived_at, uploader:profiles!documents_uploaded_by_fkey(full_name)')
+    .eq('request_id', requestId).is('archived_at', null).order('created_at', { ascending: false })
+  const docs = data ?? []
+  const { data: versions } = docs.length
+    ? await supabase.from('document_versions').select('document_id, version, name, created_at, scan_status').in('document_id', docs.map((d) => d.id))
+    : { data: [] }
+  const staff = me.kind === 'internal'
+  return (
+    <Card flush title="Files" extra={`${docs.length} attached`}>
+      {docs.length ? <div className="overflow-x-auto"><div className="min-w-[600px]"><FileRows docs={docs} versions={versions ?? []} staff={staff} customerId={customerId} /></div></div> : null}
+      <details className="border-t border-line-soft" open={!docs.length}>
+        <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-link">Attach a file</summary>
+        <div className="px-3 pb-3">
+          <UploadForm customerId={customerId} projectId={projectId ?? undefined} requestId={requestId} folders={FOLDERS} staff={staff} defaultShared />
+        </div>
+      </details>
+    </Card>
   )
 }

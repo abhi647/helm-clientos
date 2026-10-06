@@ -30,6 +30,16 @@ export async function proxy(request: NextRequest) {
     url.search = path === '/' ? '' : `?next=${encodeURIComponent(path + request.nextUrl.search)}`
     return NextResponse.redirect(url)
   }
+
+  // Seven Billion staff must confirm the sign-in with their authenticator app (the database enforces this too)
+  const claims = data?.claims as { aal?: string; app_metadata?: { kind?: string } } | undefined
+  if (signedIn && claims?.app_metadata?.kind === 'internal' && claims.aal !== 'aal2'
+      && !['/mfa', '/auth', '/api', '/login'].some((p) => path.startsWith(p))) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/mfa'
+    url.search = `?next=${encodeURIComponent(path + request.nextUrl.search)}`
+    return NextResponse.redirect(url)
+  }
   return response
 }
 

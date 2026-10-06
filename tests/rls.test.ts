@@ -2,6 +2,7 @@
 // Run: npm run test:db   (needs `supabase start`; reseeds the local database first)
 import { execSync } from 'node:child_process'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import * as OTPAuth from 'otpauth'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -11,10 +12,19 @@ const PASSWORD = process.env.SEED_PASSWORD || 'local-dev-only-password'
 const opts = { auth: { persistSession: false, autoRefreshToken: false } }
 
 const service = createClient(url, secret, opts)
-async function as(email: string): Promise<SupabaseClient> {
+/** Signs in. Staff also complete two-step sign-in (TOTP), as the database requires for staff data. */
+async function as(email: string, { mfa = true }: { mfa?: boolean } = {}): Promise<SupabaseClient> {
   const c = createClient(url, anonKey, opts)
   const { error } = await c.auth.signInWithPassword({ email, password: PASSWORD })
   if (error) throw new Error(`${email}: ${error.message}`)
+  const staff = email.endsWith('@example.com') && !email.includes('nesma') && !email.includes('cbd')
+  if (staff && mfa) {
+    const { data: f, error: e1 } = await c.auth.mfa.enroll({ factorType: 'totp', friendlyName: `test-${Date.now()}-${Math.random()}` })
+    if (e1 || !f) throw new Error(`${email}: enroll ${e1?.message}`)
+    const code = new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(f.totp.secret) }).generate()
+    const { error: e2 } = await c.auth.mfa.challengeAndVerify({ factorId: f.id, code })
+    if (e2) throw new Error(`${email}: verify ${e2.message}`)
+  }
   return c
 }
 
@@ -404,5 +414,60 @@ describe('restricted fields are never returned', () => {
     // Michel's kickoff answers are not visible to Omar
     const { data: kickoff } = await service.from('form_submissions').select('id').eq('form_key', 'kickoff').eq('customer_id', nesma).single()
     expect((await omar.from('form_submissions').select('id').eq('id', kickoff!.id)).data).toHaveLength(0)
+  })
+})
+
+// ---------------------------------------------------------------- go-live security
+describe('staff two-step sign-in', () => {
+  it('a staff session without the authenticator code sees no staff data', async () => {
+    const plain = await as('sahil@example.com', { mfa: false })
+    expect((await plain.from('tasks').select('id').eq('visibility', 'internal')).data).toHaveLength(0)
+    expect((await plain.from('directory').select('id')).data).toHaveLength(0)
+    expect((await plain.from('customers').select('id')).data).toHaveLength(0)
+    // and the same person after two-step sign-in does
+    expect((await sahil.from('tasks').select('id').eq('visibility', 'internal')).data!.length).toBeGreaterThan(0)
+  })
+})
+
+describe('instant access removal', () => {
+  it('a removed user loses everything on their next request, and is restored cleanly', async () => {
+    const before = (await omar.from('projects').select('id')).data!.length
+    expect(before).toBeGreaterThan(0)
+    const id = await idOf('omar@nesma.example.com')
+    expect((await service.rpc('set_access', { p_user: id, p_revoked: true })).error).toBeNull()
+    expect((await omar.from('projects').select('id')).data).toHaveLength(0)        // same, still-valid token
+    expect((await omar.rpc('get_my_profile')).data?.id ?? null).toBeNull()
+    await service.rpc('set_access', { p_user: id, p_revoked: false })
+    expect((await omar.from('projects').select('id')).data!.length).toBe(before)
+  })
+  it('only the server can remove access', async () => {
+    expect((await rahul.rpc('set_access', { p_user: await idOf('omar@nesma.example.com'), p_revoked: true })).error).not.toBeNull()
+  })
+})
+
+describe('file controls', () => {
+  it('a new file always starts unchecked, whatever the uploader claims', async () => {
+    const id = crypto.randomUUID()
+    const { data } = await rahul.from('documents').insert({ id, customer_id: nesma, name: 'x.pdf', storage_path: `${nesma}/${id}/x.pdf`, visibility: 'shared', scan_status: 'clean' }).select('scan_status').single()
+    expect(data!.scan_status).toBe('pending')
+    expect((await rahul.from('documents').update({ scan_status: 'clean' }).eq('id', id).select('scan_status').single()).data!.scan_status).toBe('pending')
+  })
+  it('customers do not see archived or blocked files, and cannot archive', async () => {
+    const fid = crypto.randomUUID()
+    const { data: doc } = await service.from('documents').insert({ id: fid, customer_id: nesma, name: 'plan.pdf', storage_path: `${nesma}/${fid}/plan.pdf`, visibility: 'shared', scan_status: 'clean' }).select('id').single()
+    expect((await michel.rpc('archive_document', { p_document: doc!.id, p_archive: true })).error).not.toBeNull()
+    expect((await rahul.rpc('archive_document', { p_document: doc!.id, p_archive: true })).error).toBeNull()
+    expect((await michel.from('documents').select('id').eq('id', doc!.id)).data).toHaveLength(0)
+    await rahul.rpc('archive_document', { p_document: doc!.id, p_archive: false })
+    expect((await michel.from('documents').select('id').eq('id', doc!.id)).data).toHaveLength(1)
+    await service.from('documents').update({ scan_status: 'infected' }).eq('id', doc!.id)
+    expect((await michel.from('documents').select('id').eq('id', doc!.id)).data).toHaveLength(0)
+    await service.from('documents').update({ scan_status: 'clean' }).eq('id', doc!.id)
+  })
+  it('storage refuses file types outside the allowlist', async () => {
+    const { error } = await michel.storage.from('documents').upload(`${nesma}/${crypto.randomUUID()}/setup.exe`, new Blob(['MZ'], { type: 'application/x-msdownload' }), { contentType: 'application/x-msdownload' })
+    expect(error).not.toBeNull()
+    const ok = await michel.storage.from('documents').upload(`${nesma}/${crypto.randomUUID()}/brief.pdf`, new Blob(['%PDF-1.4'], { type: 'application/pdf' }), { contentType: 'application/pdf' })
+    expect(ok.error).toBeNull()
   })
 })

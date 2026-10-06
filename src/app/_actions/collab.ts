@@ -1,7 +1,9 @@
 'use server'
 
 import { z } from 'zod'
-import { requireProfile } from '@/lib/session'
+import { fileType } from '@/lib/files'
+import { scanDocument } from '@/lib/scan'
+import { requireProfile, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { type ActionResult, dbFail, done, fail, formObject, uuid, visibility } from './shared'
 
@@ -25,6 +27,14 @@ export async function addComment(_prev: ActionResult | null, form: FormData): Pr
   return error ? dbFail(error) : done()
 }
 
+/** Every upload is checked before anyone can open it (see lib/scan.ts); tell the uploader the outcome. */
+function scanMessage(status: Awaited<ReturnType<typeof scanDocument>>, ok: string): string {
+  if (status === 'infected') return 'Blocked: the virus scan found a threat, so the file was deleted.'
+  if (status === 'rejected') return 'Blocked: the file content does not match its type, so it was deleted.'
+  if (status === 'pending') return `${ok} It will open once the security check finishes.`
+  return ok
+}
+
 const FOLDERS = ['01-commercial', '02-requirements', '03-design', '04-delivery', '05-uat', '06-meetings', '07-handover'] as const
 
 const docSchema = z.object({
@@ -35,6 +45,7 @@ const docSchema = z.object({
   visibility: visibility.default('internal'),
   name: z.string().trim().min(1).max(160),
   path: z.string().min(10).max(400),
+  request_id: z.preprocess((v) => (v === '' || v == null ? null : v), uuid.nullable()).optional(),
 })
 
 /**
@@ -46,17 +57,17 @@ export async function recordDocument(input: z.input<typeof docSchema>): Promise<
   const parsed = docSchema.safeParse(input)
   if (!parsed.success) return fail('That upload could not be recorded.')
   const d = parsed.data
-  if (!d.path.startsWith(`${d.customer_id}/${d.id}/`)) return fail('That upload could not be recorded.')
+  if (!d.path.startsWith(`${d.customer_id}/${d.id}/`) || !fileType(d.path)) return fail('That upload could not be recorded.')
   const supabase = await createClient()
   const { error } = await supabase.from('documents').insert({
     id: d.id, customer_id: d.customer_id, project_id: d.project_id, folder: d.folder, name: d.name, storage_path: d.path,
-    visibility: me.kind === 'customer' ? 'shared' : d.visibility, uploaded_by: me.id,
+    visibility: me.kind === 'customer' ? 'shared' : d.visibility, uploaded_by: me.id, request_id: d.request_id ?? null,
   })
   if (error) {
     await supabase.storage.from('documents').remove([d.path])
     return dbFail(error)
   }
-  return done('Uploaded.')
+  return done(scanMessage(await scanDocument(d.id).catch(() => 'pending' as const), 'Uploaded.'))
 }
 
 export async function markAllRead(): Promise<void> {
@@ -69,12 +80,21 @@ export async function markAllRead(): Promise<void> {
 /** Records a new version of a document whose file the browser already uploaded. The old file stays in the history. */
 export async function addDocumentVersion(documentId: string, path: string, name: string): Promise<ActionResult> {
   await requireProfile()
-  if (!uuid.safeParse(documentId).success || !path.includes(`/${documentId}/`) || !name) return fail('That upload could not be recorded.')
+  if (!uuid.safeParse(documentId).success || !path.includes(`/${documentId}/`) || !name || !fileType(path)) return fail('That upload could not be recorded.')
   const supabase = await createClient()
   const { data, error } = await supabase.rpc('add_document_version', { p_document: documentId, p_path: path, p_name: name.slice(0, 160) })
   if (error) {
     await supabase.storage.from('documents').remove([path])
     return dbFail(error)
   }
-  return done(`Version ${data} uploaded.`)
+  return done(scanMessage(await scanDocument(documentId).catch(() => 'pending' as const), `Version ${data} uploaded.`))
+}
+
+/** Archive or restore a file (staff). Customers stop seeing an archived file immediately. */
+export async function archiveDocument(documentId: string, archive: boolean): Promise<ActionResult> {
+  await requireStaff()
+  if (!uuid.safeParse(documentId).success) return fail('Unknown file.')
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('archive_document', { p_document: documentId, p_archive: archive })
+  return error ? dbFail(error) : done(archive ? 'Archived.' : 'Restored.')
 }

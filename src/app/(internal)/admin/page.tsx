@@ -6,7 +6,7 @@ import { ActionButton, ActionForm } from '@/components/forms'
 import { AccountOwnerSelect, AutomationToggle, RoleSelect } from '@/components/admin-controls'
 import { Avatar, Card, Chip, PageHeader } from '@/components/ui'
 import { env } from '@/lib/env'
-import { isFuture, label, relativeTime } from '@/lib/format'
+import { label, relativeTime } from '@/lib/format'
 import { requireStaff } from '@/lib/session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -32,8 +32,8 @@ export default async function Admin() {
   if (!['admin', 'ceo'].includes(me.internal_role ?? '')) notFound()
   const supabase = await createClient()
   const [{ data: staff }, { data: customers }, { data: rules }, { data: lastInvoice }, { data: setups }] = await Promise.all([
-    supabase.from('directory').select('id, full_name, email, internal_role').eq('kind', 'internal').eq('org_id', me.org_id!).order('full_name')
-      .overrideTypes<Pick<DirectoryRow, 'id' | 'full_name' | 'email' | 'internal_role'>[], { merge: false }>(),
+    supabase.from('directory').select('id, full_name, email, internal_role, access_revoked_at').eq('kind', 'internal').eq('org_id', me.org_id!).order('full_name')
+      .overrideTypes<Pick<DirectoryRow, 'id' | 'full_name' | 'email' | 'internal_role' | 'access_revoked_at'>[], { merge: false }>(),
     supabase.from('customers_internal').select('id, name, hubspot_company_id, zoho_customer_id, account_owner_id').order('name')
       .overrideTypes<Pick<CustomerInternalRow, 'id' | 'name' | 'hubspot_company_id' | 'zoho_customer_id' | 'account_owner_id'>[], { merge: false }>(),
     supabase.from('automation_rules').select('key, enabled'),
@@ -41,10 +41,14 @@ export default async function Admin() {
     supabase.from('engagement_setups').select('id').eq('status', 'pending'),
   ])
   const { data: activeProjects } = await supabase.from('projects').select('customer_id').eq('status', 'active')
-  // sign-in status comes from Auth (banned = access removed); this page is admin-only and server-rendered
+  // last sign-in comes from Auth; this page is admin-only and server-rendered
   const { data: auth } = await createAdminClient().auth.admin.listUsers({ perPage: 1000 })
-  const removed = new Set((auth?.users ?? []).filter((u) => isFuture(u.banned_until)).map((u) => u.id))
+  const removed = new Set((staff ?? []).filter((p) => p.access_revoked_at).map((p) => p.id))
   const lastSeen = new Map((auth?.users ?? []).map((u) => [u.id, u.last_sign_in_at]))
+  const withMfa = new Set((auth?.users ?? []).filter((u) => (u.factors ?? []).some((f) => f.status === 'verified')).map((u) => u.id))
+  const noMfa = (staff ?? []).filter((p) => !p.access_revoked_at && !withMfa.has(p.id))
+  const { count: blocked } = await supabase.from('documents').select('id', { count: 'exact', head: true }).in('scan_status', ['infected', 'rejected'])
+  const { count: unscanned } = await supabase.from('documents').select('id', { count: 'exact', head: true }).in('scan_status', ['pending', 'not_scanned'])
   const enabled = new Map((rules ?? []).map((r) => [r.key, r.enabled]))
   const e = env()
   const zoho = !!(e.ZOHO_CLIENT_ID && e.ZOHO_REFRESH_TOKEN && e.ZOHO_ORGANIZATION_ID)
@@ -121,6 +125,23 @@ export default async function Admin() {
               <input name="hubspot_company_id" aria-label="HubSpot company id" placeholder="HubSpot company id (optional)" className="input" />
               <input name="zoho_customer_id" aria-label="Zoho customer id" placeholder="Zoho customer id (optional)" className="input" />
             </ActionForm>
+          </Card>
+          <Card flush title="Security">
+            <div className="row grid-cols-[minmax(0,1fr)_96px] py-1.5">
+              <span className="flex min-w-0 flex-col"><span className="font-medium">Two-step sign-in for staff</span>
+                <span className="text-xs text-muted">{noMfa.length ? `Not set up yet: ${noMfa.map((p) => p.full_name).join(', ')}. They are asked at their next sign-in.` : 'Everyone on the team has an authenticator app.'}</span></span>
+              <span className="text-right"><Chip tone="good">Required</Chip></span>
+            </div>
+            <div className="row grid-cols-[minmax(0,1fr)_96px] py-1.5">
+              <span className="flex min-w-0 flex-col"><span className="font-medium">Virus scanning</span>
+                <span className="text-xs text-muted">{e.CLAMAV_HOST ? `ClamAV at ${e.CLAMAV_HOST}` : 'No scanner set: files get a type check only (set CLAMAV_HOST)'}{blocked ? ` · ${blocked} blocked` : ''}{unscanned ? ` · ${unscanned} not scanned` : ''}</span></span>
+              <span className="text-right">{e.CLAMAV_HOST ? <Chip tone="good">On</Chip> : <Chip tone="warn">Not set up</Chip>}</span>
+            </div>
+            <div className="row grid-cols-[minmax(0,1fr)_96px] py-1.5">
+              <span className="flex min-w-0 flex-col"><span className="font-medium">Removing access</span>
+                <span className="text-xs text-muted">Takes effect on the next click; all sessions end.</span></span>
+              <span className="text-right"><Chip tone="good">Instant</Chip></span>
+            </div>
           </Card>
           <Card flush title="Integrations">
             {integrations.map((i) => (

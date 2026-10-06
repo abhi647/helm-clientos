@@ -142,14 +142,12 @@ export async function setStaffRole(userId: string, role: (typeof ROLES)[number] 
   const { data: target } = await supabase.from('directory').select('id, org_id, kind').eq('id', userId).maybeSingle()
   if (!target || target.kind !== 'internal' || target.org_id !== me.org_id) return fail('Person not found.')
   const admin = createAdminClient()
-  if (role === 'remove') {
-    // block sign-in; their name stays on history
-    const { error } = await admin.auth.admin.updateUserById(userId, { ban_duration: '876000h' })
-    return error ? dbFail(error) : done('Access removed.')
-  }
+  if (role === 'remove') return removeAccess(userId)
   const { data: u } = await admin.auth.admin.getUserById(userId)
   const { error } = await admin.auth.admin.updateUserById(userId, { app_metadata: { ...(u.user?.app_metadata ?? {}), internal_role: role }, ban_duration: 'none' })
-  return error ? dbFail(error) : done('Role updated.')
+  if (error) return dbFail(error)
+  await admin.rpc('set_access', { p_user: userId, p_revoked: false })
+  return done('Role updated.')
 }
 
 const customerSchema = z.object({
@@ -203,4 +201,32 @@ export async function syncZohoNow(): Promise<ActionResult> {
     console.error('[zoho] manual sync failed', e)
     return fail('Zoho sync failed. Check the Zoho settings and try again.')
   }
+}
+
+/**
+ * Removes someone's access at once: every database check refuses them from their next request, all their
+ * sessions end, and they cannot sign in again. Their name stays on history (comments, approvals).
+ */
+async function removeAccess(userId: string): Promise<ActionResult> {
+  const admin = createAdminClient()
+  const { error } = await admin.rpc('set_access', { p_user: userId, p_revoked: true })
+  if (error) return dbFail(error)
+  await admin.auth.admin.updateUserById(userId, { ban_duration: '876000h' })
+  return done('Access removed. They were signed out everywhere.')
+}
+
+/** Customer users: managers can remove or restore access for people at the customers they serve. */
+export async function setCustomerAccess(userId: string, revoked: boolean): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!canManage(me)) return fail('Only a PM, the CEO or an admin can change access.')
+  if (!uuid.safeParse(userId).success) return fail('Unknown person.')
+  const supabase = await createClient()
+  const { data: target } = await supabase.from('directory').select('id, kind, customer_id').eq('id', userId).maybeSingle()
+  if (!target || target.kind !== 'customer') return fail('Person not found.')
+  if (revoked) return removeAccess(userId)
+  const admin = createAdminClient()
+  const { error } = await admin.rpc('set_access', { p_user: userId, p_revoked: false })
+  if (error) return dbFail(error)
+  await admin.auth.admin.updateUserById(userId, { ban_duration: 'none' })
+  return done('Access restored.')
 }

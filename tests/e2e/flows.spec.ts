@@ -2,6 +2,7 @@
 // Run: supabase start && npm run seed && npm run build && npm start, then npm run test:e2e
 import { execSync } from 'node:child_process'
 import { expect, test, type Page } from '@playwright/test'
+import * as OTPAuth from 'otpauth'
 
 const MAILPIT = process.env.MAILPIT_URL ?? 'http://127.0.0.1:54324'
 const SHOTS = process.env.E2E_SCREENSHOTS
@@ -25,6 +26,9 @@ async function latestLink(email: string, after: number): Promise<string> {
   throw new Error(`No sign-in email for ${email}`)
 }
 
+// authenticator secrets of staff who set up two-step sign-in during this run
+const totp = new Map<string, string>()
+
 async function signIn(page: Page, email: string) {
   await page.context().clearCookies()
   await page.goto('/login')
@@ -33,6 +37,18 @@ async function signIn(page: Page, email: string) {
   await page.getByRole('button', { name: 'Email me a sign-in link' }).click()
   await expect(page.getByText('Check your inbox')).toBeVisible()
   await page.goto(await latestLink(email, started))
+  if (!page.url().includes('/mfa')) return
+  // staff: set up the authenticator the first time, then enter the current code
+  const heading = page.getByRole('heading', { name: /Set up two-step sign-in|Enter your code/ })
+  await expect(heading).toBeVisible()
+  if ((await heading.textContent())?.startsWith('Set up')) {
+    totp.set(email, (await page.getByTestId('totp-secret').textContent())!.trim())
+    await shot(page, '00-mfa-setup')
+  }
+  const code = new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(totp.get(email)!) }).generate()
+  await page.getByLabel('6-digit code').fill(code)
+  await page.getByRole('button', { name: /Turn on and continue|Continue/ }).click()
+  await page.waitForURL((u) => !u.pathname.startsWith('/mfa'))
 }
 
 test.beforeAll(() => {
@@ -212,6 +228,28 @@ test('customer rates a delivery and sends feedback; the team triages it', async 
   await page.reload()
   await expect(page.getByText('Acknowledged').first()).toBeVisible()
   await shot(page, '19-feedback-item')
+})
+
+test('uploads are type-checked and virus-scanned before anyone can open them', async ({ page }) => {
+  await signIn(page, 'rahul@example.com')
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Power BI Implementation' }).click()
+  await page.getByRole('link', { name: 'Documents' }).click()
+  const upload = async (name: string, mimeType: string, body: string) => {
+    await page.getByLabel('File', { exact: true }).setInputFiles({ name, mimeType, buffer: Buffer.from(body) })
+    await page.getByRole('button', { name: 'Upload', exact: true }).click()
+  }
+  await upload('Data dictionary.pdf', 'application/pdf', '%PDF-1.4\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF')
+  await expect(page.getByText('Uploaded.', { exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Preview Data dictionary.pdf' })).toBeVisible()
+  // the EICAR string is the industry-standard harmless test "virus"
+  await upload('notes.txt', 'text/plain', 'X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*')
+  await expect(page.getByText('Blocked: the virus scan found a threat, so the file was deleted.')).toBeVisible()
+  // a program renamed to .pdf is rejected by the content check
+  await upload('invoice.pdf', 'application/pdf', 'MZ this is not a pdf')
+  await expect(page.getByText('Blocked: the file content does not match its type, so it was deleted.')).toBeVisible()
+  await page.reload()
+  await shot(page, '20-documents-security')
 })
 
 test('CEO sees the portfolio and finance', async ({ page }) => {

@@ -424,13 +424,13 @@ isOneToOne: false
                   ]
                 },"document_versions": {
                   Row: {
-                    "created_at": string,"customer_id": string,"document_id": string,"id": string,"name": string,"note": string,"storage_path": string,"uploaded_by": string | null,"version": number
+                    "created_at": string,"customer_id": string,"document_id": string,"id": string,"name": string,"note": string,"scan_status": string,"storage_path": string,"uploaded_by": string | null,"version": number
                   }
                   Insert: {
-                    "created_at": string,"customer_id": string,"document_id": string,"id"?: string,"name": string,"note"?: string,"storage_path": string,"uploaded_by"?: string | null,"version": number
+                    "created_at": string,"customer_id": string,"document_id": string,"id"?: string,"name": string,"note"?: string,"scan_status"?: string,"storage_path": string,"uploaded_by"?: string | null,"version": number
                   }
                   Update: {
-                    "created_at"?: string,"customer_id"?: string,"document_id"?: string,"id"?: string,"name"?: string,"note"?: string,"storage_path"?: string,"uploaded_by"?: string | null,"version"?: number
+                    "created_at"?: string,"customer_id"?: string,"document_id"?: string,"id"?: string,"name"?: string,"note"?: string,"scan_status"?: string,"storage_path"?: string,"uploaded_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -467,13 +467,13 @@ isOneToOne: false
                   ]
                 },"documents": {
                   Row: {
-                    "created_at": string,"customer_id": string,"folder": string,"id": string,"name": string,"note": string,"project_id": string | null,"request_id": string | null,"storage_path": string | null,"uploaded_by": string | null,"version": number,"visibility": Database["public"]['Enums']["visibility"]
+                    "archived_at": string | null,"created_at": string,"customer_id": string,"folder": string,"id": string,"mime_type": string | null,"name": string,"note": string,"project_id": string | null,"request_id": string | null,"scan_status": string,"scanned_at": string | null,"size_bytes": number | null,"storage_path": string | null,"uploaded_by": string | null,"version": number,"visibility": Database["public"]['Enums']["visibility"]
                   }
                   Insert: {
-                    "created_at"?: string,"customer_id": string,"folder"?: string,"id"?: string,"name": string,"note"?: string,"project_id"?: string | null,"request_id"?: string | null,"storage_path"?: string | null,"uploaded_by"?: string | null,"version"?: number,"visibility"?: Database["public"]['Enums']["visibility"]
+                    "archived_at"?: string | null,"created_at"?: string,"customer_id": string,"folder"?: string,"id"?: string,"mime_type"?: string | null,"name": string,"note"?: string,"project_id"?: string | null,"request_id"?: string | null,"scan_status"?: string,"scanned_at"?: string | null,"size_bytes"?: number | null,"storage_path"?: string | null,"uploaded_by"?: string | null,"version"?: number,"visibility"?: Database["public"]['Enums']["visibility"]
                   }
                   Update: {
-                    "created_at"?: string,"customer_id"?: string,"folder"?: string,"id"?: string,"name"?: string,"note"?: string,"project_id"?: string | null,"request_id"?: string | null,"storage_path"?: string | null,"uploaded_by"?: string | null,"version"?: number,"visibility"?: Database["public"]['Enums']["visibility"]
+                    "archived_at"?: string | null,"created_at"?: string,"customer_id"?: string,"folder"?: string,"id"?: string,"mime_type"?: string | null,"name"?: string,"note"?: string,"project_id"?: string | null,"request_id"?: string | null,"scan_status"?: string,"scanned_at"?: string | null,"size_bytes"?: number | null,"storage_path"?: string | null,"uploaded_by"?: string | null,"version"?: number,"visibility"?: Database["public"]['Enums']["visibility"]
                   }
                   Relationships: [
                     {
@@ -924,13 +924,13 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "can_view_invoices": boolean,"created_at": string,"customer_id": string | null,"customer_role": Database["public"]['Enums']["customer_role"] | null,"email": string,"full_name": string,"id": string,"internal_role": Database["public"]['Enums']["internal_role"] | null,"kind": Database["public"]['Enums']["user_kind"],"org_id": string | null
+                    "access_revoked_at": string | null,"can_view_invoices": boolean,"created_at": string,"customer_id": string | null,"customer_role": Database["public"]['Enums']["customer_role"] | null,"email": string,"full_name": string,"id": string,"internal_role": Database["public"]['Enums']["internal_role"] | null,"kind": Database["public"]['Enums']["user_kind"],"org_id": string | null
                   }
                   Insert: {
-                    "can_view_invoices"?: boolean,"created_at"?: string,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email": string,"full_name"?: string,"id": string,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"kind": Database["public"]['Enums']["user_kind"],"org_id"?: string | null
+                    "access_revoked_at"?: string | null,"can_view_invoices"?: boolean,"created_at"?: string,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email": string,"full_name"?: string,"id": string,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"kind": Database["public"]['Enums']["user_kind"],"org_id"?: string | null
                   }
                   Update: {
-                    "can_view_invoices"?: boolean,"created_at"?: string,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email"?: string,"full_name"?: string,"id"?: string,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"kind"?: Database["public"]['Enums']["user_kind"],"org_id"?: string | null
+                    "access_revoked_at"?: string | null,"can_view_invoices"?: boolean,"created_at"?: string,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email"?: string,"full_name"?: string,"id"?: string,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"kind"?: Database["public"]['Enums']["user_kind"],"org_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -1369,13 +1369,13 @@ isOneToOne: false
                   ]
                 },"directory": {
                   Row: {
-                    "can_view_invoices": boolean | null,"created_at": string | null,"customer_id": string | null,"customer_role": Database["public"]['Enums']["customer_role"] | null,"email": string | null,"full_name": string | null,"id": string | null,"internal_role": Database["public"]['Enums']["internal_role"] | null,"kind": Database["public"]['Enums']["user_kind"] | null,"org_id": string | null
+                    "access_revoked_at": string | null,"can_view_invoices": boolean | null,"created_at": string | null,"customer_id": string | null,"customer_role": Database["public"]['Enums']["customer_role"] | null,"email": string | null,"full_name": string | null,"id": string | null,"internal_role": Database["public"]['Enums']["internal_role"] | null,"kind": Database["public"]['Enums']["user_kind"] | null,"org_id": string | null
                   }
                   Insert: {
-                           "can_view_invoices"?: boolean | null,"created_at"?: string | null,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email"?: string | null,"full_name"?: string | null,"id"?: string | null,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"kind"?: Database["public"]['Enums']["user_kind"] | null,"org_id"?: string | null
+                           "access_revoked_at"?: string | null,"can_view_invoices"?: boolean | null,"created_at"?: string | null,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email"?: string | null,"full_name"?: string | null,"id"?: string | null,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"kind"?: Database["public"]['Enums']["user_kind"] | null,"org_id"?: string | null
                          }
                         Update: {
-                           "can_view_invoices"?: boolean | null,"created_at"?: string | null,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email"?: string | null,"full_name"?: string | null,"id"?: string | null,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"kind"?: Database["public"]['Enums']["user_kind"] | null,"org_id"?: string | null
+                           "access_revoked_at"?: string | null,"can_view_invoices"?: boolean | null,"created_at"?: string | null,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email"?: string | null,"full_name"?: string | null,"id"?: string | null,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"kind"?: Database["public"]['Enums']["user_kind"] | null,"org_id"?: string | null
                          }
                         Relationships: [
                     {
@@ -1451,6 +1451,9 @@ isOneToOne: false
 "answer_csat":
 { Args: { "p_comment"?: string,"p_score": number,"p_survey": string }; Returns: undefined
                            },
+"archive_document":
+{ Args: { "p_archive": boolean,"p_document": string }; Returns: undefined
+                           },
 "complete_action_item":
 { Args: { "p_action": string }; Returns: undefined
                            },
@@ -1462,7 +1465,8 @@ isOneToOne: false
                            },
 "get_my_profile":
 { Args: Record<PropertyKey, never>; Returns: {
-              "can_view_invoices": boolean,
+              "access_revoked_at": string | null,
+"can_view_invoices": boolean,
 "created_at": string,
 "customer_id": string | null,
 "customer_role": Database["public"]['Enums']["customer_role"] | null,
@@ -1487,6 +1491,9 @@ isOneToOne: false
                            },
 "send_csat_pulses":
 { Args: Record<PropertyKey, never>; Returns: number
+                           },
+"set_access":
+{ Args: { "p_revoked": boolean,"p_user": string }; Returns: undefined
                            },
 "set_request_status":
 { Args: { "p_note"?: string,"p_request": string,"p_status": Database["public"]['Enums']["request_status"] }; Returns: undefined

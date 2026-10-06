@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { inviteCustomerUser } from '@/app/_actions/admin'
-import { ActionForm } from '@/components/forms'
+import { inviteCustomerUser, setCustomerAccess } from '@/app/_actions/admin'
+import { ActionButton, ActionForm } from '@/components/forms'
 import { ActivityList, DocumentsPanel } from '@/components/project-parts'
 import { Avatar, Card, Chip, Empty, Health, PageHeader, Progress } from '@/components/ui'
 import { shortDate } from '@/lib/format'
@@ -22,8 +22,8 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
   const [{ data: projects }, { data: progress }, { data: people }] = await Promise.all([
     supabase.from('projects').select('id, name, health, status, end_date, pm:profiles!projects_pm_id_fkey(full_name)').eq('customer_id', id).order('status').order('name'),
     supabase.from('project_progress').select('*'),
-    supabase.from('directory').select('id, full_name, email, customer_role, can_view_invoices').eq('customer_id', id).order('full_name')
-      .overrideTypes<Pick<DirectoryRow, 'id' | 'full_name' | 'email' | 'customer_role' | 'can_view_invoices'>[], { merge: false }>(),
+    supabase.from('directory').select('id, full_name, email, customer_role, can_view_invoices, access_revoked_at').eq('customer_id', id).order('full_name')
+      .overrideTypes<Pick<DirectoryRow, 'id' | 'full_name' | 'email' | 'customer_role' | 'can_view_invoices' | 'access_revoked_at'>[], { merge: false }>(),
   ])
   const prog = new Map((progress ?? []).map((p) => [p.project_id, p.total ? (100 * (p.done ?? 0)) / p.total : 0]))
   return (
@@ -45,7 +45,12 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                 <div key={u.id} className="flex items-center gap-2 text-[13px]">
                   <Avatar name={u.full_name} customer /><span className="truncate">{u.full_name}</span>
                   <span className="truncate text-xs text-muted">{u.email}</span>
-                  <span className="ml-auto flex gap-1">{u.customer_role === 'customer_exec' ? <Chip>Executive</Chip> : <Chip>Member</Chip>}{u.can_view_invoices ? <Chip tone="info">Invoices</Chip> : null}</span>
+                  <span className="ml-auto flex items-center gap-1">
+                    {u.access_revoked_at ? <Chip tone="crit">Access removed</Chip> : <>{u.customer_role === 'customer_exec' ? <Chip>Executive</Chip> : <Chip>Member</Chip>}{u.can_view_invoices ? <Chip tone="info">Invoices</Chip> : null}</>}
+                    {canManage(me) ? (u.access_revoked_at
+                      ? <ActionButton run={setCustomerAccess.bind(null, u.id, false)} className="h-6 px-2 text-xs">Restore</ActionButton>
+                      : <ActionButton run={setCustomerAccess.bind(null, u.id, true)} className="h-6 px-2 text-xs" confirm={`Remove ${u.full_name}'s access now? They are signed out everywhere immediately.`}>Remove</ActionButton>) : null}
+                  </span>
                 </div>
               ))}
               {!people?.length ? <p className="m-0 text-xs text-muted">No one from {c.name} has access yet.</p> : null}

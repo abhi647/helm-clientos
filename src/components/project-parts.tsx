@@ -1,5 +1,5 @@
-import { Download } from 'lucide-react'
-import { NewVersionButton, UploadForm } from '@/components/upload'
+import { ArchiveControls, FileRows } from '@/components/file-rows'
+import { UploadForm } from '@/components/upload'
 import { Card, Empty, Health, Visibility } from '@/components/ui'
 import { relativeTime, shortDate } from '@/lib/format'
 import type { Profile } from '@/lib/session'
@@ -34,46 +34,41 @@ export function UpdateCard({ u, projectName }: {
 
 export async function DocumentsPanel({ me, customerId, projectId, projects }: { me: Profile; customerId: string; projectId?: string; projects?: { id: string; name: string }[] }) {
   const supabase = await createClient()
-  let q = supabase.from('documents').select('id, name, folder, visibility, version, created_at, storage_path, project_id, uploader:profiles!documents_uploaded_by_fkey(full_name)').eq('customer_id', customerId).order('folder').order('created_at', { ascending: false })
+  let q = supabase.from('documents').select('id, name, folder, visibility, version, created_at, storage_path, project_id, scan_status, archived_at, uploader:profiles!documents_uploaded_by_fkey(full_name)')
+    .eq('customer_id', customerId).order('folder').order('created_at', { ascending: false })
   if (projectId) q = q.eq('project_id', projectId)
-  const { data: docs } = await q
-  const { data: versions } = docs?.length
-    ? await supabase.from('document_versions').select('document_id, version, name, created_at').in('document_id', docs.map((d) => d.id)).order('version', { ascending: false })
+  const { data } = await q
+  const all = data ?? []
+  const { data: versions } = all.length
+    ? await supabase.from('document_versions').select('document_id, version, name, created_at, scan_status').in('document_id', all.map((d) => d.id)).order('version', { ascending: false })
     : { data: [] }
   const staff = me.kind === 'internal'
-  const grouped = Object.keys(FOLDERS).map((f) => ({ f, docs: (docs ?? []).filter((d) => d.folder === f) })).filter((g) => g.docs.length)
+  const docs = all.filter((d) => !d.archived_at)
+  const archived = all.filter((d) => d.archived_at)
+  const grouped = Object.keys(FOLDERS).map((f) => ({ f, docs: docs.filter((d) => d.folder === f) })).filter((g) => g.docs.length)
   return (
     <div className="flex flex-wrap items-start gap-3">
-      <Card flush className="min-w-0 flex-[999_1_560px]" title="Documents" extra={`${docs?.length ?? 0} files`}>
-        {grouped.length ? grouped.map((g) => (
-          <div key={g.f}>
-            <div className="row row-head grid-cols-1"><span>{FOLDERS[g.f]}</span></div>
-            {g.docs.map((d) => (
-              <div key={d.id} className="row grid-cols-[minmax(0,1fr)_96px_110px_90px_84px_36px] hover:bg-head">
-                <span className="flex min-w-0 flex-col py-1">
-                  <span className="truncate font-medium">{d.name} <span className="font-mono text-xs font-normal text-muted">v{d.version}</span></span>
-                  {(versions ?? []).some((v) => v.document_id === d.id) ? (
-                    <details className="text-xs text-muted">
-                      <summary className="cursor-pointer">Earlier versions</summary>
-                      {(versions ?? []).filter((v) => v.document_id === d.id).map((v) => (
-                        <a key={v.version} href={`/api/documents/${d.id}?v=${v.version}`} className="block py-0.5">v{v.version} · {v.name} · {relativeTime(v.created_at)}</a>
-                      ))}
-                    </details>
-                  ) : null}
-                </span>
-                <span>{d.storage_path && (staff || d.visibility === 'shared') ? <NewVersionButton documentId={d.id} customerId={customerId} /> : null}</span>
-                <span className="truncate text-xs text-muted">{d.uploader?.full_name}</span>
-                <span className="text-xs text-muted">{relativeTime(d.created_at)}</span>
-                <span>{staff ? <Visibility value={d.visibility} /> : null}</span>
-                {d.storage_path ? <a href={`/api/documents/${d.id}`} aria-label={`Download ${d.name}`} className="flex justify-center text-link"><Download className="size-4" aria-hidden /></a> : <span className="text-center text-xs text-muted" title="Placeholder without a file">–</span>}
-              </div>
-            ))}
-          </div>
-        )) : <Empty title="No documents yet">Upload the first file on the right.</Empty>}
+      <Card flush className="min-w-0 flex-[999_1_560px] overflow-x-auto" title="Documents" extra={`${docs.length} files`}>
+        <div className="min-w-[600px]">
+          {grouped.length ? grouped.map((g) => (
+            <div key={g.f}>
+              <div className="row row-head grid-cols-1"><span>{FOLDERS[g.f]}</span></div>
+              <FileRows docs={g.docs} versions={versions ?? []} staff={staff} customerId={customerId} />
+            </div>
+          )) : <Empty title="No documents yet">Upload the first file on the right.</Empty>}
+        </div>
       </Card>
-      <Card className="min-w-0 flex-[1_1_280px]" title="Upload">
-        <UploadForm customerId={customerId} projectId={projectId} projects={projects} folders={FOLDERS} staff={staff} />
-      </Card>
+      <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-3">
+        <Card title="Upload">
+          <UploadForm customerId={customerId} projectId={projectId} projects={projects} folders={FOLDERS} staff={staff} />
+        </Card>
+        {staff && docs.length ? (
+          <Card flush title="Manage files" extra="Archived files are hidden from the customer">
+            <details><summary className="cursor-pointer px-3 py-2 text-xs font-medium text-link">Archive a file…</summary><ArchiveControls docs={docs} archived={false} /></details>
+            {archived.length ? <details className="border-t border-line-soft"><summary className="cursor-pointer px-3 py-2 text-xs font-medium text-link">Archived ({archived.length})</summary><ArchiveControls docs={archived} archived /></details> : null}
+          </Card>
+        ) : null}
+      </div>
     </div>
   )
 }
