@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, Folder, House, Inbox, Receipt, Settings, SquareCheck } from 'lucide-react'
+import { Building2, Folder, House, Inbox, MessageSquareHeart, Receipt, Settings, SquareCheck } from 'lucide-react'
 import { cn } from '@/components/ui'
 
 const RAIL = [
@@ -11,6 +11,7 @@ const RAIL = [
   { href: '/projects', label: 'Projects', icon: Folder },
   { href: '/requests', label: 'Requests', icon: Inbox },
   { href: '/my-work', label: 'My Work', icon: SquareCheck },
+  { href: '/feedback', label: 'CSAT & feedback', icon: MessageSquareHeart },
   { href: '/finance', label: 'Finance', icon: Receipt },
   { href: '/admin', label: 'Admin', icon: Settings },
   // Phase 2 (resources, time, reports) slot in here

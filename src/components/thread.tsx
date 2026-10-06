@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 
 /** Discussion attached to one object. The query runs under RLS, so customers only ever receive shared comments. */
 export async function Thread({ entityType, entityId, customerId, me, defaultShared, parentInternal, asCustomer }: {
-  entityType: 'task' | 'request' | 'approval' | 'document' | 'meeting' | 'update'
+  entityType: 'task' | 'request' | 'approval' | 'document' | 'meeting' | 'update' | 'feedback'
   entityId: string; customerId: string; me: Profile; defaultShared?: boolean; parentInternal?: boolean
   /** staff 'customer preview': show exactly what the customer sees, read-only */
   asCustomer?: boolean

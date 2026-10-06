@@ -16,13 +16,14 @@ export type Exception = { severity: 'crit' | 'warn'; customer: string; issue: st
  */
 export async function loadPortfolio() {
   const supabase = await createClient()
-  const [projects, tasks, approvals, requests, invoices, progress] = await Promise.all([
+  const [projects, tasks, approvals, requests, invoices, progress, lowCsat] = await Promise.all([
     supabase.from('projects').select('id, name, health, status, customer_id, customers(name), pm:profiles!projects_pm_id_fkey(full_name)').eq('status', 'active').order('name'),
     supabase.from('tasks').select('id, title, status, due_date, owner_side, project_id, assignee:profiles!tasks_assignee_id_fkey(full_name)').neq('status', 'done'),
     supabase.from('approvals').select('id, title, status, created_at, project_id, request_id, customers(name), approver:profiles!approvals_approver_id_fkey(full_name)').eq('status', 'pending'),
     supabase.from('requests').select('id, number, title, priority, status, desired_date, created_at, project_id, customers(name), owner:profiles!requests_owner_id_fkey(full_name)').not('status', 'in', '(delivered,cancelled)'),
     supabase.from('invoices').select('id, number, customer_id, due_on, balance, status, customers(name)').neq('status', 'paid'),
     supabase.from('project_progress').select('*'),
+    supabase.from('feedback').select('id, number, body, created_at, customers(name), owner:profiles!feedback_owner_id_fkey(full_name)').eq('source', 'csat').eq('status', 'new'),
   ])
   const prog = new Map((progress.data ?? []).map((p) => [p.project_id, p]))
   const t = tasks.data ?? []
@@ -67,6 +68,9 @@ export async function loadPortfolio() {
   for (const i of invoices.data ?? []) {
     const late = -(daysFromToday(i.due_on) ?? 0)
     if (late > 30) ex.push({ severity: 'crit', customer: i.customers?.name ?? '', issue: `Invoice ${i.number} overdue`, context: 'Synced from Zoho Books', age: `${late}d`, owner: 'Finance', href: '/finance', sort: 1.5 })
+  }
+  for (const f of lowCsat.data ?? []) {
+    ex.push({ severity: 'crit', customer: f.customers?.name ?? '', issue: `Low CSAT not yet followed up (${f.number})`, context: f.body.slice(0, 80), age: ageInDays(f.created_at), owner: f.owner?.full_name ?? 'Unassigned', href: `/feedback/${f.id}`, sort: 0.5 })
   }
   ex.sort((a, b) => (a.severity === b.severity ? a.sort - b.sort : a.severity === 'crit' ? -1 : 1))
 

@@ -20,6 +20,7 @@ Client delivery workspace for Seven Billion. Internal teams run projects, reques
 | Forms | `src/lib/forms.ts`, `/portal/forms/[key]`, project **Forms** tab | Kickoff, Data access, UAT feedback and Project closure are stored as submissions. New, Change and Access requests use the request lifecycle. A form builder is phase 2. |
 | @mentions | `src/components/mention-textarea.tsx` | `cmdk` picker anchored at the caret (`textarea-caret`). The database keeps a mention only if that person can read the comment. |
 | Documents | `add_document_version` RPC | New versions keep the earlier files in history, and they're downloadable with `?v=N`. |
+| CSAT & feedback | `supabase/migrations/*_csat_feedback.sql`, `/feedback`, `/portal/feedback` | 1-5 ratings are asked when a request is delivered, once a month (pulse, sent by the daily cron) and at project closure. A score of 1-2 opens a follow-up for the account owner. Customers can send feedback any time, and the team triages it in an inbox and replies. CSAT % = answers scored 4-5 ÷ all answers. |
 | Navigation | `src/components/shell/command-palette.tsx` | ⌘K / Ctrl+K jumps to any page, project, customer or open request (`cmdk`). |
 | UI | `src/app/globals.css`, `src/components/ui.tsx` | Compact enterprise design system: IBM Plex, 13 px body, 32 px rows, and an indicator palette checked for colour blindness. |
 
@@ -34,6 +35,9 @@ Client delivery workspace for Seven Billion. Internal teams run projects, reques
 | Project health turns At Risk | PM and CEO notified |
 | A request is raised as critical | PM and the customer's account owner notified |
 | Project marked Completed | Closure form sent to the customer lead |
+| A request is delivered | The requester is asked for a CSAT rating |
+| Once a month (daily cron, idempotent) | Every customer user gets a CSAT check-in |
+| A CSAT score of 1 or 2 | A follow-up feedback item for the account owner, and the PM and account owner are alerted |
 
 ### Who sees which home
 
@@ -63,8 +67,8 @@ npm run dev
 | Command | What it does |
 |---|---|
 | `npm run typecheck` / `npm run lint` | TypeScript and ESLint |
-| `npm run test:db` | 57 RLS, security and playbook tests against the local database |
-| `npm run test:e2e` | 9 Playwright flows (needs `npm run build && npm start` first). Set `PW_CHROMIUM_PATH` to use a pre-installed Chromium. |
+| `npm run test:db` | 65 RLS, security, playbook and CSAT tests against the local database |
+| `npm run test:e2e` | 10 Playwright flows (needs `npm run build && npm start` first). Set `PW_CHROMIUM_PATH` to use a pre-installed Chromium. |
 
 CI (`.github/workflows/client-os.yml`) runs lint, types, the database tests and the flows on every push that touches `client-os/`. It uses a throwaway local Supabase.
 | `npm run db:types` | Regenerate `src/lib/database.types.ts` after a migration |

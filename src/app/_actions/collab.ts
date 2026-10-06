@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { type ActionResult, dbFail, done, fail, formObject, uuid, visibility } from './shared'
 
 const commentSchema = z.object({
-  entity_type: z.enum(['task', 'request', 'approval', 'document', 'meeting', 'update']),
+  entity_type: z.enum(['task', 'request', 'approval', 'document', 'meeting', 'update', 'feedback']),
   entity_id: uuid,
   customer_id: uuid,
   body: z.string().trim().min(1, 'Write a comment first.').max(10_000),

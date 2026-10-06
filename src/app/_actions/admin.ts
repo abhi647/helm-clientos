@@ -178,7 +178,7 @@ export async function setAccountOwner(customerId: string, ownerId: string): Prom
   return error ? dbFail(error) : done()
 }
 
-const RULES = ['kickoff_data_access', 'uat_start_action', 'uat_done_approval', 'at_risk_alert', 'critical_request_alert', 'closure_form'] as const
+const RULES = ['kickoff_data_access', 'uat_start_action', 'uat_done_approval', 'at_risk_alert', 'critical_request_alert', 'closure_form', 'csat_request', 'csat_pulse', 'csat_low_followup'] as const
 
 export async function setAutomation(key: (typeof RULES)[number], enabled: boolean): Promise<ActionResult> {
   const me = await requireStaff()

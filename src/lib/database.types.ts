@@ -209,6 +209,43 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"csat_surveys": {
+                  Row: {
+                    "answered_at": string | null,"comment": string,"customer_id": string,"expires_at": string,"id": string,"kind": Database["public"]['Enums']["csat_kind"],"period": string | null,"project_id": string | null,"recipient_id": string,"request_id": string | null,"score": number | null,"sent_at": string
+                  }
+                  Insert: {
+                    "answered_at"?: string | null,"comment"?: string,"customer_id": string,"expires_at"?: string,"id"?: string,"kind": Database["public"]['Enums']["csat_kind"],"period"?: string | null,"project_id"?: string | null,"recipient_id": string,"request_id"?: string | null,"score"?: number | null,"sent_at"?: string
+                  }
+                  Update: {
+                    "answered_at"?: string | null,"comment"?: string,"customer_id"?: string,"expires_at"?: string,"id"?: string,"kind"?: Database["public"]['Enums']["csat_kind"],"period"?: string | null,"project_id"?: string | null,"recipient_id"?: string,"request_id"?: string | null,"score"?: number | null,"sent_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "csat_surveys_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "csat_surveys_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "csat_surveys_recipient_id_fkey"
+      columns: ["recipient_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "csat_surveys_request_id_fkey"
+      columns: ["request_id"]
+isOneToOne: false
+      referencedRelation: "requests"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"customers": {
                   Row: {
                     "account_owner_id": string | null,"created_at": string,"hubspot_company_id": string | null,"id": string,"name": string,"org_id": string,"zoho_customer_id": string | null
@@ -374,6 +411,49 @@ isOneToOne: false
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"feedback": {
+                  Row: {
+                    "body": string,"created_at": string,"csat_id": string | null,"customer_id": string,"id": string,"kind": Database["public"]['Enums']["feedback_kind"],"number": string,"owner_id": string | null,"project_id": string | null,"source": string,"status": Database["public"]['Enums']["feedback_status"],"submitted_by": string | null,"updated_at": string
+                  }
+                  Insert: {
+                    "body": string,"created_at"?: string,"csat_id"?: string | null,"customer_id": string,"id"?: string,"kind"?: Database["public"]['Enums']["feedback_kind"],"number"?: string,"owner_id"?: string | null,"project_id"?: string | null,"source"?: string,"status"?: Database["public"]['Enums']["feedback_status"],"submitted_by"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "body"?: string,"created_at"?: string,"csat_id"?: string | null,"customer_id"?: string,"id"?: string,"kind"?: Database["public"]['Enums']["feedback_kind"],"number"?: string,"owner_id"?: string | null,"project_id"?: string | null,"source"?: string,"status"?: Database["public"]['Enums']["feedback_status"],"submitted_by"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "feedback_csat_id_fkey"
+      columns: ["csat_id"]
+isOneToOne: false
+      referencedRelation: "csat_surveys"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "feedback_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "feedback_owner_id_fkey"
+      columns: ["owner_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "feedback_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "feedback_submitted_by_fkey"
+      columns: ["submitted_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -891,6 +971,9 @@ isOneToOne: false
             "add_document_version":
 { Args: { "p_document": string,"p_name": string,"p_note"?: string,"p_path": string }; Returns: number
                            },
+"answer_csat":
+{ Args: { "p_comment"?: string,"p_score": number,"p_survey": string }; Returns: undefined
+                           },
 "complete_action_item":
 { Args: { "p_action": string }; Returns: undefined
                            },
@@ -906,12 +989,15 @@ isOneToOne: false
 "resubmit_approval":
 { Args: { "p_approval": string,"p_comment"?: string,"p_effort": number,"p_summary": string,"p_target"?: string }; Returns: undefined
                            },
+"send_csat_pulses":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
 "set_request_status":
 { Args: { "p_note"?: string,"p_request": string,"p_status": Database["public"]['Enums']["request_status"] }; Returns: undefined
                            }
           }
           Enums: {
-            "action_status": "open"|"completed"|"cancelled","action_type": "approval"|"form"|"task"|"clarification"|"uat"|"upload"|"decision"|"invoice"|"meeting_action","approval_action": "requested"|"approved"|"changes_requested"|"resubmitted"|"cancelled","approval_status": "pending"|"approved"|"changes_requested"|"cancelled","customer_role": "customer_exec"|"customer_member","health": "on_track"|"needs_attention"|"at_risk","internal_role": "admin"|"ceo"|"pm"|"consultant"|"finance","owner_side": "seven_billion"|"customer","priority": "low"|"normal"|"high"|"critical","project_status": "active"|"on_hold"|"completed","request_status": "submitted"|"under_review"|"clarification"|"estimated"|"approved"|"scheduled"|"in_development"|"uat"|"delivered"|"cancelled","request_type": "requirement"|"enhancement"|"change_request"|"bug"|"new_report"|"data_request"|"access_request"|"support"|"other","setup_status": "pending"|"created"|"dismissed","task_status": "todo"|"in_progress"|"in_review"|"waiting_customer"|"blocked"|"done","update_status": "draft"|"published","user_kind": "internal"|"customer","visibility": "internal"|"shared"
+            "action_status": "open"|"completed"|"cancelled","action_type": "approval"|"form"|"task"|"clarification"|"uat"|"upload"|"decision"|"invoice"|"meeting_action","approval_action": "requested"|"approved"|"changes_requested"|"resubmitted"|"cancelled","approval_status": "pending"|"approved"|"changes_requested"|"cancelled","csat_kind": "request"|"pulse"|"closure","customer_role": "customer_exec"|"customer_member","feedback_kind": "praise"|"suggestion"|"issue"|"other","feedback_status": "new"|"acknowledged"|"actioned"|"closed","health": "on_track"|"needs_attention"|"at_risk","internal_role": "admin"|"ceo"|"pm"|"consultant"|"finance","owner_side": "seven_billion"|"customer","priority": "low"|"normal"|"high"|"critical","project_status": "active"|"on_hold"|"completed","request_status": "submitted"|"under_review"|"clarification"|"estimated"|"approved"|"scheduled"|"in_development"|"uat"|"delivered"|"cancelled","request_type": "requirement"|"enhancement"|"change_request"|"bug"|"new_report"|"data_request"|"access_request"|"support"|"other","setup_status": "pending"|"created"|"dismissed","task_status": "todo"|"in_progress"|"in_review"|"waiting_customer"|"blocked"|"done","update_status": "draft"|"published","user_kind": "internal"|"customer","visibility": "internal"|"shared"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -1027,7 +1113,7 @@ export type CompositeTypes<
 export const Constants = {
   "public": {
           Enums: {
-            "action_status": ["open", "completed", "cancelled"],"action_type": ["approval", "form", "task", "clarification", "uat", "upload", "decision", "invoice", "meeting_action"],"approval_action": ["requested", "approved", "changes_requested", "resubmitted", "cancelled"],"approval_status": ["pending", "approved", "changes_requested", "cancelled"],"customer_role": ["customer_exec", "customer_member"],"health": ["on_track", "needs_attention", "at_risk"],"internal_role": ["admin", "ceo", "pm", "consultant", "finance"],"owner_side": ["seven_billion", "customer"],"priority": ["low", "normal", "high", "critical"],"project_status": ["active", "on_hold", "completed"],"request_status": ["submitted", "under_review", "clarification", "estimated", "approved", "scheduled", "in_development", "uat", "delivered", "cancelled"],"request_type": ["requirement", "enhancement", "change_request", "bug", "new_report", "data_request", "access_request", "support", "other"],"setup_status": ["pending", "created", "dismissed"],"task_status": ["todo", "in_progress", "in_review", "waiting_customer", "blocked", "done"],"update_status": ["draft", "published"],"user_kind": ["internal", "customer"],"visibility": ["internal", "shared"]
+            "action_status": ["open", "completed", "cancelled"],"action_type": ["approval", "form", "task", "clarification", "uat", "upload", "decision", "invoice", "meeting_action"],"approval_action": ["requested", "approved", "changes_requested", "resubmitted", "cancelled"],"approval_status": ["pending", "approved", "changes_requested", "cancelled"],"csat_kind": ["request", "pulse", "closure"],"customer_role": ["customer_exec", "customer_member"],"feedback_kind": ["praise", "suggestion", "issue", "other"],"feedback_status": ["new", "acknowledged", "actioned", "closed"],"health": ["on_track", "needs_attention", "at_risk"],"internal_role": ["admin", "ceo", "pm", "consultant", "finance"],"owner_side": ["seven_billion", "customer"],"priority": ["low", "normal", "high", "critical"],"project_status": ["active", "on_hold", "completed"],"request_status": ["submitted", "under_review", "clarification", "estimated", "approved", "scheduled", "in_development", "uat", "delivered", "cancelled"],"request_type": ["requirement", "enhancement", "change_request", "bug", "new_report", "data_request", "access_request", "support", "other"],"setup_status": ["pending", "created", "dismissed"],"task_status": ["todo", "in_progress", "in_review", "waiting_customer", "blocked", "done"],"update_status": ["draft", "published"],"user_kind": ["internal", "customer"],"visibility": ["internal", "shared"]
           }
         }
 } as const

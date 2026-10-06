@@ -156,6 +156,35 @@ async function main() {
     { customer_id: custx.id, zoho_invoice_id: 'demo-1031', number: 'INV-1031', currency: 'INR', total: null, balance: null, status: 'overdue', issued_on: day(-73), due_on: day(-43) },
   ])
 
+  // ---------------------------------------------------------------- CSAT history (demo answers over the last five months) and feedback
+  const cbdLead = (await db.from('profiles').select('id').eq('email', 'lead@cbd.example.com').single()).data.id
+  const ago = (days) => new Date(Date.now() - days * 86_400_000).toISOString()
+  const answered = (customer_id, recipient_id, kind, days, score, comment = '', project_id = null) =>
+    ({ customer_id, recipient_id, kind, project_id, score, comment, sent_at: ago(days + 2), answered_at: ago(days), expires_at: ago(days - 19),
+       period: kind === 'pulse' ? ago(days).slice(0, 8) + '01' : null })
+  await many('csat_surveys', [
+    answered(nesma.id, michel, 'pulse', 150, 4), answered(nesma.id, omar, 'pulse', 148, 3, 'Updates could be more regular.'),
+    answered(nesma.id, michel, 'pulse', 120, 4), answered(nesma.id, omar, 'pulse', 118, 4),
+    answered(nesma.id, michel, 'pulse', 90, 5, 'The weekly update is exactly what I need.'), answered(nesma.id, omar, 'request', 75, 4, '', pbi.id),
+    answered(nesma.id, michel, 'pulse', 60, 4), answered(nesma.id, omar, 'pulse', 58, 5, 'Data mapping workshop was very useful.'),
+    answered(cbd.id, cbdLead, 'pulse', 88, 3), answered(cbd.id, cbdLead, 'pulse', 57, 2, 'Too many slipped dates on the data model.'),
+    answered(nesma.id, michel, 'pulse', 30, 5), answered(cbd.id, cbdLead, 'pulse', 27, 3),
+  ])
+  // asked but never answered (counts against the response rate)
+  await many('csat_surveys', [{ customer_id: nesma.id, recipient_id: omar, kind: 'pulse', period: ago(30).slice(0, 8) + '01', sent_at: ago(32), expires_at: ago(2) }])
+  // a delivered request waiting for Omar's rating
+  const done = await one('requests', { customer_id: nesma.id, project_id: pbi.id, title: 'Add product hierarchy filter', what: 'Filter every page by product family.', type: 'enhancement', requested_by: omar, owner_id: rahul })
+  ok(await db.from('requests').update({ status: 'delivered' }).eq('id', done.id), 'deliver request')
+  // this month's pulse for every customer user (the daily cron does this in production)
+  ok(await db.rpc('send_csat_pulses'), 'pulses')
+  await many('feedback', [
+    { customer_id: nesma.id, project_id: pbi.id, kind: 'praise', body: 'The data mapping workshop saved us weeks. Please thank Sahil.', submitted_by: michel, status: 'actioned', owner_id: abhijit, created_at: ago(40) },
+    { customer_id: nesma.id, project_id: pbi.id, kind: 'suggestion', body: 'Could the weekly update also list what is planned for UAT?', submitted_by: omar, owner_id: rahul, created_at: ago(3) },
+  ])
+  const low = (await db.from('csat_surveys').select('id').eq('customer_id', cbd.id).eq('score', 2).single()).data
+  await one('feedback', { customer_id: cbd.id, project_id: cbdProj.id, kind: 'issue', source: 'csat', csat_id: low.id, submitted_by: cbdLead, owner_id: rahul, status: 'acknowledged',
+    body: 'Rated monthly check-in 2/5: Too many slipped dates on the data model.', created_at: ago(57) })
+
   // the demo starts with an empty inbox; real notifications are created by actions from here on
   ok(await db.from('email_outbox').delete().neq('to_email', ''), 'clear outbox')
   ok(await db.from('notifications').delete().neq('kind', ''), 'clear notifications')

@@ -21,7 +21,7 @@ async function as(email: string): Promise<SupabaseClient> {
 const VISIBILITY_TABLES = ['phases', 'tasks', 'comments', 'documents', 'meetings', 'decisions', 'activity']
 const CUSTOMER_TABLES = ['customers', 'projects', 'phases', 'tasks', 'requests', 'request_events', 'approvals', 'approval_events',
   'action_items', 'comments', 'documents', 'meetings', 'decisions', 'updates', 'invoices', 'activity',
-  'meeting_actions', 'form_submissions', 'document_versions', 'payments']
+  'meeting_actions', 'form_submissions', 'document_versions', 'payments', 'csat_surveys', 'feedback']
 const STAFF_ONLY = ['project_commercials', 'task_estimates', 'time_entries', 'automation_rules']
 const SERVICE_ONLY = ['email_outbox', 'integration_events']
 
@@ -293,5 +293,59 @@ describe('playbook automations', () => {
     const { data: pbi } = await service.from('projects').select('id').eq('name', 'Power BI Implementation').single()
     await rahul.from('projects').update({ status: 'completed' }).eq('id', pbi!.id)
     expect((await michel.from('action_items').select('form_key').eq('form_key', 'closure')).data).toHaveLength(1)
+  })
+})
+
+describe('CSAT and feedback', () => {
+  it('customers see only the surveys sent to them and cannot write surveys directly', async () => {
+    const mi = await idOf('michel@nesma.example.com')
+    const { data } = await michel.from('csat_surveys').select('recipient_id')
+    expect(data!.length).toBeGreaterThan(0)
+    expect(data!.every((r) => r.recipient_id === mi)).toBe(true)
+    expect((await michel.from('csat_surveys').insert({ customer_id: nesma, kind: 'pulse', recipient_id: mi, score: 5, answered_at: new Date().toISOString() })).error).not.toBeNull()
+    expect((await michel.from('csat_surveys').update({ score: 5 }).eq('recipient_id', mi).select()).data ?? []).toHaveLength(0)
+  })
+
+  it('a delivered request asks its requester, who can answer once', async () => {
+    const { data: s } = await omar.from('csat_surveys').select('id').eq('kind', 'request').is('answered_at', null).single()
+    expect((await michel.rpc('answer_csat', { p_survey: s!.id, p_score: 5 })).error).not.toBeNull()   // not Michel's survey
+    expect((await omar.rpc('answer_csat', { p_survey: s!.id, p_score: 4, p_comment: 'Quick turnaround' })).error).toBeNull()
+    expect((await omar.rpc('answer_csat', { p_survey: s!.id, p_score: 1 })).error?.message).toMatch(/already answered/)
+  })
+
+  it('a low score opens a follow-up and alerts the account owner', async () => {
+    const { data: s } = await michel.from('csat_surveys').select('id').eq('kind', 'pulse').is('answered_at', null).single()
+    await michel.rpc('answer_csat', { p_survey: s!.id, p_score: 2, p_comment: 'Too slow this month' })
+    const { data: fb } = await service.from('feedback').select('kind, source, status, owner_id').eq('csat_id', s!.id).single()
+    expect(fb).toMatchObject({ kind: 'issue', source: 'csat', status: 'new', owner_id: await idOf('abhijit@example.com') })
+    expect((await notificationsFor('abhijit@example.com', 'csat.low')).length).toBe(1)
+  })
+
+  it('monthly pulses are sent once per month and only by the server', async () => {
+    expect((await service.rpc('send_csat_pulses')).data).toBe(0)       // the seed already sent this month's
+    expect((await rahul.rpc('send_csat_pulses')).error).not.toBeNull()
+  })
+
+  it('customers send feedback for their own company only, and cannot triage it', async () => {
+    const me = await uid(omar)
+    expect((await omar.from('feedback').insert({ customer_id: cbd, kind: 'issue', body: 'x', submitted_by: me })).error).not.toBeNull()
+    expect((await omar.from('feedback').insert({ customer_id: nesma, kind: 'issue', body: 'Closed myself', submitted_by: me, status: 'closed' })).error).not.toBeNull()
+    const { data: f, error } = await omar.from('feedback').insert({ customer_id: nesma, kind: 'issue', body: 'Report is slow on Mondays', submitted_by: me }).select('id').single()
+    expect(error).toBeNull()
+    expect((await omar.from('feedback').update({ status: 'closed' }).eq('id', f!.id).select()).data ?? []).toHaveLength(0)
+    expect((await cbdLead.from('feedback').select('id').eq('id', f!.id)).data).toHaveLength(0)
+    // the account owner owns it, and a staff status change tells the customer
+    expect((await service.from('feedback').select('owner_id').eq('id', f!.id).single()).data!.owner_id).toBe(await idOf('abhijit@example.com'))
+    await rahul.from('feedback').update({ status: 'actioned' }).eq('id', f!.id)
+    expect((await notificationsFor('omar@nesma.example.com', 'feedback.status')).length).toBeGreaterThan(0)
+  })
+
+  it('the closure form satisfaction answer counts as CSAT', async () => {
+    const { data: cx } = await service.from('projects').select('id').eq('name', 'Infor LN Integration').maybeSingle()
+    const project = cx ?? (await service.from('projects').select('id').eq('customer_id', nesma).limit(1).single()).data
+    await michel.from('form_submissions').insert({ customer_id: nesma, project_id: project!.id, form_key: 'closure', submitted_by: await uid(michel),
+      answers: { handover: 'yes', training: 'yes', satisfaction: '5' } })
+    const { data } = await michel.from('csat_surveys').select('score').eq('kind', 'closure')
+    expect(data).toEqual([{ score: 5 }])
   })
 })

@@ -188,6 +188,32 @@ test('admin switches a playbook rule', async ({ page }) => {
   await expect(rule.getByRole('switch')).toHaveAttribute('aria-checked', 'true')
 })
 
+test('customer rates a delivery and sends feedback; the team triages it', async ({ page }) => {
+  await signIn(page, 'omar@nesma.example.com')
+  await expect(page.getByRole('heading', { name: 'Quick check-in' })).toBeVisible()
+  await shot(page, '17-portal-csat')
+  await page.getByRole('radio', { name: '4: Satisfied' }).first().click()
+  await page.getByLabel('What went well? (optional)').fill('Fast and clear.')
+  await page.getByRole('button', { name: 'Send rating' }).first().click()
+  await expect(page.getByText('Thank you for the feedback.')).toBeVisible()
+
+  await page.goto('/portal/feedback')
+  await page.getByLabel('Your feedback').fill('Please add a glossary of the KPI definitions to the dashboard.')
+  await page.getByRole('button', { name: 'Send feedback' }).click()
+  await expect(page.getByText(/FB-\d+ was sent to your account owner/)).toBeVisible()
+
+  await signIn(page, 'rahul@example.com')
+  await page.goto('/feedback')
+  await expect(page.getByRole('heading', { name: 'CSAT by month' })).toBeVisible()
+  await shot(page, '18-csat-dashboard')
+  await page.getByRole('link', { name: /glossary of the KPI definitions/ }).click()
+  await page.getByLabel('Status').selectOption('acknowledged')
+  await page.waitForTimeout(800)
+  await page.reload()
+  await expect(page.getByText('Acknowledged').first()).toBeVisible()
+  await shot(page, '19-feedback-item')
+})
+
 test('CEO sees the portfolio and finance', async ({ page }) => {
   await signIn(page, 'abhijit@example.com')
   await expect(page.getByRole('heading', { name: 'Portfolio' })).toBeVisible()

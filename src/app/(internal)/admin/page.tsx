@@ -20,6 +20,9 @@ const RULES = [
   { key: 'at_risk_alert', when: 'Project health turns At Risk', then: 'Notify the PM and the CEO' },
   { key: 'critical_request_alert', when: 'A request is raised as critical', then: 'Notify the PM and the account owner' },
   { key: 'closure_form', when: 'Project is marked Completed', then: 'Send the customer the closure form' },
+  { key: 'csat_request', when: 'A request is delivered', then: 'Ask the requester for a CSAT rating' },
+  { key: 'csat_pulse', when: 'Once a month (daily job)', then: 'Ask each customer user for a CSAT check-in' },
+  { key: 'csat_low_followup', when: 'A CSAT score of 1 or 2', then: 'Open a follow-up for the account owner and PM' },
 ] as const
 
 /** Organisation settings: who has access, customers, playbook automations and integrations. Admin and CEO only. */

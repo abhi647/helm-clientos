@@ -10,6 +10,7 @@ import { daysFromToday, isoDaysAgo, money, shortDate } from '@/lib/format'
 import { formByKey } from '@/lib/forms'
 import { requireCustomer } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { OpenSurveys } from '@/components/csat-open'
 import { ExecHome } from './exec-home'
 
 export const metadata: Metadata = { title: 'Home' }
@@ -28,7 +29,7 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
   const sp = await searchParams
   const thanks = sp.submitted ? formByKey(sp.submitted) : undefined
   // executives get the status view; they can still open the team's action centre
-  if (me.customer_role === 'customer_exec' && sp.view !== 'actions') return <>{thanks ? <Thanks title={thanks.title} /> : null}<ExecHome me={me} /></>
+  if (me.customer_role === 'customer_exec' && sp.view !== 'actions') return <div className="flex flex-col gap-3.5">{thanks ? <Thanks title={thanks.title} /> : null}<ExecHome me={me} surveys={<OpenSurveys me={me} />} /></div>
   const supabase = await createClient()
   const [{ data: actions }, { data: projects }, { data: progress }, { data: phases }, { data: tasks }, { data: updates }, { data: invoices }, { count: doneThisWeek }] = await Promise.all([
     supabase.from('action_items').select('*, projects(name)').eq('status', 'open').order('due_date', { ascending: true, nullsFirst: false }),
@@ -66,6 +67,7 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
           {nextMilestones[0] ? <GreetingChip>Next: <b>{nextMilestones[0].title}, {shortDate(nextMilestones[0].due_date)}</b></GreetingChip> : null}
           {contact ? <GreetingChip>Your contact: <b>{contact}</b></GreetingChip> : null}
         </>} />
+      <OpenSurveys me={me} />
 
       <div className="flex flex-wrap items-start gap-3.5">
         <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-3.5">

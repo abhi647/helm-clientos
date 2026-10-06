@@ -17,8 +17,9 @@ export function dbFail(error: { message: string } | null, fallback = 'That did n
 }
 
 /** After a change: refresh pages and send any queued emails without making the user wait. */
-export function done(message?: string): ActionResult {
-  revalidatePath('/', 'layout')
+export function done(message?: string, { refresh = true }: { refresh?: boolean } = {}): ActionResult {
+  // refresh: false keeps the current screen (e.g. a thank-you shown in place); the next navigation shows fresh data
+  if (refresh) revalidatePath('/', 'layout')
   after(async () => {
     try {
       await flushOutbox()

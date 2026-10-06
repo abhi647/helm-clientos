@@ -6,7 +6,7 @@ import type { Profile } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
 /** Customer Executive home: is my engagement going to plan, and what needs a decision from me? */
-export async function ExecHome({ me }: { me: Profile }) {
+export async function ExecHome({ me, surveys }: { me: Profile; surveys?: React.ReactNode }) {
   const supabase = await createClient()
   const [{ data: projects }, { data: progress }, { data: phases }, { data: tasks }, { data: approvals }, { data: actions }, { data: decisions }, { data: docs }, { data: updates }, { data: invoices }] = await Promise.all([
     supabase.from('projects').select('id, name, health, end_date, pm:profiles!projects_pm_id_fkey(full_name)').eq('status', 'active').order('name'),
@@ -45,6 +45,7 @@ export async function ExecHome({ me }: { me: Profile }) {
           <GreetingChip><b className="font-mono">{onTrack} of {p.length}</b> on track</GreetingChip>
           {nextMilestone ? <GreetingChip>Next milestone: <b>{nextMilestone.title}, {shortDate(nextMilestone.due_date)}</b></GreetingChip> : null}
         </>} />
+      {surveys}
 
       <Card flush className="overflow-x-auto">
         <div className="flex min-w-[640px]">

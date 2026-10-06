@@ -21,7 +21,7 @@ export default async function PortalLayout({ children }: { children: React.React
             { href: '/portal', label: 'Home', exact: true },
             ...(me.customer_role === 'customer_exec' ? [{ href: '/portal?view=actions', label: 'Team actions' }] : []),
             { href: '/portal/requests', label: 'Requests' }, { href: '/portal/meetings', label: 'Meetings' },
-            { href: '/portal/decisions', label: 'Decisions' }, { href: '/portal/documents', label: 'Documents' }, ...(me.can_view_invoices ? [{ href: '/portal/invoices', label: 'Invoices' }] : []),
+            { href: '/portal/decisions', label: 'Decisions' }, { href: '/portal/documents', label: 'Documents' }, { href: '/portal/feedback', label: 'Feedback' }, ...(me.can_view_invoices ? [{ href: '/portal/invoices', label: 'Invoices' }] : []),
           ]} /></div>
           <Link href="/portal/requests/new" className="btn btn-primary">+ New request</Link>
           <UserMenu profile={me} base="/portal" />

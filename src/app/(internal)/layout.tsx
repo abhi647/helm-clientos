@@ -14,7 +14,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
   ])
   const admin = ['admin', 'ceo'].includes(me.internal_role ?? '')
   const palette: PaletteItem[] = [
-    ...[['Home', '/home'], ['My Work', '/my-work'], ['Projects', '/projects'], ['Requests', '/requests'], ['Customers', '/customers'], ['Inbox', '/inbox'],
+    ...[['Home', '/home'], ['My Work', '/my-work'], ['Projects', '/projects'], ['Requests', '/requests'], ['Customers', '/customers'], ['CSAT & feedback', '/feedback'], ['Inbox', '/inbox'],
       ...(canSeeFinance(me) ? [['Finance', '/finance']] : []), ...(admin ? [['Admin', '/admin']] : [])].map(([label, href]) => ({ group: 'Pages', label: label!, href: href! })),
     ...(projects ?? []).map((p) => ({ group: 'Projects', label: p.name, hint: p.customers?.name, href: `/projects/${p.id}` })),
     ...(customers ?? []).map((c) => ({ group: 'Customers', label: c.name, href: `/customers/${c.id}` })),
