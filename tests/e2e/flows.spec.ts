@@ -269,7 +269,7 @@ test('CEO sees the portfolio and finance', async ({ page }) => {
   await shot(page, '12-customer')
 })
 
-test('billing: rate card approved by the customer, a statement approved, then sent to Zoho', async ({ page }) => {
+test('billing (finance only): rate card approved by the customer, a statement approved, then sent to Zoho', async ({ page }) => {
   page.on('dialog', (d) => d.accept())
   const openBilling = async () => {
     await page.goto('/customers')
@@ -307,8 +307,17 @@ test('billing: rate card approved by the customer, a statement approved, then se
   await expect(card).toHaveCount(0)   // moves from "waiting" to the approved rates
   await expect(page.locator('.card', { hasText: 'Approved rates' }).getByText('Data engineer')).toBeVisible()
 
-  // the PM bills the month: days worked and the delivery accepted
+  // the PM sees the project's delivery, but no billing at all
   await signIn(page, 'rahul@example.com')
+  await page.goto('/customers')
+  await page.getByRole('link', { name: /Nesma Group/ }).click()
+  await page.getByRole('link', { name: 'Infor LN Integration' }).first().click()
+  await expect(page.getByRole('link', { name: 'Plan', exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Billing', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Finance', exact: true })).toHaveCount(0)
+
+  // finance bills the month: days worked (checked against the hours logged) and the delivery accepted
+  await signIn(page, 'finance@example.com')
   await openBilling()
   await page.getByRole('button', { name: 'New statement' }).click()
   await page.waitForURL(/\/billing\/[0-9a-f-]{36}$/)
@@ -317,6 +326,7 @@ test('billing: rate card approved by the customer, a statement approved, then se
   await page.getByLabel('Quantity for Sales dashboard').fill('1')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByText('Saved.')).toBeVisible()
+  await expect(page.getByText('Hours logged in this period')).toBeVisible()
   await shot(page, '22-billing-statement')
   await page.getByRole('button', { name: 'Send to customer for approval' }).click()
   await expect(page.getByText('Waiting for approval')).toBeVisible()

@@ -161,17 +161,17 @@ Every customer can be billed differently, and a project can mix models:
 
 | Model | Rate card line | Each statement |
 |---|---|---|
-| Day rate per resource | role, rate per day, number of resources | days worked (pre-filled: resources × working days; the PM adjusts for leave) |
+| Day rate per resource | role, rate per day, number of resources | days worked (pre-filled: resources × working days; finance adjusts, using the hours logged that the statement shows) |
 | Per delivery / milestone | deliverable, price | 1 for each delivery accepted in the period |
 | Per unit delivered | unit (report, model…), rate, planned units | units delivered |
 | Monthly retainer | fee per month | 1 (pre-filled) |
 
 1. **Rate card** (project → Billing): admin, CEO or finance type the rates from the signed contract (currency, PO number, notes) and send it to the customer. Customer executives and anyone with invoice access approve it, or ask for changes with a reason. A new version replaces the live rates only once it is approved.
-2. **Statement**: each period, finance or the project's PM creates a statement on the approved rates and enters the quantities. Rates can't be changed on a statement; the database copies them from the approved card.
+2. **Statement**: each period, finance creates a statement on the approved rates and enters the quantities. The statement shows the hours the team logged on the project in that period. Rates can't be changed on a statement; the database copies them from the approved card.
 3. **Approval**: the customer approves the statement in the portal (**Billing**), or asks for changes.
 4. **Zoho**: on approval, Helm creates a **draft** invoice in Zoho Books, with one line per item at rate × quantity and the PO number as the reference. Finance reviews it, Zoho adds tax and numbering, and Finance sends it from Zoho. The next sync shows it on the Finance page and to the customer. If Zoho isn't connected, or the customer has no Zoho id, the statement shows the reason and a **Retry Zoho** button.
 
-Who can do what is enforced in the database (`supabase/migrations/*_billing.sql`), and `tests/rls.test.ts` covers it.
+**Who sees money:** only admin, CEO and finance: rate cards, statements, the Finance page, Zoho invoices and payments. PMs and consultants see delivery (tasks, deliverables, requests) and hours logged, never rates or amounts. On the customer side, executives and anyone with invoice access see their own company's sent rate cards and statements. This is enforced in the database (`supabase/migrations/*_billing*.sql`), and `tests/rls.test.ts` covers it.
 
 ## Security notes
 

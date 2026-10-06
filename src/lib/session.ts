@@ -45,4 +45,5 @@ export async function requireCustomer(): Promise<Profile> {
 
 export const canManage = (p: Profile) => p.kind === 'internal' && ['admin', 'ceo', 'pm'].includes(p.internal_role ?? '')
 export const canSeeCommercials = (p: Profile) => p.kind === 'internal' && ['admin', 'ceo', 'finance'].includes(p.internal_role ?? '')
-export const canSeeFinance = (p: Profile) => p.kind === 'internal' && ['admin', 'ceo', 'finance', 'pm'].includes(p.internal_role ?? '')
+// money (billing, rate cards, Zoho invoices and payments): admin, CEO and finance only; PMs see delivery and hours
+export const canSeeFinance = (p: Profile) => p.kind === 'internal' && ['admin', 'ceo', 'finance'].includes(p.internal_role ?? '')

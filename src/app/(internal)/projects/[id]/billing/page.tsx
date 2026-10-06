@@ -9,7 +9,7 @@ import { ActionButton, ActionForm } from '@/components/forms'
 import { Card, Empty } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
 import { money, relativeTime } from '@/lib/format'
-import { canSeeCommercials, canSeeFinance, requireStaff } from '@/lib/session'
+import { canSeeFinance, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { title: 'Billing' }
@@ -33,29 +33,24 @@ function LineFields({ line }: { line?: { kind: Enums<'billing_kind'>; label: str
 }
 
 /**
- * Billing for one project. Finance (admin, CEO) keeps the rate card; the customer approves it once. Each period the PM or
- * finance prepares a statement on the approved rates; once the customer approves it, a draft invoice is created in Zoho.
+ * Billing for one project (admin, CEO and finance only). Finance keeps the rate card; the customer approves it once. Each
+ * period finance prepares a statement on the approved rates; once the customer approves it, a draft invoice is created in Zoho.
  */
 export default async function ProjectBilling({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const me = await requireStaff()
-  if (!canSeeFinance(me)) notFound()
-  const canPrice = canSeeCommercials(me)
+  if (!canSeeFinance(me)) notFound()   // admin, CEO and finance only
   const supabase = await createClient()
   const [{ data: project }, { data: cards }, { data: statements }] = await Promise.all([
-    supabase.from('projects').select('id, name, pm_id').eq('id', id).maybeSingle(),
+    supabase.from('projects').select('id, name').eq('id', id).maybeSingle(),
     supabase.from('rate_cards').select('*, rate_card_lines(*)').eq('project_id', id).order('version', { ascending: false }),
     supabase.from('billing_statements').select('id, period_start, period_end, status, zoho_invoice_number, invoice_error, created_at, rate_cards(currency), statement_lines(amount, quantity)')
       .eq('project_id', id).order('period_start', { ascending: false }),
   ])
   if (!project) notFound()
-  const canBill = canPrice || project.pm_id === me.id
-  if (!canBill) {
-    return <div className="p-4"><Empty title="Billing is handled by finance and this project's PM">Ask them if you need to see the rates.</Empty></div>
-  }
   const live = cards?.find((c) => c.status === 'approved')
   const open = cards?.find((c) => ['draft', 'pending', 'changes_requested'].includes(c.status))
-  const editable = canPrice && open && ['draft', 'changes_requested'].includes(open.status)
+  const editable = open && ['draft', 'changes_requested'].includes(open.status)
   const sortLines = <T extends { position: number }>(l: T[]) => [...l].sort((a, b) => a.position - b.position)
   const today = new Date()
   const firstOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)).toISOString().slice(0, 10)
@@ -122,13 +117,12 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
           <>
             <div className="overflow-x-auto"><RateLines lines={sortLines(live.rate_card_lines)} currency={live.currency} /></div>
             {live.notes ? <p className="m-0 border-t border-line-soft px-3 py-2 text-xs text-muted">{live.notes}</p> : null}
-            {canPrice && !open ? <div className="border-t border-line-soft p-3"><ActionButton run={startRateCard.bind(null, id)}>Revise rates</ActionButton></div> : null}
+            {!open ? <div className="border-t border-line-soft p-3"><ActionButton run={startRateCard.bind(null, id)}>Revise rates</ActionButton></div> : null}
           </>
         ) : !open ? (
           <Empty title="No rate card yet">
-            {canPrice ? <span className="flex flex-col items-center gap-2">Set the rates from the signed contract: day rates per resource, per delivery, per unit or a monthly retainer, in any mix.
+            <span className="flex flex-col items-center gap-2">Set the rates from the signed contract: day rates per resource, per delivery, per unit or a monthly retainer, in any mix.
               <ActionButton run={startRateCard.bind(null, id)} primary>Start the rate card</ActionButton></span>
-              : 'Finance sets the rates from the signed contract.'}
           </Empty>
         ) : <Empty title="Not approved yet">Statements can be prepared once the customer approves the rate card.</Empty>}
       </Card>

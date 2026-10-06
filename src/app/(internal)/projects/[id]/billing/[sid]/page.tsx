@@ -11,7 +11,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { title: 'Statement' }
 
-/** One billing period: quantities on the approved rates, sent to the customer, then a draft invoice in Zoho. */
+/** One billing period (admin, CEO, finance): quantities on the approved rates, sent to the customer, then a draft invoice in Zoho. */
 export default async function StatementPage({ params }: { params: Promise<{ id: string; sid: string }> }) {
   const { id, sid } = await params
   const me = await requireStaff()
@@ -21,6 +21,18 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
     .select('*, rate_cards(currency, po_number, version), statement_lines(*), decider:profiles!billing_statements_decided_by_fkey(full_name)')
     .eq('id', sid).eq('project_id', id).maybeSingle()
   if (!st) notFound()
+  // hours the team logged on this project's tasks in the period: the evidence for day-rate quantities
+  const { data: time } = await supabase.from('time_entries')
+    .select('hours, billable, user:profiles!time_entries_user_id_fkey(full_name), tasks!inner(project_id)')
+    .eq('tasks.project_id', id).gte('worked_on', st.period_start).lte('worked_on', st.period_end)
+  const byPerson = new Map<string, { hours: number; billable: number }>()
+  for (const t of time ?? []) {
+    const name = t.user?.full_name ?? 'Unknown'
+    const row = byPerson.get(name) ?? { hours: 0, billable: 0 }
+    row.hours += Number(t.hours)
+    if (t.billable) row.billable += Number(t.hours)
+    byPerson.set(name, row)
+  }
   const currency = st.rate_cards?.currency ?? 'INR'
   const lines = [...st.statement_lines].sort((a, b) => a.position - b.position)
   const editable = ['draft', 'changes_requested'].includes(st.status)
@@ -80,6 +92,20 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
             {st.status === 'approved' ? <div><ActionButton run={retryZohoInvoice.bind(null, st.id)} primary>{st.invoice_error ? 'Retry Zoho' : 'Create the draft invoice in Zoho'}</ActionButton></div> : null}
           </div>
         )}
+      </Card>
+      <Card flush title="Hours logged in this period" extra="From the team's time entries on this project">
+        {byPerson.size ? (
+          <div>
+            <div className="row row-head grid-cols-[minmax(0,1fr)_120px_120px]"><span>Person</span><span className="text-right">Hours</span><span className="text-right">Billable</span></div>
+            {[...byPerson.entries()].sort((a, b) => b[1].hours - a[1].hours).map(([name, h]) => (
+              <div key={name} className="row grid-cols-[minmax(0,1fr)_120px_120px]">
+                <span>{name}</span>
+                <span className="text-right font-mono text-xs">{h.hours.toFixed(1)}</span>
+                <span className="text-right font-mono text-xs">{h.billable.toFixed(1)}</span>
+              </div>
+            ))}
+          </div>
+        ) : <p className="m-0 p-3 text-xs text-muted">No time logged on this project between these dates.</p>}
       </Card>
     </div>
   )

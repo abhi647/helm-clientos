@@ -84,6 +84,14 @@ describe('customer users never see internal rows', () => {
     expect(data!.every((u) => u.status === 'published')).toBe(true)
   })
 
+  it('Zoho invoices and payments are for admin, CEO and finance, not PMs or consultants', async () => {
+    expect((await finance.from('invoices').select('id')).data!.length).toBeGreaterThan(0)
+    for (const c of [rahul, sahil]) {
+      expect((await c.from('invoices').select('id')).data).toHaveLength(0)
+      expect((await c.from('payments').select('id')).data).toHaveLength(0)
+    }
+  })
+
   it('invoices need the per-user invoice flag', async () => {
     expect((await michel.from('invoices').select('id')).data!.length).toBeGreaterThan(0)
     expect((await omar.from('invoices').select('id')).data).toHaveLength(0)
@@ -492,7 +500,8 @@ describe('billing: rate cards and statements', () => {
     card = id as string
     for (const l of lines) expect((await finance.rpc('add_rate_card_line', { p_card: card, ...l })).error).toBeNull()
     expect((await rahul.rpc('add_rate_card_line', { p_card: card, ...lines[0] })).error?.message).toMatch(/not allowed/)
-    expect((await rahul.from('rate_card_lines').select('id').eq('rate_card_id', card)).data).toHaveLength(4)   // the PM can read it
+    expect((await rahul.from('rate_card_lines').select('id').eq('rate_card_id', card)).data).toHaveLength(0)   // not even the project's PM
+    expect((await rahul.from('rate_cards').select('id').eq('id', card)).data).toHaveLength(0)
     expect((await sahil.from('rate_cards').select('id').eq('id', card)).data).toHaveLength(0)                  // a consultant cannot
     expect((await michel.from('rate_cards').select('id').eq('id', card)).data).toHaveLength(0)                 // drafts stay internal
     expect((await michel.rpc('add_rate_card_line', { p_card: card, ...lines[0] })).error?.message).toMatch(/not allowed/)
@@ -524,22 +533,25 @@ describe('billing: rate cards and statements', () => {
     expect(count).toBeGreaterThan(0)
   })
 
-  it('the PM bills a period on the approved rates and cannot change a rate', async () => {
-    const { data: id, error } = await rahul.rpc('create_statement', { p_project: project, p_start: '2026-09-01', p_end: '2026-09-30' })
+  it('finance bills a period on the approved rates and cannot change a rate; the PM cannot bill', async () => {
+    expect((await rahul.rpc('create_statement', { p_project: project, p_start: '2026-09-01', p_end: '2026-09-30' })).error?.message).toMatch(/not allowed/)
+    const { data: id, error } = await finance.rpc('create_statement', { p_project: project, p_start: '2026-09-01', p_end: '2026-09-30' })
     expect(error).toBeNull()
     const st = id as string
-    const { data: ls } = await rahul.from('statement_lines').select('id, kind, rate, quantity, amount').eq('statement_id', st)
+    const { data: ls } = await finance.from('statement_lines').select('id, kind, rate, quantity, amount').eq('statement_id', st)
     const day = ls!.find((l) => l.kind === 'day_rate')!
     expect(Number(day.rate)).toBe(90)                       // the approved rate, not the first draft
     expect(Number(day.quantity)).toBe(2 * 22)               // 2 resources x 22 working days in September 2026
     expect(Number(ls!.find((l) => l.kind === 'retainer')!.quantity)).toBe(1)
-    expect((await rahul.from('statement_lines').update({ rate: 1 } as never).eq('id', day.id)).error).not.toBeNull()
-    expect((await rahul.from('statement_lines').update({ quantity: 40 }).eq('id', day.id)).error).toBeNull()
+    expect((await finance.from('statement_lines').update({ rate: 1 } as never).eq('id', day.id)).error).not.toBeNull()
+    expect((await finance.from('statement_lines').update({ quantity: 40 }).eq('id', day.id)).error).toBeNull()
+    expect((await rahul.from('statement_lines').select('id').eq('statement_id', st)).data).toHaveLength(0)
     expect((await sahil.rpc('create_statement', { p_project: project, p_start: '2026-10-01', p_end: '2026-10-31' })).error?.message).toMatch(/not allowed/)
     expect((await michel.from('billing_statements').select('id').eq('id', st)).data).toHaveLength(0)   // still a draft
 
-    expect((await rahul.rpc('submit_statement', { p_statement: st })).error).toBeNull()
-    expect((await rahul.from('statement_lines').update({ quantity: 99 }).eq('id', day.id)).error).toBeNull()  // ignored: no longer editable
+    expect((await rahul.rpc('submit_statement', { p_statement: st })).error?.message).toMatch(/not allowed/)
+    expect((await finance.rpc('submit_statement', { p_statement: st })).error).toBeNull()
+    expect((await finance.from('statement_lines').update({ quantity: 99 }).eq('id', day.id)).error).toBeNull()  // ignored: no longer editable
     const after = await service.from('statement_lines').select('quantity, amount').eq('id', day.id).single()
     expect(Number(after.data!.quantity)).toBe(40)
     expect(Number(after.data!.amount)).toBe(3600)
