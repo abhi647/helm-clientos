@@ -14,7 +14,8 @@ Helm is the client delivery workspace for Seven Billion. Internal teams run proj
 | Emails | `src/lib/email.ts`, `/api/cron/emails` | Transactional outbox: the database queues the email, the app sends it through Resend after the response (`after()`), with idempotency key `outbox-<id>`. A daily cron catches anything left over. |
 | Files | `src/components/upload.tsx`, `/api/documents/[id]` | The browser uploads straight to a private Storage bucket (this avoids Vercel's request size limit). Downloads use short-lived signed URLs. |
 | HubSpot | `/api/webhooks/hubspot` | A deal moving to Closed Won becomes a pending engagement. The PM creates the project in one click from a template. |
-| Zoho Books | `/api/cron/zoho-sync` | Invoices are read from Zoho and upserted. Amounts are shown exactly as Zoho reports them; the app never calculates money. |
+| Zoho Books | `/api/cron/zoho-sync` | Invoices are read from Zoho and upserted. Amounts are shown exactly as Zoho reports them; the app never calculates invoice totals or tax. |
+| Billing | `src/app/_actions/billing.ts`, `src/lib/integrations/zoho.ts` | Rate cards and billing statements, approved by the customer, become draft invoices in Zoho (rate × quantity per line; Zoho adds tax and totals). See **Billing** below. |
 | Playbook automations | `supabase/migrations/*_mvp_completion.sql`, Admin screen | Six database rules (see below). Each can be switched off per organisation in **Admin**, and each run is logged as an internal activity entry. |
 | Meetings | `/projects/[id]/meetings`, `/meetings/[id]`, `/portal/meetings` | Notes, action lines that become plan tasks in one click (customer-owned ones land on the customer's home page), and decisions numbered `DEC-xxx`. |
 | Forms | `src/lib/forms.ts`, `/portal/forms/[key]`, project **Forms** tab | Kickoff, Data access, UAT feedback and Project closure are stored as submissions. New, Change and Access requests use the request lifecycle. A form builder is phase 2. |
@@ -147,11 +148,30 @@ Open the email link, set up two-step sign-in with an authenticator app, and you'
 ### 6. Zoho Books (optional)
 
 1. In the [Zoho API console](https://api-console.zoho.in), create a Self Client.
-2. Generate a code with scopes `ZohoBooks.invoices.READ,ZohoBooks.customerpayments.READ` and exchange it for a refresh token.
+2. Generate a code with scopes `ZohoBooks.invoices.READ,ZohoBooks.invoices.CREATE,ZohoBooks.customerpayments.READ` and exchange it for a refresh token. `invoices.CREATE` is only used to create **draft** invoices from approved billing statements.
 3. Set the `ZOHO_*` variables. `ZOHO_DOMAIN` is the data centre, for example `zoho.in`.
 4. Invoices and payments received are matched to customers by Zoho customer id, falling back to the customer name.
    - Draft and void invoices are never imported.
    - Finance can also press **Sync now**.
+5. For billing statements, set each customer's **Zoho customer id** in Admin → Customers. Optionally put a Zoho **item id** on a rate card line so Zoho applies that item's tax and HSN/SAC code.
+
+### Billing: rate cards, statements and Zoho drafts
+
+Every customer can be billed differently, and a project can mix models:
+
+| Model | Rate card line | Each statement |
+|---|---|---|
+| Day rate per resource | role, rate per day, number of resources | days worked (pre-filled: resources × working days; the PM adjusts for leave) |
+| Per delivery / milestone | deliverable, price | 1 for each delivery accepted in the period |
+| Per unit delivered | unit (report, model…), rate, planned units | units delivered |
+| Monthly retainer | fee per month | 1 (pre-filled) |
+
+1. **Rate card** (project → Billing): admin, CEO or finance type the rates from the signed contract (currency, PO number, notes) and send it to the customer. Customer executives and anyone with invoice access approve it, or ask for changes with a reason. A new version replaces the live rates only once it is approved.
+2. **Statement**: each period, finance or the project's PM creates a statement on the approved rates and enters the quantities. Rates can't be changed on a statement; the database copies them from the approved card.
+3. **Approval**: the customer approves the statement in the portal (**Billing**), or asks for changes.
+4. **Zoho**: on approval, Helm creates a **draft** invoice in Zoho Books, with one line per item at rate × quantity and the PO number as the reference. Finance reviews it, Zoho adds tax and numbering, and Finance sends it from Zoho. The next sync shows it on the Finance page and to the customer. If Zoho isn't connected, or the customer has no Zoho id, the statement shows the reason and a **Retry Zoho** button.
+
+Who can do what is enforced in the database (`supabase/migrations/*_billing.sql`), and `tests/rls.test.ts` covers it.
 
 ## Security notes
 

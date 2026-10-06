@@ -256,6 +256,85 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"billing_statements": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"customer_id": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"id": string,"invoice_error": string | null,"invoiced_at": string | null,"note": string,"period_end": string,"period_start": string,"project_id": string,"rate_card_id": string,"status": Database["public"]['Enums']["statement_status"],"submitted_at": string | null,"submitted_by": string | null,"zoho_claimed_at": string | null,"zoho_invoice_id": string | null,"zoho_invoice_number": string | null
+                  }
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"customer_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"invoice_error"?: string | null,"invoiced_at"?: string | null,"note"?: string,"period_end": string,"period_start": string,"project_id": string,"rate_card_id": string,"status"?: Database["public"]['Enums']["statement_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"zoho_claimed_at"?: string | null,"zoho_invoice_id"?: string | null,"zoho_invoice_number"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"customer_id"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"invoice_error"?: string | null,"invoiced_at"?: string | null,"note"?: string,"period_end"?: string,"period_start"?: string,"project_id"?: string,"rate_card_id"?: string,"status"?: Database["public"]['Enums']["statement_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"zoho_claimed_at"?: string | null,"zoho_invoice_id"?: string | null,"zoho_invoice_number"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "billing_statements_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "billing_statements_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "billing_statements_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "billing_statements_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "billing_statements_decided_by_fkey"
+      columns: ["decided_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "billing_statements_decided_by_fkey"
+      columns: ["decided_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "billing_statements_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "billing_statements_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "billing_statements_rate_card_id_fkey"
+      columns: ["rate_card_id"]
+isOneToOne: false
+      referencedRelation: "rate_cards"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "billing_statements_submitted_by_fkey"
+      columns: ["submitted_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "billing_statements_submitted_by_fkey"
+      columns: ["submitted_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"comments": {
                   Row: {
                     "author_id": string,"body": string,"created_at": string,"customer_id": string,"entity_id": string,"entity_type": string,"id": string,"mentions": (string)[],"visibility": Database["public"]['Enums']["visibility"]
@@ -1039,6 +1118,110 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"rate_card_lines": {
+                  Row: {
+                    "customer_id": string,"description": string,"id": string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"planned_quantity": number | null,"position": number,"rate": number,"rate_card_id": string,"unit": string,"zoho_item_id": string | null
+                  }
+                  Insert: {
+                    "customer_id": string,"description"?: string,"id"?: string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"planned_quantity"?: number | null,"position"?: number,"rate": number,"rate_card_id": string,"unit"?: string,"zoho_item_id"?: string | null
+                  }
+                  Update: {
+                    "customer_id"?: string,"description"?: string,"id"?: string,"kind"?: Database["public"]['Enums']["billing_kind"],"label"?: string,"planned_quantity"?: number | null,"position"?: number,"rate"?: number,"rate_card_id"?: string,"unit"?: string,"zoho_item_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "rate_card_lines_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rate_card_lines_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rate_card_lines_rate_card_id_fkey"
+      columns: ["rate_card_id"]
+isOneToOne: false
+      referencedRelation: "rate_cards"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"rate_cards": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"currency": string,"customer_id": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"id": string,"notes": string,"po_number": string | null,"project_id": string,"status": Database["public"]['Enums']["rate_card_status"],"submitted_at": string | null,"submitted_by": string | null,"version": number
+                  }
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"currency"?: string,"customer_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"notes"?: string,"po_number"?: string | null,"project_id": string,"status"?: Database["public"]['Enums']["rate_card_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"version"?: number
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"currency"?: string,"customer_id"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"notes"?: string,"po_number"?: string | null,"project_id"?: string,"status"?: Database["public"]['Enums']["rate_card_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "rate_cards_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rate_cards_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rate_cards_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rate_cards_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rate_cards_decided_by_fkey"
+      columns: ["decided_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rate_cards_decided_by_fkey"
+      columns: ["decided_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rate_cards_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rate_cards_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rate_cards_submitted_by_fkey"
+      columns: ["submitted_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rate_cards_submitted_by_fkey"
+      columns: ["submitted_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"request_events": {
                   Row: {
                     "actor_id": string | null,"created_at": string,"customer_id": string,"id": number,"note": string | null,"request_id": string,"status": Database["public"]['Enums']["request_status"]
@@ -1140,6 +1323,43 @@ isOneToOne: false
       columns: ["requested_by"]
 isOneToOne: false
       referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"statement_lines": {
+                  Row: {
+                    "amount": number | null,"customer_id": string,"id": string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"note": string,"position": number,"quantity": number,"rate": number,"rate_card_line_id": string,"statement_id": string,"unit": string
+                  }
+                  Insert: {
+                    "amount"?: never,"customer_id": string,"id"?: string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"note"?: string,"position"?: number,"quantity"?: number,"rate": number,"rate_card_line_id": string,"statement_id": string,"unit": string
+                  }
+                  Update: {
+                    "amount"?: never,"customer_id"?: string,"id"?: string,"kind"?: Database["public"]['Enums']["billing_kind"],"label"?: string,"note"?: string,"position"?: number,"quantity"?: number,"rate"?: number,"rate_card_line_id"?: string,"statement_id"?: string,"unit"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "statement_lines_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "statement_lines_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "statement_lines_rate_card_line_id_fkey"
+      columns: ["rate_card_line_id"]
+isOneToOne: false
+      referencedRelation: "rate_card_lines"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "statement_lines_statement_id_fkey"
+      columns: ["statement_id"]
+isOneToOne: false
+      referencedRelation: "billing_statements"
       referencedColumns: ["id"]
     }
                   ]
@@ -1448,6 +1668,9 @@ isOneToOne: false
             "add_document_version":
 { Args: { "p_document": string,"p_name": string,"p_note"?: string,"p_path": string }; Returns: number
                            },
+"add_rate_card_line":
+{ Args: { "p_card": string,"p_description"?: string,"p_kind": Database["public"]['Enums']["billing_kind"],"p_label": string,"p_planned"?: number,"p_rate": number,"p_unit": string,"p_zoho_item"?: string }; Returns: string
+                           },
 "answer_csat":
 { Args: { "p_comment"?: string,"p_score": number,"p_survey": string }; Returns: undefined
                            },
@@ -1457,11 +1680,20 @@ isOneToOne: false
 "complete_action_item":
 { Args: { "p_action": string }; Returns: undefined
                            },
+"create_statement":
+{ Args: { "p_end": string,"p_project": string,"p_start": string }; Returns: string
+                           },
 "create_task_from_meeting_action":
 { Args: { "p_action": string,"p_phase"?: string }; Returns: string
                            },
 "decide_approval":
 { Args: { "p_approval": string,"p_comment"?: string,"p_decision": Database["public"]['Enums']["approval_action"] }; Returns: undefined
+                           },
+"decide_rate_card":
+{ Args: { "p_approve": boolean,"p_card": string,"p_note"?: string }; Returns: undefined
+                           },
+"decide_statement":
+{ Args: { "p_approve": boolean,"p_note"?: string,"p_statement": string }; Returns: undefined
                            },
 "get_my_profile":
 { Args: Record<PropertyKey, never>; Returns: {
@@ -1497,10 +1729,19 @@ isOneToOne: false
                            },
 "set_request_status":
 { Args: { "p_note"?: string,"p_request": string,"p_status": Database["public"]['Enums']["request_status"] }; Returns: undefined
+                           },
+"start_rate_card":
+{ Args: { "p_project": string }; Returns: string
+                           },
+"submit_rate_card":
+{ Args: { "p_card": string }; Returns: undefined
+                           },
+"submit_statement":
+{ Args: { "p_statement": string }; Returns: undefined
                            }
           }
           Enums: {
-            "action_status": "open"|"completed"|"cancelled","action_type": "approval"|"form"|"task"|"clarification"|"uat"|"upload"|"decision"|"invoice"|"meeting_action","approval_action": "requested"|"approved"|"changes_requested"|"resubmitted"|"cancelled","approval_status": "pending"|"approved"|"changes_requested"|"cancelled","csat_kind": "request"|"pulse"|"closure","customer_role": "customer_exec"|"customer_member","feedback_kind": "praise"|"suggestion"|"issue"|"other","feedback_status": "new"|"acknowledged"|"actioned"|"closed","health": "on_track"|"needs_attention"|"at_risk","internal_role": "admin"|"ceo"|"pm"|"consultant"|"finance","owner_side": "seven_billion"|"customer","priority": "low"|"normal"|"high"|"critical","project_status": "active"|"on_hold"|"completed","request_status": "submitted"|"under_review"|"clarification"|"estimated"|"approved"|"scheduled"|"in_development"|"uat"|"delivered"|"cancelled","request_type": "requirement"|"enhancement"|"change_request"|"bug"|"new_report"|"data_request"|"access_request"|"support"|"other","setup_status": "pending"|"created"|"dismissed","task_status": "todo"|"in_progress"|"in_review"|"waiting_customer"|"blocked"|"done","update_status": "draft"|"published","user_kind": "internal"|"customer","visibility": "internal"|"shared"
+            "action_status": "open"|"completed"|"cancelled","action_type": "approval"|"form"|"task"|"clarification"|"uat"|"upload"|"decision"|"invoice"|"meeting_action","approval_action": "requested"|"approved"|"changes_requested"|"resubmitted"|"cancelled","approval_status": "pending"|"approved"|"changes_requested"|"cancelled","billing_kind": "day_rate"|"delivery"|"unit"|"retainer","csat_kind": "request"|"pulse"|"closure","customer_role": "customer_exec"|"customer_member","feedback_kind": "praise"|"suggestion"|"issue"|"other","feedback_status": "new"|"acknowledged"|"actioned"|"closed","health": "on_track"|"needs_attention"|"at_risk","internal_role": "admin"|"ceo"|"pm"|"consultant"|"finance","owner_side": "seven_billion"|"customer","priority": "low"|"normal"|"high"|"critical","project_status": "active"|"on_hold"|"completed","rate_card_status": "draft"|"pending"|"approved"|"changes_requested"|"superseded","request_status": "submitted"|"under_review"|"clarification"|"estimated"|"approved"|"scheduled"|"in_development"|"uat"|"delivered"|"cancelled","request_type": "requirement"|"enhancement"|"change_request"|"bug"|"new_report"|"data_request"|"access_request"|"support"|"other","setup_status": "pending"|"created"|"dismissed","statement_status": "draft"|"pending"|"approved"|"changes_requested"|"invoiced","task_status": "todo"|"in_progress"|"in_review"|"waiting_customer"|"blocked"|"done","update_status": "draft"|"published","user_kind": "internal"|"customer","visibility": "internal"|"shared"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -1616,7 +1857,7 @@ export type CompositeTypes<
 export const Constants = {
   "public": {
           Enums: {
-            "action_status": ["open", "completed", "cancelled"],"action_type": ["approval", "form", "task", "clarification", "uat", "upload", "decision", "invoice", "meeting_action"],"approval_action": ["requested", "approved", "changes_requested", "resubmitted", "cancelled"],"approval_status": ["pending", "approved", "changes_requested", "cancelled"],"csat_kind": ["request", "pulse", "closure"],"customer_role": ["customer_exec", "customer_member"],"feedback_kind": ["praise", "suggestion", "issue", "other"],"feedback_status": ["new", "acknowledged", "actioned", "closed"],"health": ["on_track", "needs_attention", "at_risk"],"internal_role": ["admin", "ceo", "pm", "consultant", "finance"],"owner_side": ["seven_billion", "customer"],"priority": ["low", "normal", "high", "critical"],"project_status": ["active", "on_hold", "completed"],"request_status": ["submitted", "under_review", "clarification", "estimated", "approved", "scheduled", "in_development", "uat", "delivered", "cancelled"],"request_type": ["requirement", "enhancement", "change_request", "bug", "new_report", "data_request", "access_request", "support", "other"],"setup_status": ["pending", "created", "dismissed"],"task_status": ["todo", "in_progress", "in_review", "waiting_customer", "blocked", "done"],"update_status": ["draft", "published"],"user_kind": ["internal", "customer"],"visibility": ["internal", "shared"]
+            "action_status": ["open", "completed", "cancelled"],"action_type": ["approval", "form", "task", "clarification", "uat", "upload", "decision", "invoice", "meeting_action"],"approval_action": ["requested", "approved", "changes_requested", "resubmitted", "cancelled"],"approval_status": ["pending", "approved", "changes_requested", "cancelled"],"billing_kind": ["day_rate", "delivery", "unit", "retainer"],"csat_kind": ["request", "pulse", "closure"],"customer_role": ["customer_exec", "customer_member"],"feedback_kind": ["praise", "suggestion", "issue", "other"],"feedback_status": ["new", "acknowledged", "actioned", "closed"],"health": ["on_track", "needs_attention", "at_risk"],"internal_role": ["admin", "ceo", "pm", "consultant", "finance"],"owner_side": ["seven_billion", "customer"],"priority": ["low", "normal", "high", "critical"],"project_status": ["active", "on_hold", "completed"],"rate_card_status": ["draft", "pending", "approved", "changes_requested", "superseded"],"request_status": ["submitted", "under_review", "clarification", "estimated", "approved", "scheduled", "in_development", "uat", "delivered", "cancelled"],"request_type": ["requirement", "enhancement", "change_request", "bug", "new_report", "data_request", "access_request", "support", "other"],"setup_status": ["pending", "created", "dismissed"],"statement_status": ["draft", "pending", "approved", "changes_requested", "invoiced"],"task_status": ["todo", "in_progress", "in_review", "waiting_customer", "blocked", "done"],"update_status": ["draft", "published"],"user_kind": ["internal", "customer"],"visibility": ["internal", "shared"]
           }
         }
 } as const

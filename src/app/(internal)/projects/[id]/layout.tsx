@@ -4,7 +4,7 @@ import { ProjectState } from '@/components/project-state'
 import { Tabs } from '@/components/shell/nav'
 import { Chip, Health, Progress } from '@/components/ui'
 import { shortDate } from '@/lib/format'
-import { canManage, canSeeCommercials, requireStaff } from '@/lib/session'
+import { canManage, canSeeCommercials, canSeeFinance, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { templateByKey } from '@/lib/templates'
 
@@ -13,7 +13,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
   const me = await requireStaff()
   const supabase = await createClient()
   const [{ data: p }, { data: internal }, { data: prog }, { count: openReq }] = await Promise.all([
-    supabase.from('projects').select('id, name, health, status, start_date, end_date, customer_id, customers(id, name), pm:profiles!projects_pm_id_fkey(full_name), lead:profiles!projects_customer_lead_id_fkey(full_name)').eq('id', id).maybeSingle(),
+    supabase.from('projects').select('id, name, pm_id, health, status, start_date, end_date, customer_id, customers(id, name), pm:profiles!projects_pm_id_fkey(full_name), lead:profiles!projects_customer_lead_id_fkey(full_name)').eq('id', id).maybeSingle(),
     supabase.from('projects_internal').select('template_key').eq('id', id).maybeSingle(),
     supabase.from('project_progress').select('*').eq('project_id', id).maybeSingle(),
     supabase.from('requests').select('id', { count: 'exact', head: true }).eq('project_id', id).not('status', 'in', '(delivered,cancelled)'),
@@ -48,6 +48,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
           { href: `${base}/decisions`, label: 'Decisions' },
           { href: `${base}/forms`, label: 'Forms' },
           { href: `${base}/activity`, label: 'Activity' },
+          ...(canSeeFinance(me) && (canSeeCommercials(me) || p.pm_id === me.id) ? [{ href: `${base}/billing`, label: 'Billing' }] : []),
           ...(canSeeCommercials(me) ? [{ href: `${base}/commercials`, label: <>Commercials <Chip className="ml-1 h-4 border border-dashed border-internal-line bg-internal-bg px-1.5 text-internal-ink">Internal</Chip></> }] : []),
         ]} />
       </header>

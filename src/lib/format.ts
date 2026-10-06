@@ -35,10 +35,10 @@ export function ageInDays(iso: string): string {
   return `${Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / DAY))}d`
 }
 
-/** Amounts are shown exactly as Zoho reports them; nothing is calculated here. */
-export function money(amount: number | null | undefined, currency = 'INR'): string {
+/** Formats an amount from Zoho or a typed rate. `exact` keeps the paise/cents (rates and statement lines). */
+export function money(amount: number | null | undefined, currency = 'INR', { exact = false }: { exact?: boolean } = {}): string {
   if (amount == null) return '–'
-  return new Intl.NumberFormat(currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount)
+  return new Intl.NumberFormat(currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency, maximumFractionDigits: exact ? 2 : 0 }).format(amount)
 }
 
 export const initials = (name: string) =>

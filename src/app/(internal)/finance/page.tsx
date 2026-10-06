@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { syncZohoNow } from '@/app/_actions/admin'
 import { ActionButton } from '@/components/forms'
+import { StatementStatus, period } from '@/components/billing'
 import { PaymentsCard } from '@/components/payments'
 import { Card, Chip, Empty, PageHeader, cn } from '@/components/ui'
 import { daysFromToday, label, money, relativeTime, shortDate } from '@/lib/format'
@@ -15,9 +17,12 @@ export default async function Finance() {
   const me = await requireStaff()
   if (!canSeeFinance(me)) notFound()
   const supabase = await createClient()
-  const [{ data: invoices }, { data: commercials }] = await Promise.all([
+  const [{ data: invoices }, { data: commercials }, { data: statements }] = await Promise.all([
     supabase.from('invoices').select('*, customers(name)').order('due_on', { ascending: true }),
     canSeeCommercials(me) ? supabase.from('project_commercials').select('*, projects(name, customers(name))') : Promise.resolve({ data: null }),
+    // statements still moving: being prepared, with the customer, or approved but not yet a Zoho draft
+    supabase.from('billing_statements').select('id, project_id, period_start, period_end, status, invoice_error, zoho_invoice_number, projects(name, customers(name))')
+      .neq('status', 'invoiced').order('period_start', { ascending: false }).limit(50),
   ])
   const lastSync = invoices?.reduce<string | null>((a, i) => (!a || i.synced_at > a ? i.synced_at : a), null)
   return (
@@ -46,6 +51,16 @@ export default async function Finance() {
               })}
             </div>
           ) : <Empty title="No invoices yet">They appear after the first Zoho Books sync.</Empty>}
+        </Card>
+        <Card flush title="Billing statements" extra="Not yet in Zoho">
+          {statements?.length ? statements.map((st) => (
+            <Link key={st.id} href={`/projects/${st.project_id}/billing/${st.id}`} className="row grid-cols-[minmax(0,1fr)_200px_170px_minmax(0,1fr)] text-ink no-underline hover:bg-head">
+              <span className="truncate">{st.projects?.customers?.name} · {st.projects?.name}</span>
+              <span className="text-xs">{period(st.period_start, st.period_end)}</span>
+              <span><StatementStatus status={st.status} /></span>
+              <span className="truncate text-xs text-crit-ink">{st.invoice_error ?? ''}</span>
+            </Link>
+          )) : <Empty title="Nothing waiting">Statements appear here from the project Billing tabs until they become Zoho invoices.</Empty>}
         </Card>
         <PaymentsCard staff />
         {commercials ? (

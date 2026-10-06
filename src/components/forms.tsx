@@ -125,11 +125,11 @@ export function StatusSelect<T extends string>({ value, options, onChange, label
 }
 
 /** Approve / request changes, used by the customer approver. */
-export function DecisionForm({ action, approvalId }: { action: FormAction; approvalId: string }) {
+export function DecisionForm({ action, approvalId, idName = 'approval_id' }: { action: FormAction; approvalId: string; idName?: string }) {
   const [state, run, pending] = useActionState<ActionResult | null, FormData>(action, null)
   return (
     <form action={run} className="flex flex-col gap-2">
-      <input type="hidden" name="approval_id" value={approvalId} />
+      <input type="hidden" name={idName} value={approvalId} />
       <label htmlFor={`c-${approvalId}`} className="label">Comment (needed to request changes)</label>
       <textarea id={`c-${approvalId}`} name="comment" rows={2} className="textarea" placeholder="Optional for approval" />
       <div className="flex flex-wrap gap-2">

@@ -471,3 +471,93 @@ describe('file controls', () => {
     expect(ok.error).toBeNull()
   })
 })
+
+describe('billing: rate cards and statements', () => {
+  let project: string, card: string
+  const lines = [
+    { p_kind: 'day_rate', p_label: 'Data engineer', p_unit: 'day', p_rate: 100, p_planned: 2 },
+    { p_kind: 'delivery', p_label: 'Sales dashboard', p_unit: 'delivery', p_rate: 500 },
+    { p_kind: 'unit', p_label: 'Monthly report', p_unit: 'report', p_rate: 50, p_planned: 4 },
+    { p_kind: 'retainer', p_label: 'Support retainer', p_unit: 'month', p_rate: 300 },
+  ]
+
+  beforeAll(async () => {
+    const { data } = await service.from('projects').select('id').eq('name', 'Management Reporting').single()
+    project = data!.id
+  })
+
+  it('finance prepares the rate card; the PM, consultants and customers cannot change it', async () => {
+    const { data: id, error } = await finance.rpc('start_rate_card', { p_project: project })
+    expect(error).toBeNull()
+    card = id as string
+    for (const l of lines) expect((await finance.rpc('add_rate_card_line', { p_card: card, ...l })).error).toBeNull()
+    expect((await rahul.rpc('add_rate_card_line', { p_card: card, ...lines[0] })).error?.message).toMatch(/not allowed/)
+    expect((await rahul.from('rate_card_lines').select('id').eq('rate_card_id', card)).data).toHaveLength(4)   // the PM can read it
+    expect((await sahil.from('rate_cards').select('id').eq('id', card)).data).toHaveLength(0)                  // a consultant cannot
+    expect((await michel.from('rate_cards').select('id').eq('id', card)).data).toHaveLength(0)                 // drafts stay internal
+    expect((await michel.rpc('add_rate_card_line', { p_card: card, ...lines[0] })).error?.message).toMatch(/not allowed/)
+  })
+
+  it('only billing contacts of that customer see a submitted card, and nobody can approve it by a direct update', async () => {
+    expect((await finance.rpc('submit_rate_card', { p_card: card })).error).toBeNull()
+    expect((await michel.from('rate_card_lines').select('rate').eq('rate_card_id', card)).data).toHaveLength(4)
+    expect((await omar.from('rate_cards').select('id').eq('id', card)).data).toHaveLength(0)       // member without invoice access
+    expect((await cbdLead.from('rate_cards').select('id').eq('id', card)).data).toHaveLength(0)    // another customer
+    expect((await michel.from('rate_cards').update({ status: 'approved' } as never).eq('id', card)).error).not.toBeNull()
+    expect((await finance.from('rate_cards').update({ status: 'approved' } as never).eq('id', card)).error).not.toBeNull()
+    // rates are frozen while the customer is looking at them
+    await finance.from('rate_card_lines').update({ rate: 1 }).eq('rate_card_id', card)
+    const { data } = await service.from('rate_card_lines').select('rate').eq('rate_card_id', card).eq('kind', 'day_rate').single()
+    expect(Number(data!.rate)).toBe(100)
+  })
+
+  it('asking for changes needs a reason; the card then goes back to finance and on to approval', async () => {
+    expect((await michel.rpc('decide_rate_card', { p_card: card, p_approve: false })).error?.message).toMatch(/please say what should change/)
+    expect((await omar.rpc('decide_rate_card', { p_card: card, p_approve: true })).error?.message).toMatch(/not allowed/)
+    expect((await michel.rpc('decide_rate_card', { p_card: card, p_approve: false, p_note: 'Engineer rate per the SOW is 90' })).error).toBeNull()
+    expect((await finance.from('rate_card_lines').update({ rate: 90 }).eq('rate_card_id', card).eq('kind', 'day_rate')).error).toBeNull()
+    expect((await finance.rpc('submit_rate_card', { p_card: card })).error).toBeNull()
+    expect((await michel.rpc('decide_rate_card', { p_card: card, p_approve: true })).error).toBeNull()
+    const { data } = await service.from('rate_cards').select('status, decided_by').eq('id', card).single()
+    expect(data!.status).toBe('approved')
+    const { count } = await service.from('notifications').select('id', { count: 'exact', head: true }).eq('kind', 'billing')
+    expect(count).toBeGreaterThan(0)
+  })
+
+  it('the PM bills a period on the approved rates and cannot change a rate', async () => {
+    const { data: id, error } = await rahul.rpc('create_statement', { p_project: project, p_start: '2026-09-01', p_end: '2026-09-30' })
+    expect(error).toBeNull()
+    const st = id as string
+    const { data: ls } = await rahul.from('statement_lines').select('id, kind, rate, quantity, amount').eq('statement_id', st)
+    const day = ls!.find((l) => l.kind === 'day_rate')!
+    expect(Number(day.rate)).toBe(90)                       // the approved rate, not the first draft
+    expect(Number(day.quantity)).toBe(2 * 22)               // 2 resources x 22 working days in September 2026
+    expect(Number(ls!.find((l) => l.kind === 'retainer')!.quantity)).toBe(1)
+    expect((await rahul.from('statement_lines').update({ rate: 1 } as never).eq('id', day.id)).error).not.toBeNull()
+    expect((await rahul.from('statement_lines').update({ quantity: 40 }).eq('id', day.id)).error).toBeNull()
+    expect((await sahil.rpc('create_statement', { p_project: project, p_start: '2026-10-01', p_end: '2026-10-31' })).error?.message).toMatch(/not allowed/)
+    expect((await michel.from('billing_statements').select('id').eq('id', st)).data).toHaveLength(0)   // still a draft
+
+    expect((await rahul.rpc('submit_statement', { p_statement: st })).error).toBeNull()
+    expect((await rahul.from('statement_lines').update({ quantity: 99 }).eq('id', day.id)).error).toBeNull()  // ignored: no longer editable
+    const after = await service.from('statement_lines').select('quantity, amount').eq('id', day.id).single()
+    expect(Number(after.data!.quantity)).toBe(40)
+    expect(Number(after.data!.amount)).toBe(3600)
+    expect((await michel.from('statement_lines').select('id').eq('statement_id', st)).data).toHaveLength(4)
+    expect((await omar.from('billing_statements').select('id').eq('id', st)).data).toHaveLength(0)
+    expect((await michel.rpc('decide_statement', { p_statement: st, p_approve: true })).error).toBeNull()
+    expect((await service.from('billing_statements').select('status').eq('id', st).single()).data!.status).toBe('approved')
+    expect((await michel.rpc('decide_statement', { p_statement: st, p_approve: true })).error?.message).toMatch(/no longer pending/)
+  })
+
+  it('a revision copies the lines and replaces the live card only once approved', async () => {
+    const { data: v2 } = await finance.rpc('start_rate_card', { p_project: project })
+    expect((await finance.rpc('start_rate_card', { p_project: project })).error?.message).toMatch(/already being prepared/)
+    expect((await finance.from('rate_card_lines').select('id').eq('rate_card_id', v2 as string)).data).toHaveLength(4)
+    expect((await service.from('rate_cards').select('status').eq('id', card).single()).data!.status).toBe('approved')
+    await finance.rpc('submit_rate_card', { p_card: v2 as string })
+    await michel.rpc('decide_rate_card', { p_card: v2 as string, p_approve: true })
+    expect((await service.from('rate_cards').select('status').eq('id', card).single()).data!.status).toBe('superseded')
+    expect((await service.from('rate_cards').select('status, version').eq('id', v2 as string).single()).data).toMatchObject({ status: 'approved', version: 2 })
+  })
+})

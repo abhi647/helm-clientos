@@ -111,3 +111,78 @@ async function syncPayments(token: string, byZoho: Map<string, string>): Promise
   if (error) throw error
   return rows.length
 }
+
+type DraftResult = { ok: true; number: string } | { ok: false; error: string }
+
+/**
+ * Creates a DRAFT invoice in Zoho Books for an approved billing statement: one line per resource, delivery, unit or
+ * retainer, at the approved rate x the approved quantity. Zoho applies tax (from the line's Zoho item, if set),
+ * numbering and totals; Finance reviews the draft and sends it from Zoho. Safe to call twice: a statement is claimed
+ * before Zoho is called and is never invoiced again once it has a Zoho id.
+ * Needs the Zoho scope ZohoBooks.invoices.CREATE on top of the read scopes.
+ */
+export async function createZohoDraftInvoice(statementId: string): Promise<DraftResult> {
+  const e = env()
+  const db = createAdminClient()
+  const fail = async (error: string): Promise<DraftResult> => {
+    await db.from('billing_statements').update({ invoice_error: error, zoho_claimed_at: null }).eq('id', statementId)
+    return { ok: false, error }
+  }
+  // claim it: approved, not invoiced, and nobody else working on it (a claim older than 5 minutes is abandoned)
+  const stale = new Date(Date.now() - 5 * 60_000).toISOString()
+  const { data: claimed } = await db.from('billing_statements')
+    .update({ zoho_claimed_at: new Date().toISOString(), invoice_error: null })
+    .eq('id', statementId).eq('status', 'approved').is('zoho_invoice_id', null)
+    .or(`zoho_claimed_at.is.null,zoho_claimed_at.lt.${stale}`)
+    .select('id, project_id, customer_id, rate_card_id, period_start, period_end, note')
+  const st = claimed?.[0]
+  if (!st) return { ok: false, error: 'This statement is already invoiced, not approved yet, or being sent to Zoho right now.' }
+
+  if (!e.ZOHO_CLIENT_ID || !e.ZOHO_REFRESH_TOKEN || !e.ZOHO_ORGANIZATION_ID) return fail('Zoho is not connected. Add the ZOHO_* settings, then press Retry.')
+  const [{ data: customer }, { data: project }, { data: card }, { data: lines }] = await Promise.all([
+    db.from('customers').select('name, zoho_customer_id').eq('id', st.customer_id).single(),
+    db.from('projects').select('name').eq('id', st.project_id).single(),
+    db.from('rate_cards').select('currency, po_number').eq('id', st.rate_card_id).single(),
+    db.from('statement_lines').select('label, unit, rate, quantity, note, kind, position, rate_card_lines(zoho_item_id, description)')
+      .eq('statement_id', statementId).gt('quantity', 0).order('position'),
+  ])
+  if (!customer?.zoho_customer_id) return fail(`${customer?.name ?? 'This customer'} has no Zoho customer id. Add it in Admin → Customers, then press Retry.`)
+  if (!lines?.length) return fail('The statement has no lines with a quantity.')
+
+  const periodText = `${st.period_start} to ${st.period_end}`
+  const body = {
+    customer_id: customer.zoho_customer_id,
+    date: new Date().toISOString().slice(0, 10),
+    reference_number: card?.po_number || undefined,
+    line_items: lines.map((l) => ({
+      ...(l.rate_card_lines?.zoho_item_id ? { item_id: l.rate_card_lines.zoho_item_id } : {}),
+      name: l.label,
+      description: [`${project?.name} · ${periodText}`, l.rate_card_lines?.description, l.note].filter(Boolean).join('\n'),
+      rate: Number(l.rate),
+      quantity: Number(l.quantity),
+      unit: l.unit,
+    })),
+    notes: st.note || undefined,
+  }
+  try {
+    const token = await accessToken()
+    const url = new URL(`https://www.zohoapis.${e.ZOHO_DOMAIN}/books/v3/invoices`)
+    url.search = new URLSearchParams({ organization_id: e.ZOHO_ORGANIZATION_ID }).toString()
+    const res = await fetch(url, {
+      method: 'POST', cache: 'no-store',
+      headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const json = (await res.json()) as { code?: number; message?: string; invoice?: { invoice_id: string; invoice_number: string; currency_code?: string } }
+    if (!res.ok || json.code !== 0 || !json.invoice) return fail(`Zoho refused the invoice: ${json.message ?? res.status}`)
+    const warn = card?.currency && json.invoice.currency_code && json.invoice.currency_code !== card.currency
+      ? `Zoho used ${json.invoice.currency_code}, but the rate card is in ${card.currency}. Check the draft before sending.` : null
+    await db.from('billing_statements').update({
+      status: 'invoiced', zoho_invoice_id: json.invoice.invoice_id, zoho_invoice_number: json.invoice.invoice_number,
+      invoiced_at: new Date().toISOString(), invoice_error: warn, zoho_claimed_at: null,
+    }).eq('id', statementId)
+    return { ok: true, number: json.invoice.invoice_number }
+  } catch (err) {
+    return fail(err instanceof Error ? err.message : 'Zoho could not be reached.')
+  }
+}

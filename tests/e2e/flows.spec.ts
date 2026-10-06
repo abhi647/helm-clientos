@@ -268,3 +268,74 @@ test('CEO sees the portfolio and finance', async ({ page }) => {
   await page.getByRole('link', { name: /Nesma Group/ }).click()
   await shot(page, '12-customer')
 })
+
+test('billing: rate card approved by the customer, a statement approved, then sent to Zoho', async ({ page }) => {
+  page.on('dialog', (d) => d.accept())
+  const openBilling = async () => {
+    await page.goto('/customers')
+    await page.getByRole('link', { name: /Nesma Group/ }).click()
+    await page.getByRole('link', { name: 'Infor LN Integration' }).first().click()
+    await page.getByRole('link', { name: 'Billing' }).click()
+  }
+
+  // finance sets the rates from the contract: a day rate and a per-delivery price
+  await signIn(page, 'finance@example.com')
+  await openBilling()
+  await page.getByRole('button', { name: 'Start the rate card' }).click()
+  const add = page.locator('form', { has: page.getByRole('button', { name: 'Add line' }) })
+  await add.getByLabel('Role, delivery or unit').fill('Data engineer')
+  await add.getByLabel('Rate', { exact: true }).fill('90')
+  await add.getByLabel('Planned quantity').fill('2')
+  await add.getByRole('button', { name: 'Add line' }).click()
+  await expect(page.getByText('Line added.')).toBeVisible()
+  await add.getByLabel('Billing model').selectOption('delivery')
+  await add.getByLabel('Role, delivery or unit').fill('Sales dashboard')
+  await add.getByLabel('Unit', { exact: true }).fill('delivery')
+  await add.getByLabel('Rate', { exact: true }).fill('500')
+  await add.getByRole('button', { name: 'Add line' }).click()
+  await expect(page.locator('input[value="Sales dashboard"]')).toBeVisible()
+  await shot(page, '21-billing-rate-card')
+  await page.getByRole('button', { name: 'Send to customer for approval' }).click()
+  await expect(page.getByText('Waiting for customer')).toBeVisible()
+
+  // the customer's executive approves the rates in the portal
+  await signIn(page, 'michel@nesma.example.com')
+  await page.goto('/portal/billing')
+  const card = page.locator('.card', { hasText: 'Rates for Infor LN Integration' })
+  await expect(card.getByText('Data engineer')).toBeVisible()
+  await card.getByRole('button', { name: 'Approve' }).click()
+  await expect(card).toHaveCount(0)   // moves from "waiting" to the approved rates
+  await expect(page.locator('.card', { hasText: 'Approved rates' }).getByText('Data engineer')).toBeVisible()
+
+  // the PM bills the month: days worked and the delivery accepted
+  await signIn(page, 'rahul@example.com')
+  await openBilling()
+  await page.getByRole('button', { name: 'New statement' }).click()
+  await page.waitForURL(/\/billing\/[0-9a-f-]{36}$/)
+  await page.getByLabel('Quantity for Data engineer').fill('38')
+  await page.getByLabel('Note for Data engineer').fill('2 days leave')
+  await page.getByLabel('Quantity for Sales dashboard').fill('1')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(page.getByText('Saved.')).toBeVisible()
+  await shot(page, '22-billing-statement')
+  await page.getByRole('button', { name: 'Send to customer for approval' }).click()
+  await expect(page.getByText('Waiting for approval')).toBeVisible()
+  const statementUrl = page.url()
+
+  // the customer approves the statement; the server then creates the Zoho draft (Zoho is not connected locally)
+  await signIn(page, 'michel@nesma.example.com')
+  await page.goto('/portal/billing')
+  const st = page.locator('.card', { hasText: 'Waiting for approval' })
+  await expect(st.getByText('2 days leave')).toBeVisible()
+  await shot(page, '23-portal-billing')
+  await st.getByRole('button', { name: 'Approve' }).click()
+  await expect(st).toHaveCount(0)
+  await expect(page.locator('.card', { hasText: 'Statements' }).getByText('Approved', { exact: true })).toBeVisible()
+
+  await signIn(page, 'finance@example.com')
+  await expect(async () => {
+    await page.goto(statementUrl)
+    await expect(page.getByText(/Zoho is not connected/)).toBeVisible({ timeout: 1000 })
+  }).toPass({ timeout: 15_000 })
+  await expect(page.getByRole('button', { name: 'Retry Zoho' })).toBeVisible()
+})
