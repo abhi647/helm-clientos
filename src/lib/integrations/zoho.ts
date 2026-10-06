@@ -9,6 +9,9 @@ type ZohoInvoice = {
 
 const HIDDEN = new Set(['draft', 'void'])
 
+/** Zoho's API host for the data centre: zoho.in → www.zohoapis.in, zoho.com → www.zohoapis.com, zoho.eu → www.zohoapis.eu */
+const apiBase = () => `https://www.zohoapis.${env().ZOHO_DOMAIN.replace(/^zoho\./, '')}`
+
 async function accessToken(): Promise<string> {
   const e = env()
   const res = await fetch(`https://accounts.${e.ZOHO_DOMAIN}/oauth/v2/token`, {
@@ -37,7 +40,7 @@ export async function syncZohoInvoices(): Promise<{ fetched: number; upserted: n
 
   const invoices: ZohoInvoice[] = []
   for (let page = 1; page <= 20; page++) {
-    const url = new URL(`https://www.zohoapis.${e.ZOHO_DOMAIN}/books/v3/invoices`)
+    const url = new URL(`${apiBase()}/books/v3/invoices`)
     url.search = new URLSearchParams({ organization_id: e.ZOHO_ORGANIZATION_ID, page: String(page), per_page: '200', sort_column: 'date', sort_order: 'D' }).toString()
     const res = await fetch(url, { headers: { Authorization: `Zoho-oauthtoken ${token}` }, cache: 'no-store' })
     if (!res.ok) throw new Error(`Zoho invoices request failed: ${res.status}`)
@@ -86,7 +89,7 @@ async function syncPayments(token: string, byZoho: Map<string, string>): Promise
   const db = createAdminClient()
   const payments: ZohoPayment[] = []
   for (let page = 1; page <= 10; page++) {
-    const url = new URL(`https://www.zohoapis.${e.ZOHO_DOMAIN}/books/v3/customerpayments`)
+    const url = new URL(`${apiBase()}/books/v3/customerpayments`)
     url.search = new URLSearchParams({ organization_id: e.ZOHO_ORGANIZATION_ID, page: String(page), per_page: '200', sort_column: 'date', sort_order: 'D' }).toString()
     const res = await fetch(url, { headers: { Authorization: `Zoho-oauthtoken ${token}` }, cache: 'no-store' })
     if (!res.ok) throw new Error(`Zoho payments request failed: ${res.status}`)
@@ -166,7 +169,7 @@ export async function createZohoDraftInvoice(statementId: string): Promise<Draft
   }
   try {
     const token = await accessToken()
-    const url = new URL(`https://www.zohoapis.${e.ZOHO_DOMAIN}/books/v3/invoices`)
+    const url = new URL(`${apiBase()}/books/v3/invoices`)
     url.search = new URLSearchParams({ organization_id: e.ZOHO_ORGANIZATION_ID }).toString()
     const res = await fetch(url, {
       method: 'POST', cache: 'no-store',
