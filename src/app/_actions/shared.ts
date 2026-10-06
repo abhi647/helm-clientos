@@ -1,0 +1,38 @@
+import 'server-only'
+import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
+import { z } from 'zod'
+import { flushOutbox } from '@/lib/email'
+
+export type ActionResult = { ok: true; message?: string } | { ok: false; error: string }
+
+export const ok = (message?: string): ActionResult => ({ ok: true, message })
+export const fail = (error: string): ActionResult => ({ ok: false, error })
+
+/** Database errors are logged for us and shown to people in plain words. */
+export function dbFail(error: { message: string } | null, fallback = 'That did not work. Please try again.'): ActionResult {
+  if (error) console.error('[action]', error.message)
+  const known = error?.message.match(/only the named approver|no longer pending|please say what should change|only an approval|not allowed|comment target not found/i)
+  return fail(known ? known[0].charAt(0).toUpperCase() + known[0].slice(1) + '.' : fallback)
+}
+
+/** After a change: refresh pages and send any queued emails without making the user wait. */
+export function done(message?: string): ActionResult {
+  revalidatePath('/', 'layout')
+  after(async () => {
+    try {
+      await flushOutbox()
+    } catch (e) {
+      console.error('[email] flush failed', e)
+    }
+  })
+  return ok(message)
+}
+
+export const uuid = z.string().uuid()
+export const optionalDate = z.preprocess((v) => (v === '' || v == null ? null : v), z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable())
+export const visibility = z.enum(['internal', 'shared'])
+
+export function formObject(form: FormData) {
+  return Object.fromEntries(Array.from(form.keys()).map((k) => [k, form.get(k)]))
+}

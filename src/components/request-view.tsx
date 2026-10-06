@@ -1,0 +1,152 @@
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { decideApproval, requestApproval, resubmitApproval, setRequestStatus } from '@/app/_actions/requests'
+import { ActionForm, DecisionForm } from '@/components/forms'
+import { Thread } from '@/components/thread'
+import { ApprovalStatusChip, Card, PriorityText, RequestStatusChip, Visibility, cn } from '@/components/ui'
+import type { Enums } from '@/lib/database.types'
+import { REQUEST_STATUS_ORDER, label, relativeTime, shortDate } from '@/lib/format'
+import type { Profile } from '@/lib/session'
+import { createClient } from '@/lib/supabase/server'
+
+/** Request detail for staff and customers. What each sees is decided by RLS; staff also get the controls. */
+export async function RequestView({ id, me, created }: { id: string; me: Profile; created?: string }) {
+  const supabase = await createClient()
+  const staff = me.kind === 'internal'
+  const base = staff ? '' : '/portal'
+  const { data: r } = await supabase.from('requests')
+    .select('*, customers(name), projects(id, name), owner:profiles!requests_owner_id_fkey(full_name), requester:profiles!requests_requested_by_fkey(full_name)')
+    .eq('id', id).maybeSingle()
+  if (!r) notFound()
+  const [{ data: events }, { data: approvals }, { data: customerUsers }] = await Promise.all([
+    supabase.from('request_events').select('id, status, note, created_at, actor:profiles!request_events_actor_id_fkey(full_name)').eq('request_id', id).order('id'),
+    supabase.from('approvals').select('*, approver:profiles!approvals_approver_id_fkey(full_name), approval_events(id, action, version, comment, created_at, actor:profiles!approval_events_actor_id_fkey(full_name))').eq('request_id', id).order('created_at', { ascending: false }),
+    staff ? supabase.from('profiles').select('id, full_name').eq('customer_id', r.customer_id) : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
+  ])
+  const current = REQUEST_STATUS_ORDER.indexOf(r.status as Enums<'request_status'>)
+  const reached = new Map((events ?? []).map((e) => [e.status, e.created_at]))
+  const approval = approvals?.[0]
+  const canDecide = approval?.status === 'pending' && approval.approver_id === me.id
+
+  return (
+    <div className="flex flex-col gap-3 p-4">
+      {created ? <p role="status" className="m-0 rounded-md bg-good-bg px-3 py-2 text-[13px] font-medium text-good-ink"><b>{created}</b> created. Seven Billion has it and will review it shortly.</p> : null}
+      <div className="card flex flex-col gap-2.5 px-3.5 py-3">
+        <Link href={`${base}/requests`} className="text-xs font-medium">← Requests</Link>
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+          <span className="font-mono text-xs text-muted">{r.number}</span>
+          <h1 className="m-0 text-[17px] font-semibold">{r.title}</h1>
+          <RequestStatusChip status={r.status} />
+          <Visibility value="shared" />
+        </div>
+        <dl className="m-0 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-x-3.5 gap-y-2 text-[13px]">
+          {staff ? <div><dt className="label">Customer</dt><dd className="m-0">{r.customers?.name}</dd></div> : null}
+          <div><dt className="label">Project</dt><dd className="m-0">{r.projects ? (staff ? <Link href={`/projects/${r.projects.id}`}>{r.projects.name}</Link> : r.projects.name) : '–'}</dd></div>
+          <div><dt className="label">Type</dt><dd className="m-0">{label(r.type)}</dd></div>
+          <div><dt className="label">Priority</dt><dd className="m-0"><PriorityText priority={r.priority} /></dd></div>
+          <div><dt className="label">Requested</dt><dd className="m-0">{r.requester?.full_name ?? '–'} · <span className="font-mono">{shortDate(r.created_at)}</span></dd></div>
+          <div><dt className="label">Owner</dt><dd className="m-0">{r.owner?.full_name ?? 'Not assigned yet'}</dd></div>
+          <div><dt className="label">Wanted by</dt><dd className="m-0 font-mono">{shortDate(r.desired_date)}</dd></div>
+        </dl>
+        <ol aria-label="Progress" className="m-0 flex list-none items-center overflow-x-auto p-0 pt-1">
+          {REQUEST_STATUS_ORDER.map((s, i) => {
+            const done = i < current || r.status === 'delivered'
+            const now = i === current && r.status !== 'delivered'
+            return (
+              <li key={s} className="flex flex-none items-center gap-1.5" aria-current={now ? 'step' : undefined}>
+                <span aria-hidden className={cn('size-2.5 rounded-full', done ? 'bg-info-ink' : now ? 'border-[3px] border-info bg-white' : 'border-[1.5px] border-[#b9c4c8] bg-white')} />
+                <span className={cn('text-xs whitespace-nowrap', now && 'font-semibold', !done && !now && 'text-muted')}>
+                  {label(s)}{reached.get(s) ? <span className="font-mono text-muted"> · {shortDate(reached.get(s))}</span> : null}
+                </span>
+                {i < REQUEST_STATUS_ORDER.length - 1 ? <span aria-hidden className={cn('mx-1 h-px w-4', done ? 'bg-info-ink' : 'bg-[#d5dcdf]')} /> : null}
+              </li>
+            )
+          })}
+        </ol>
+      </div>
+
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="flex min-w-0 flex-[999_1_420px] flex-col gap-3">
+          <Card title="Requirement">
+            <div className="grid gap-3 text-[13px] leading-relaxed sm:grid-cols-2">
+              <div><div className="label mb-1">What is needed</div><p className="m-0 whitespace-pre-wrap">{r.what || '–'}</p></div>
+              <div><div className="label mb-1">Why</div><p className="m-0 whitespace-pre-wrap">{r.why || '–'}</p></div>
+            </div>
+          </Card>
+          <Card title="Discussion">
+            <Thread entityType="request" entityId={r.id} customerId={r.customer_id} me={me} defaultShared />
+          </Card>
+        </div>
+
+        <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-3">
+          {approval ? (
+            <section className={cn('card flex flex-col gap-2 p-3', approval.status === 'pending' && 'border-ink')}>
+              <div className="flex items-center gap-2"><span className="label">Approval · {approval.kind}</span><span className="ml-auto"><ApprovalStatusChip status={approval.status} /></span></div>
+              <div className="text-[14px] font-semibold">{approval.title}</div>
+              <dl className="m-0 grid grid-cols-[96px_minmax(0,1fr)] gap-y-1 text-[13px]">
+                <dt className="text-muted">Effort</dt><dd className="m-0 font-mono">{approval.effort_hours ?? '–'} h</dd>
+                <dt className="text-muted">Target</dt><dd className="m-0 font-mono">{shortDate(approval.target_date)}</dd>
+                <dt className="text-muted">Version</dt><dd className="m-0 font-mono">v{approval.version}</dd>
+                <dt className="text-muted">Approver</dt><dd className="m-0">{approval.approver?.full_name}</dd>
+              </dl>
+              <p className="m-0 text-xs leading-relaxed text-muted whitespace-pre-wrap">{approval.summary}</p>
+              {canDecide ? <DecisionForm action={decideApproval} approvalId={approval.id} /> : null}
+              {staff && approval.status === 'pending' ? <p className="m-0 text-xs font-medium text-warn-ink">Waiting for {approval.approver?.full_name} · requested {relativeTime(approval.created_at)}</p> : null}
+              {staff && approval.status === 'changes_requested' ? (
+                <details open>
+                  <summary className="cursor-pointer text-xs font-medium text-link">Revise and resubmit as v{approval.version + 1}</summary>
+                  <ActionForm action={resubmitApproval} submit="Resubmit" className="mt-2">
+                    <input type="hidden" name="approval_id" value={approval.id} />
+                    <textarea name="summary" rows={3} defaultValue={approval.summary} aria-label="Revised scope" className="textarea" />
+                    <div className="flex gap-2"><input type="number" name="effort_hours" step={0.5} min={0.5} defaultValue={approval.effort_hours ?? ''} aria-label="Effort hours" className="input w-24" required /><input type="date" name="target_date" defaultValue={approval.target_date ?? ''} aria-label="Target date" className="input flex-1" /></div>
+                    <input name="comment" placeholder="What changed (shown in history)" aria-label="What changed" className="input" />
+                  </ActionForm>
+                </details>
+              ) : null}
+              <div className="flex flex-col gap-1 border-t border-line-soft pt-2">
+                <span className="label">History</span>
+                {(approval.approval_events ?? []).sort((a, b) => a.id - b.id).map((e) => (
+                  <div key={e.id} className="text-xs leading-snug">
+                    <b>{label(e.action)}</b> · v{e.version} · {e.actor?.full_name ?? 'Seven Billion'} · <span className="font-mono text-muted">{shortDate(e.created_at)}</span>
+                    {e.comment ? <><br /><span className="text-muted">“{e.comment}”</span></> : null}
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {staff && (!approval || approval.status === 'approved' || approval.status === 'cancelled') && !['approved', 'scheduled', 'in_development', 'uat', 'delivered', 'cancelled'].includes(r.status) ? (
+            <Card title="Ask the customer to approve an estimate">
+              <ActionForm action={requestApproval} submit="Request approval">
+                <input type="hidden" name="request_id" value={r.id} />
+                <textarea name="summary" rows={3} required placeholder="Scope: what is included and excluded" aria-label="Scope" className="textarea" />
+                <div className="flex gap-2"><input type="number" name="effort_hours" step={0.5} min={0.5} required placeholder="Effort h" aria-label="Effort in hours" className="input w-24" /><input type="date" name="target_date" aria-label="Target delivery" className="input flex-1" /></div>
+                <label className="flex flex-col gap-1 text-xs"><span className="label">Approver</span>
+                  <select name="approver_id" required className="input">{(customerUsers ?? []).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}</select></label>
+                <label className="flex flex-col gap-1 text-xs"><span className="label">Decision needed by</span><input type="date" name="due_date" className="input" /></label>
+              </ActionForm>
+            </Card>
+          ) : null}
+
+          {staff ? (
+            <Card title="Move to stage">
+              <ActionForm action={setRequestStatus} submit="Update stage" primary={false}>
+                <input type="hidden" name="request_id" value={r.id} />
+                <select name="status" defaultValue={r.status} aria-label="Stage" className="input">{[...REQUEST_STATUS_ORDER, 'cancelled' as const].map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
+                <input name="note" placeholder="Note for the timeline (shared with the customer)" aria-label="Note" className="input" />
+              </ActionForm>
+            </Card>
+          ) : null}
+
+          <Card title="Timeline">
+            <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
+              {(events ?? []).map((e) => (
+                <li key={e.id} className="text-xs leading-snug"><b>{label(e.status)}</b> · {e.actor?.full_name ?? 'Seven Billion'} · <span className="font-mono text-muted">{shortDate(e.created_at)}</span>{e.note ? <><br /><span className="text-muted">{e.note}</span></> : null}</li>
+              ))}
+            </ol>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}

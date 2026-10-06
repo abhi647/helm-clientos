@@ -1,0 +1,872 @@
+
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+
+export type Database = {
+  
+  "public": {
+          Tables: {
+            "action_items": {
+                  Row: {
+                    "approval_id": string | null,"assignee_id": string | null,"completed_at": string | null,"created_at": string,"customer_id": string,"due_date": string | null,"id": string,"priority": Database["public"]['Enums']["priority"],"project_id": string | null,"request_id": string | null,"status": Database["public"]['Enums']["action_status"],"task_id": string | null,"title": string,"type": Database["public"]['Enums']["action_type"]
+                  }
+                  Insert: {
+                    "approval_id"?: string | null,"assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"customer_id": string,"due_date"?: string | null,"id"?: string,"priority"?: Database["public"]['Enums']["priority"],"project_id"?: string | null,"request_id"?: string | null,"status"?: Database["public"]['Enums']["action_status"],"task_id"?: string | null,"title": string,"type": Database["public"]['Enums']["action_type"]
+                  }
+                  Update: {
+                    "approval_id"?: string | null,"assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"customer_id"?: string,"due_date"?: string | null,"id"?: string,"priority"?: Database["public"]['Enums']["priority"],"project_id"?: string | null,"request_id"?: string | null,"status"?: Database["public"]['Enums']["action_status"],"task_id"?: string | null,"title"?: string,"type"?: Database["public"]['Enums']["action_type"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "action_items_approval_id_fkey"
+      columns: ["approval_id"]
+isOneToOne: false
+      referencedRelation: "approvals"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "action_items_assignee_id_fkey"
+      columns: ["assignee_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "action_items_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "action_items_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "action_items_request_id_fkey"
+      columns: ["request_id"]
+isOneToOne: false
+      referencedRelation: "requests"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "action_items_task_id_fkey"
+      columns: ["task_id"]
+isOneToOne: false
+      referencedRelation: "tasks"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"activity": {
+                  Row: {
+                    "actor_id": string | null,"created_at": string,"customer_id": string,"entity_id": string | null,"entity_type": string | null,"id": number,"project_id": string | null,"summary": string,"visibility": Database["public"]['Enums']["visibility"]
+                  }
+                  Insert: {
+                    "actor_id"?: string | null,"created_at"?: string,"customer_id": string,"entity_id"?: string | null,"entity_type"?: string | null,"id"?: never,"project_id"?: string | null,"summary": string,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Update: {
+                    "actor_id"?: string | null,"created_at"?: string,"customer_id"?: string,"entity_id"?: string | null,"entity_type"?: string | null,"id"?: never,"project_id"?: string | null,"summary"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "activity_actor_id_fkey"
+      columns: ["actor_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "activity_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "activity_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"approval_events": {
+                  Row: {
+                    "action": Database["public"]['Enums']["approval_action"],"actor_id": string | null,"approval_id": string,"comment": string | null,"created_at": string,"customer_id": string,"id": number,"version": number
+                  }
+                  Insert: {
+                    "action": Database["public"]['Enums']["approval_action"],"actor_id"?: string | null,"approval_id": string,"comment"?: string | null,"created_at"?: string,"customer_id": string,"id"?: never,"version": number
+                  }
+                  Update: {
+                    "action"?: Database["public"]['Enums']["approval_action"],"actor_id"?: string | null,"approval_id"?: string,"comment"?: string | null,"created_at"?: string,"customer_id"?: string,"id"?: never,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "approval_events_actor_id_fkey"
+      columns: ["actor_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "approval_events_approval_id_fkey"
+      columns: ["approval_id"]
+isOneToOne: false
+      referencedRelation: "approvals"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "approval_events_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"approvals": {
+                  Row: {
+                    "approver_id": string,"created_at": string,"customer_id": string,"due_date": string | null,"effort_hours": number | null,"id": string,"kind": string,"project_id": string | null,"request_id": string | null,"requested_by": string | null,"status": Database["public"]['Enums']["approval_status"],"summary": string,"target_date": string | null,"task_id": string | null,"title": string,"version": number
+                  }
+                  Insert: {
+                    "approver_id": string,"created_at"?: string,"customer_id": string,"due_date"?: string | null,"effort_hours"?: number | null,"id"?: string,"kind"?: string,"project_id"?: string | null,"request_id"?: string | null,"requested_by"?: string | null,"status"?: Database["public"]['Enums']["approval_status"],"summary"?: string,"target_date"?: string | null,"task_id"?: string | null,"title": string,"version"?: number
+                  }
+                  Update: {
+                    "approver_id"?: string,"created_at"?: string,"customer_id"?: string,"due_date"?: string | null,"effort_hours"?: number | null,"id"?: string,"kind"?: string,"project_id"?: string | null,"request_id"?: string | null,"requested_by"?: string | null,"status"?: Database["public"]['Enums']["approval_status"],"summary"?: string,"target_date"?: string | null,"task_id"?: string | null,"title"?: string,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "approvals_approver_id_fkey"
+      columns: ["approver_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "approvals_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "approvals_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "approvals_request_id_fkey"
+      columns: ["request_id"]
+isOneToOne: false
+      referencedRelation: "requests"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "approvals_requested_by_fkey"
+      columns: ["requested_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "approvals_task_id_fkey"
+      columns: ["task_id"]
+isOneToOne: false
+      referencedRelation: "tasks"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"comments": {
+                  Row: {
+                    "author_id": string,"body": string,"created_at": string,"customer_id": string,"entity_id": string,"entity_type": string,"id": string,"visibility": Database["public"]['Enums']["visibility"]
+                  }
+                  Insert: {
+                    "author_id": string,"body": string,"created_at"?: string,"customer_id": string,"entity_id": string,"entity_type": string,"id"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Update: {
+                    "author_id"?: string,"body"?: string,"created_at"?: string,"customer_id"?: string,"entity_id"?: string,"entity_type"?: string,"id"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "comments_author_id_fkey"
+      columns: ["author_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "comments_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"customers": {
+                  Row: {
+                    "created_at": string,"hubspot_company_id": string | null,"id": string,"name": string,"org_id": string,"zoho_customer_id": string | null
+                  }
+                  Insert: {
+                    "created_at"?: string,"hubspot_company_id"?: string | null,"id"?: string,"name": string,"org_id": string,"zoho_customer_id"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"hubspot_company_id"?: string | null,"id"?: string,"name"?: string,"org_id"?: string,"zoho_customer_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "customers_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "orgs"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"decisions": {
+                  Row: {
+                    "created_at": string,"customer_id": string,"decided_by": string,"decided_on": string,"decision": string,"id": string,"meeting_id": string | null,"number": string,"project_id": string | null,"visibility": Database["public"]['Enums']["visibility"]
+                  }
+                  Insert: {
+                    "created_at"?: string,"customer_id": string,"decided_by"?: string,"decided_on"?: string,"decision": string,"id"?: string,"meeting_id"?: string | null,"number"?: string,"project_id"?: string | null,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Update: {
+                    "created_at"?: string,"customer_id"?: string,"decided_by"?: string,"decided_on"?: string,"decision"?: string,"id"?: string,"meeting_id"?: string | null,"number"?: string,"project_id"?: string | null,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "decisions_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "decisions_meeting_id_fkey"
+      columns: ["meeting_id"]
+isOneToOne: false
+      referencedRelation: "meetings"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "decisions_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"documents": {
+                  Row: {
+                    "created_at": string,"customer_id": string,"folder": string,"id": string,"name": string,"project_id": string | null,"request_id": string | null,"storage_path": string | null,"uploaded_by": string | null,"version": number,"visibility": Database["public"]['Enums']["visibility"]
+                  }
+                  Insert: {
+                    "created_at"?: string,"customer_id": string,"folder"?: string,"id"?: string,"name": string,"project_id"?: string | null,"request_id"?: string | null,"storage_path"?: string | null,"uploaded_by"?: string | null,"version"?: number,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Update: {
+                    "created_at"?: string,"customer_id"?: string,"folder"?: string,"id"?: string,"name"?: string,"project_id"?: string | null,"request_id"?: string | null,"storage_path"?: string | null,"uploaded_by"?: string | null,"version"?: number,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "documents_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "documents_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "documents_request_id_fkey"
+      columns: ["request_id"]
+isOneToOne: false
+      referencedRelation: "requests"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "documents_uploaded_by_fkey"
+      columns: ["uploaded_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"email_outbox": {
+                  Row: {
+                    "attempts": number,"created_at": string,"id": string,"last_error": string | null,"notification_id": string | null,"provider_id": string | null,"sent_at": string | null,"status": string,"to_email": string
+                  }
+                  Insert: {
+                    "attempts"?: number,"created_at"?: string,"id"?: string,"last_error"?: string | null,"notification_id"?: string | null,"provider_id"?: string | null,"sent_at"?: string | null,"status"?: string,"to_email": string
+                  }
+                  Update: {
+                    "attempts"?: number,"created_at"?: string,"id"?: string,"last_error"?: string | null,"notification_id"?: string | null,"provider_id"?: string | null,"sent_at"?: string | null,"status"?: string,"to_email"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "email_outbox_notification_id_fkey"
+      columns: ["notification_id"]
+isOneToOne: false
+      referencedRelation: "notifications"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"engagement_setups": {
+                  Row: {
+                    "company_name": string,"created_at": string,"deal_name": string,"hubspot_company_id": string | null,"hubspot_deal_id": string,"id": string,"org_id": string,"owner_email": string | null,"project_id": string | null,"service": string | null,"status": Database["public"]['Enums']["setup_status"],"suggested_template": string
+                  }
+                  Insert: {
+                    "company_name": string,"created_at"?: string,"deal_name": string,"hubspot_company_id"?: string | null,"hubspot_deal_id": string,"id"?: string,"org_id": string,"owner_email"?: string | null,"project_id"?: string | null,"service"?: string | null,"status"?: Database["public"]['Enums']["setup_status"],"suggested_template"?: string
+                  }
+                  Update: {
+                    "company_name"?: string,"created_at"?: string,"deal_name"?: string,"hubspot_company_id"?: string | null,"hubspot_deal_id"?: string,"id"?: string,"org_id"?: string,"owner_email"?: string | null,"project_id"?: string | null,"service"?: string | null,"status"?: Database["public"]['Enums']["setup_status"],"suggested_template"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "engagement_setups_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "orgs"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "engagement_setups_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"integration_events": {
+                  Row: {
+                    "created_at": string,"error": string | null,"external_id": string,"id": number,"payload": NonNullable<Json>,"processed_at": string | null,"source": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"error"?: string | null,"external_id": string,"id"?: never,"payload": NonNullable<Json>,"processed_at"?: string | null,"source": string
+                  }
+                  Update: {
+                    "created_at"?: string,"error"?: string | null,"external_id"?: string,"id"?: never,"payload"?: NonNullable<Json>,"processed_at"?: string | null,"source"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"invoices": {
+                  Row: {
+                    "balance": number | null,"currency": string,"customer_id": string,"due_on": string | null,"id": string,"issued_on": string,"number": string,"status": string,"synced_at": string,"total": number | null,"zoho_invoice_id": string | null
+                  }
+                  Insert: {
+                    "balance"?: number | null,"currency"?: string,"customer_id": string,"due_on"?: string | null,"id"?: string,"issued_on": string,"number": string,"status": string,"synced_at"?: string,"total"?: number | null,"zoho_invoice_id"?: string | null
+                  }
+                  Update: {
+                    "balance"?: number | null,"currency"?: string,"customer_id"?: string,"due_on"?: string | null,"id"?: string,"issued_on"?: string,"number"?: string,"status"?: string,"synced_at"?: string,"total"?: number | null,"zoho_invoice_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "invoices_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"meetings": {
+                  Row: {
+                    "created_at": string,"customer_id": string,"held_on": string,"id": string,"project_id": string | null,"summary": string,"title": string,"visibility": Database["public"]['Enums']["visibility"]
+                  }
+                  Insert: {
+                    "created_at"?: string,"customer_id": string,"held_on": string,"id"?: string,"project_id"?: string | null,"summary"?: string,"title": string,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Update: {
+                    "created_at"?: string,"customer_id"?: string,"held_on"?: string,"id"?: string,"project_id"?: string | null,"summary"?: string,"title"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "meetings_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "meetings_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"notifications": {
+                  Row: {
+                    "body": string,"created_at": string,"id": string,"kind": string,"link": string | null,"needs_action": boolean,"read_at": string | null,"title": string,"user_id": string
+                  }
+                  Insert: {
+                    "body"?: string,"created_at"?: string,"id"?: string,"kind": string,"link"?: string | null,"needs_action"?: boolean,"read_at"?: string | null,"title": string,"user_id": string
+                  }
+                  Update: {
+                    "body"?: string,"created_at"?: string,"id"?: string,"kind"?: string,"link"?: string | null,"needs_action"?: boolean,"read_at"?: string | null,"title"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "notifications_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"orgs": {
+                  Row: {
+                    "created_at": string,"id": string,"name": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"name": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"name"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"phases": {
+                  Row: {
+                    "customer_id": string,"end_date": string | null,"id": string,"name": string,"position": number,"project_id": string,"start_date": string | null,"visibility": Database["public"]['Enums']["visibility"]
+                  }
+                  Insert: {
+                    "customer_id": string,"end_date"?: string | null,"id"?: string,"name": string,"position"?: number,"project_id": string,"start_date"?: string | null,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Update: {
+                    "customer_id"?: string,"end_date"?: string | null,"id"?: string,"name"?: string,"position"?: number,"project_id"?: string,"start_date"?: string | null,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "phases_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "phases_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"profiles": {
+                  Row: {
+                    "can_view_invoices": boolean,"created_at": string,"customer_id": string | null,"customer_role": Database["public"]['Enums']["customer_role"] | null,"email": string,"full_name": string,"id": string,"internal_role": Database["public"]['Enums']["internal_role"] | null,"kind": Database["public"]['Enums']["user_kind"],"org_id": string | null
+                  }
+                  Insert: {
+                    "can_view_invoices"?: boolean,"created_at"?: string,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email": string,"full_name"?: string,"id": string,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"kind": Database["public"]['Enums']["user_kind"],"org_id"?: string | null
+                  }
+                  Update: {
+                    "can_view_invoices"?: boolean,"created_at"?: string,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email"?: string,"full_name"?: string,"id"?: string,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"kind"?: Database["public"]['Enums']["user_kind"],"org_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "profiles_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "profiles_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "orgs"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"project_commercials": {
+                  Row: {
+                    "billing_model": string | null,"contract_value": number | null,"currency": string,"customer_id": string,"notes": string | null,"po_number": string | null,"project_id": string,"updated_at": string
+                  }
+                  Insert: {
+                    "billing_model"?: string | null,"contract_value"?: number | null,"currency"?: string,"customer_id": string,"notes"?: string | null,"po_number"?: string | null,"project_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "billing_model"?: string | null,"contract_value"?: number | null,"currency"?: string,"customer_id"?: string,"notes"?: string | null,"po_number"?: string | null,"project_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "project_commercials_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "project_commercials_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: true
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"projects": {
+                  Row: {
+                    "created_at": string,"customer_id": string,"customer_lead_id": string | null,"end_date": string | null,"health": Database["public"]['Enums']["health"],"hubspot_deal_id": string | null,"id": string,"name": string,"pm_id": string | null,"start_date": string | null,"status": Database["public"]['Enums']["project_status"],"template_key": string | null
+                  }
+                  Insert: {
+                    "created_at"?: string,"customer_id": string,"customer_lead_id"?: string | null,"end_date"?: string | null,"health"?: Database["public"]['Enums']["health"],"hubspot_deal_id"?: string | null,"id"?: string,"name": string,"pm_id"?: string | null,"start_date"?: string | null,"status"?: Database["public"]['Enums']["project_status"],"template_key"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"customer_id"?: string,"customer_lead_id"?: string | null,"end_date"?: string | null,"health"?: Database["public"]['Enums']["health"],"hubspot_deal_id"?: string | null,"id"?: string,"name"?: string,"pm_id"?: string | null,"start_date"?: string | null,"status"?: Database["public"]['Enums']["project_status"],"template_key"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "projects_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "projects_customer_lead_id_fkey"
+      columns: ["customer_lead_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "projects_pm_id_fkey"
+      columns: ["pm_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"request_events": {
+                  Row: {
+                    "actor_id": string | null,"created_at": string,"customer_id": string,"id": number,"note": string | null,"request_id": string,"status": Database["public"]['Enums']["request_status"]
+                  }
+                  Insert: {
+                    "actor_id"?: string | null,"created_at"?: string,"customer_id": string,"id"?: never,"note"?: string | null,"request_id": string,"status": Database["public"]['Enums']["request_status"]
+                  }
+                  Update: {
+                    "actor_id"?: string | null,"created_at"?: string,"customer_id"?: string,"id"?: never,"note"?: string | null,"request_id"?: string,"status"?: Database["public"]['Enums']["request_status"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "request_events_actor_id_fkey"
+      columns: ["actor_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "request_events_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "request_events_request_id_fkey"
+      columns: ["request_id"]
+isOneToOne: false
+      referencedRelation: "requests"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"requests": {
+                  Row: {
+                    "created_at": string,"customer_id": string,"desired_date": string | null,"id": string,"number": string,"owner_id": string | null,"priority": Database["public"]['Enums']["priority"],"project_id": string | null,"requested_by": string | null,"status": Database["public"]['Enums']["request_status"],"title": string,"type": Database["public"]['Enums']["request_type"],"updated_at": string,"what": string,"why": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"customer_id": string,"desired_date"?: string | null,"id"?: string,"number"?: string,"owner_id"?: string | null,"priority"?: Database["public"]['Enums']["priority"],"project_id"?: string | null,"requested_by"?: string | null,"status"?: Database["public"]['Enums']["request_status"],"title": string,"type"?: Database["public"]['Enums']["request_type"],"updated_at"?: string,"what"?: string,"why"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"customer_id"?: string,"desired_date"?: string | null,"id"?: string,"number"?: string,"owner_id"?: string | null,"priority"?: Database["public"]['Enums']["priority"],"project_id"?: string | null,"requested_by"?: string | null,"status"?: Database["public"]['Enums']["request_status"],"title"?: string,"type"?: Database["public"]['Enums']["request_type"],"updated_at"?: string,"what"?: string,"why"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "requests_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "requests_owner_id_fkey"
+      columns: ["owner_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "requests_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "requests_requested_by_fkey"
+      columns: ["requested_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"task_estimates": {
+                  Row: {
+                    "customer_id": string,"estimate_hours": number,"task_id": string
+                  }
+                  Insert: {
+                    "customer_id": string,"estimate_hours": number,"task_id": string
+                  }
+                  Update: {
+                    "customer_id"?: string,"estimate_hours"?: number,"task_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "task_estimates_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "task_estimates_task_id_fkey"
+      columns: ["task_id"]
+isOneToOne: true
+      referencedRelation: "tasks"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"tasks": {
+                  Row: {
+                    "assignee_id": string | null,"completed_at": string | null,"created_at": string,"created_by": string | null,"customer_id": string,"description": string,"due_date": string | null,"id": string,"owner_side": Database["public"]['Enums']["owner_side"],"phase_id": string | null,"position": number,"project_id": string,"spotlight": boolean,"start_date": string | null,"status": Database["public"]['Enums']["task_status"],"title": string,"updated_at": string,"visibility": Database["public"]['Enums']["visibility"]
+                  }
+                  Insert: {
+                    "assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"customer_id": string,"description"?: string,"due_date"?: string | null,"id"?: string,"owner_side"?: Database["public"]['Enums']["owner_side"],"phase_id"?: string | null,"position"?: number,"project_id": string,"spotlight"?: boolean,"start_date"?: string | null,"status"?: Database["public"]['Enums']["task_status"],"title": string,"updated_at"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Update: {
+                    "assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"customer_id"?: string,"description"?: string,"due_date"?: string | null,"id"?: string,"owner_side"?: Database["public"]['Enums']["owner_side"],"phase_id"?: string | null,"position"?: number,"project_id"?: string,"spotlight"?: boolean,"start_date"?: string | null,"status"?: Database["public"]['Enums']["task_status"],"title"?: string,"updated_at"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "tasks_assignee_id_fkey"
+      columns: ["assignee_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tasks_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tasks_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tasks_phase_id_fkey"
+      columns: ["phase_id"]
+isOneToOne: false
+      referencedRelation: "phases"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tasks_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"time_entries": {
+                  Row: {
+                    "billable": boolean,"created_at": string,"customer_id": string,"hours": number,"id": string,"note": string | null,"task_id": string,"user_id": string,"worked_on": string
+                  }
+                  Insert: {
+                    "billable"?: boolean,"created_at"?: string,"customer_id": string,"hours": number,"id"?: string,"note"?: string | null,"task_id": string,"user_id": string,"worked_on"?: string
+                  }
+                  Update: {
+                    "billable"?: boolean,"created_at"?: string,"customer_id"?: string,"hours"?: number,"id"?: string,"note"?: string | null,"task_id"?: string,"user_id"?: string,"worked_on"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "time_entries_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "time_entries_task_id_fkey"
+      columns: ["task_id"]
+isOneToOne: false
+      referencedRelation: "tasks"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "time_entries_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"updates": {
+                  Row: {
+                    "author_id": string | null,"completed": string,"created_at": string,"customer_id": string,"health": Database["public"]['Enums']["health"],"id": string,"in_progress": string,"next_week": string,"project_id": string,"published_at": string | null,"status": Database["public"]['Enums']["update_status"],"waiting_on_customer": string,"week_of": string
+                  }
+                  Insert: {
+                    "author_id"?: string | null,"completed"?: string,"created_at"?: string,"customer_id": string,"health": Database["public"]['Enums']["health"],"id"?: string,"in_progress"?: string,"next_week"?: string,"project_id": string,"published_at"?: string | null,"status"?: Database["public"]['Enums']["update_status"],"waiting_on_customer"?: string,"week_of": string
+                  }
+                  Update: {
+                    "author_id"?: string | null,"completed"?: string,"created_at"?: string,"customer_id"?: string,"health"?: Database["public"]['Enums']["health"],"id"?: string,"in_progress"?: string,"next_week"?: string,"project_id"?: string,"published_at"?: string | null,"status"?: Database["public"]['Enums']["update_status"],"waiting_on_customer"?: string,"week_of"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "updates_author_id_fkey"
+      columns: ["author_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "updates_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "updates_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    }
+                  ]
+                }
+          }
+          Views: {
+            "project_progress": {
+                  Row: {
+                    "done": number | null,"project_id": string | null,"total": number | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "tasks_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    }
+                  ]
+                }
+          }
+          Functions: {
+            "complete_action_item":
+{ Args: { "p_action": string }; Returns: undefined
+                           },
+"decide_approval":
+{ Args: { "p_approval": string,"p_comment"?: string,"p_decision": Database["public"]['Enums']["approval_action"] }; Returns: undefined
+                           },
+"publish_update":
+{ Args: { "p_update": string }; Returns: undefined
+                           },
+"resubmit_approval":
+{ Args: { "p_approval": string,"p_comment"?: string,"p_effort": number,"p_summary": string,"p_target"?: string }; Returns: undefined
+                           },
+"set_request_status":
+{ Args: { "p_note"?: string,"p_request": string,"p_status": Database["public"]['Enums']["request_status"] }; Returns: undefined
+                           }
+          }
+          Enums: {
+            "action_status": "open"|"completed"|"cancelled","action_type": "approval"|"form"|"task"|"clarification"|"uat"|"upload"|"decision"|"invoice"|"meeting_action","approval_action": "requested"|"approved"|"changes_requested"|"resubmitted"|"cancelled","approval_status": "pending"|"approved"|"changes_requested"|"cancelled","customer_role": "customer_exec"|"customer_member","health": "on_track"|"needs_attention"|"at_risk","internal_role": "admin"|"ceo"|"pm"|"consultant"|"finance","owner_side": "seven_billion"|"customer","priority": "low"|"normal"|"high"|"critical","project_status": "active"|"on_hold"|"completed","request_status": "submitted"|"under_review"|"clarification"|"estimated"|"approved"|"scheduled"|"in_development"|"uat"|"delivered"|"cancelled","request_type": "requirement"|"enhancement"|"change_request"|"bug"|"new_report"|"data_request"|"access_request"|"support"|"other","setup_status": "pending"|"created"|"dismissed","task_status": "todo"|"in_progress"|"in_review"|"waiting_customer"|"blocked"|"done","update_status": "draft"|"published","user_kind": "internal"|"customer","visibility": "internal"|"shared"
+          }
+          CompositeTypes: {
+            [_ in never]: never
+          }
+        }
+}
+
+type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+  ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : never
+
+export const Constants = {
+  "public": {
+          Enums: {
+            "action_status": ["open", "completed", "cancelled"],"action_type": ["approval", "form", "task", "clarification", "uat", "upload", "decision", "invoice", "meeting_action"],"approval_action": ["requested", "approved", "changes_requested", "resubmitted", "cancelled"],"approval_status": ["pending", "approved", "changes_requested", "cancelled"],"customer_role": ["customer_exec", "customer_member"],"health": ["on_track", "needs_attention", "at_risk"],"internal_role": ["admin", "ceo", "pm", "consultant", "finance"],"owner_side": ["seven_billion", "customer"],"priority": ["low", "normal", "high", "critical"],"project_status": ["active", "on_hold", "completed"],"request_status": ["submitted", "under_review", "clarification", "estimated", "approved", "scheduled", "in_development", "uat", "delivered", "cancelled"],"request_type": ["requirement", "enhancement", "change_request", "bug", "new_report", "data_request", "access_request", "support", "other"],"setup_status": ["pending", "created", "dismissed"],"task_status": ["todo", "in_progress", "in_review", "waiting_customer", "blocked", "done"],"update_status": ["draft", "published"],"user_kind": ["internal", "customer"],"visibility": ["internal", "shared"]
+          }
+        }
+} as const

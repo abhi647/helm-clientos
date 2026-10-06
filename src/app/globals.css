@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+/* 7B Client OS design tokens (compact enterprise). Indicator hues are validated for colour-blind separation;
+   every status also carries a word, so colour is never the only signal. */
+@theme {
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  --color-ink: #13343b;
+  --color-muted: #5b6b70;
+  --color-line: #e2e7e9;
+  --color-line-soft: #eef1f2;
+  --color-ground: #f4f6f7;
+  --color-head: #f7f9fa;
+  --color-rail: #0f2a30;
+  --color-rail-hover: #1b3d45;
+  --color-link: #1a6e7c;
+  --color-brand: #20b8cd;
+  --color-selected: #e8f7fa;
+
+  --color-good: #0ca30c;
+  --color-good-ink: #0a6e0a;
+  --color-good-bg: #e5f5e5;
+  --color-info: #2a78d6;
+  --color-info-ink: #1c5cab;
+  --color-info-bg: #e4eefb;
+  --color-warn: #eda100;
+  --color-warn-ink: #7a5200;
+  --color-warn-bg: #fdf2d6;
+  --color-crit: #d03b3b;
+  --color-crit-ink: #a32b2b;
+  --color-crit-bg: #fbeaea;
+  --color-review: #4a3aa7;
+  --color-review-bg: #eceaf8;
+  --color-neutral-bg: #eef1f2;
+  --color-neutral-ink: #4a5b60;
+  --color-internal-bg: #eef0f2;
+  --color-internal-ink: #3f4a4e;
+  --color-internal-line: #8a979c;
+  --color-shared-bg: #e6f4f6;
+
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+}
+
+@layer base {
+  html { color-scheme: light; }
+  body {
+    background: var(--color-ground);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--color-link); }
+  a:hover { color: var(--color-ink); }
+  :focus-visible { outline: 2px solid var(--color-brand); outline-offset: 1px; }
+  .tabular { font-variant-numeric: tabular-nums; }
+}
+
+@layer components {
+  .label { @apply text-[11px] font-semibold uppercase tracking-[.06em] text-muted; }
+  .card { @apply rounded-md border border-line bg-white; }
+  .card-head { @apply flex items-center gap-2 border-b border-line px-3 py-2; }
+  .btn { @apply inline-flex h-[30px] cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#d5dcdf] bg-white px-2.5 text-[13px] whitespace-nowrap text-ink no-underline hover:bg-head disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primary { @apply border-ink bg-ink font-semibold text-white hover:bg-[#1d4750] hover:text-white; }
+  .btn-ghost { @apply border-transparent bg-transparent text-link hover:bg-head; }
+  .input { @apply h-[30px] rounded-md border border-[#d5dcdf] bg-white px-2 text-[13px] text-ink outline-none focus:border-brand; }
+  .textarea { @apply rounded-md border border-[#d5dcdf] bg-white px-2.5 py-2 text-[13px] text-ink outline-none focus:border-brand; }
+  .row { @apply grid min-h-8 items-center gap-x-2 border-t border-line-soft px-3 text-[13px]; }
+  .row-head { @apply min-h-7 border-t-0 bg-head text-[11px] font-semibold tracking-[.04em] text-muted uppercase; }
+}

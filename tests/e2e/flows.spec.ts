@@ -1,0 +1,141 @@
+// The core loops from the PRD, driven through the real UI with real magic-link sign-in (emails caught by Mailpit).
+// Run: supabase start && npm run seed && npm run build && npm start, then npm run test:e2e
+import { execSync } from 'node:child_process'
+import { expect, test, type Page } from '@playwright/test'
+
+const MAILPIT = process.env.MAILPIT_URL ?? 'http://127.0.0.1:54324'
+const SHOTS = process.env.E2E_SCREENSHOTS
+
+async function shot(page: Page, name: string) {
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true })
+}
+
+async function latestLink(email: string, after: number): Promise<string> {
+  for (let i = 0; i < 30; i++) {
+    const res = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${email}"`)}`)
+    const json = (await res.json()) as { messages: { ID: string; Created: string }[] }
+    const msg = json.messages.find((m) => Date.parse(m.Created) >= after - 2000)
+    if (msg) {
+      const full = (await (await fetch(`${MAILPIT}/api/v1/message/${msg.ID}`)).json()) as { HTML: string }
+      const href = full.HTML.match(/href="([^"]*token_hash[^"]*)"/)?.[1]
+      if (href) return href.replace(/&amp;/g, '&')
+    }
+    await new Promise((r) => setTimeout(r, 500))
+  }
+  throw new Error(`No sign-in email for ${email}`)
+}
+
+async function signIn(page: Page, email: string) {
+  await page.context().clearCookies()
+  await page.goto('/login')
+  const started = Date.now()
+  await page.getByLabel('Work email').fill(email)
+  await page.getByRole('button', { name: 'Email me a sign-in link' }).click()
+  await expect(page.getByText('Check your inbox')).toBeVisible()
+  await page.goto(await latestLink(email, started))
+}
+
+test.beforeAll(() => {
+  execSync('node --env-file=.env.local scripts/seed.mjs', { stdio: 'ignore' })
+})
+
+test('unknown emails get the same answer and no link', async ({ page }) => {
+  await page.goto('/login')
+  await page.getByLabel('Work email').fill('stranger@nowhere.example.com')
+  await page.getByRole('button', { name: 'Email me a sign-in link' }).click()
+  await expect(page.getByText('Check your inbox')).toBeVisible()
+  await shot(page, '01-login')
+})
+
+test('customer: action centre, request changes, raise a request', async ({ page }) => {
+  await signIn(page, 'michel@nesma.example.com')
+  await expect(page).toHaveURL(/\/portal$/)
+  await expect(page.getByRole('heading', { name: /, Michel$/ })).toBeVisible()
+  await expect(page.getByText(/items? need your attention/)).toBeVisible()
+  await shot(page, '02-portal-home')
+
+  // the approval opens the request, where only the named approver can decide
+  await page.getByRole('link', { name: 'Review & approve' }).click()
+  await expect(page.getByText('Approval · estimate')).toBeVisible()
+  await expect(page.getByText('Region master is missing')).toHaveCount(0)        // internal comment never reaches the customer
+  await page.getByLabel('Comment (needed to request changes)').fill('Please include the 3 missing territories.')
+  await page.getByRole('button', { name: 'Request changes' }).click()
+  // the card re-renders into its new state; the history is the confirmation
+  await expect(page.getByText('Changes requested · v1 · Michel')).toBeVisible()
+  await expect(page.getByText('“Please include the 3 missing territories.”')).toBeVisible()
+  await shot(page, '03-portal-request-changes')
+
+  // raise a new request and get a reference straight away
+  await page.goto('/portal/requests/new')
+  await page.getByLabel('Title').fill('Weekly stock cover report')
+  await page.getByLabel('What do you need?').fill('Stock cover in days by warehouse, refreshed weekly.')
+  await page.getByRole('button', { name: 'Submit request' }).click()
+  await expect(page.getByText(/REQ-\d+ created/)).toBeVisible()
+  await shot(page, '04-portal-new-request')
+})
+
+test('PM: resubmits, posts internal and shared comments, previews as customer', async ({ page }) => {
+  await signIn(page, 'rahul@example.com')
+  await expect(page).toHaveURL(/\/home$/)
+  await expect(page.getByRole('heading', { name: /Needs attention/ })).toBeVisible()
+  await shot(page, '05-home')
+
+  await page.goto('/inbox?tab=all')
+  await expect(page.getByText(/Michel requested changes/)).toBeVisible()
+  await page.getByText(/Michel requested changes/).click()
+  await page.getByText(/Revise and resubmit/).isVisible()
+  await page.getByLabel('Effort hours').fill('48')
+  await page.getByLabel('What changed').fill('Added the 3 territories')
+  await page.getByRole('button', { name: 'Resubmit' }).click()
+  await expect(page.getByText('Resubmitted · v2 · Rahul')).toBeVisible()
+  await shot(page, '06-request-staff')
+
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Power BI Implementation' }).click()
+  await page.getByRole('link', { name: 'Data mapping' }).click()
+  const reply = page.getByLabel('Reply')
+  await reply.fill('Internal: keep the OData fallback warm.')
+  await page.getByRole('button', { name: 'Post' }).click()
+  await expect(page.getByText('Internal: keep the OData fallback warm.')).toBeVisible()
+  await page.getByRole('radio', { name: 'Shared with customer' }).click()
+  await reply.fill('Shared: validation results are attached.')
+  await page.getByRole('button', { name: 'Post' }).click()
+  await expect(page.getByText('Shared: validation results are attached.')).toBeVisible()
+  await shot(page, '07-project-plan')
+
+  await page.getByRole('link', { name: 'Customer preview' }).click()
+  await expect(page.getByText('API fallback spike')).toHaveCount(0)
+  await expect(page.getByText('Internal QA')).toHaveCount(0)
+  await shot(page, '08-customer-preview')
+
+  await page.goto('/my-work')
+  await expect(page.getByRole('heading', { name: 'My Work' })).toBeVisible()
+  await shot(page, '09-my-work')
+})
+
+test('customer approves v2 and sees only shared discussion', async ({ page }) => {
+  await signIn(page, 'michel@nesma.example.com')
+  await page.getByRole('link', { name: 'Review & approve' }).click()
+  await page.getByRole('button', { name: 'Approve' }).click()
+  await expect(page.getByText('Approved · v2 · Michel')).toBeVisible()
+  await expect(page.getByText('Resubmitted · v2 · Rahul')).toBeVisible()
+
+  await page.goto('/portal')
+  await page.locator('.row', { hasText: 'Power BI Implementation' }).getByRole('link', { name: 'Open' }).click()
+  await page.getByRole('link', { name: 'Data mapping' }).click()
+  await expect(page.getByText('Shared: validation results are attached.')).toBeVisible()
+  await expect(page.getByText('Internal: keep the OData fallback warm.')).toHaveCount(0)
+  await expect(page.getByText('API fallback spike')).toHaveCount(0)
+  await shot(page, '10-portal-project')
+})
+
+test('CEO sees the portfolio and finance', async ({ page }) => {
+  await signIn(page, 'abhijit@example.com')
+  await expect(page.getByRole('heading', { name: 'Portfolio' })).toBeVisible()
+  await page.goto('/finance')
+  await expect(page.getByText('INV-1072')).toBeVisible()
+  await shot(page, '11-finance')
+  await page.goto('/customers')
+  await page.getByRole('link', { name: /Nesma Group/ }).click()
+  await shot(page, '12-customer')
+})
