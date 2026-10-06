@@ -25,7 +25,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
       <Rail hide={[...(canSeeFinance(me) ? [] : ['/finance']), ...(admin ? [] : ['/admin'])]} />
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex h-11 items-center justify-between gap-3 border-b border-line bg-white px-4">
-          <span className="truncate text-xs text-muted">Seven Billion · Client OS</span>
+          <span className="truncate text-xs text-muted"><b className="font-semibold text-ink">Helm</b> · Seven Billion</span>
           <span className="flex items-center gap-2"><CommandPalette items={palette} /><UserMenu profile={me} base="" /></span>
         </div>
         <main className="flex min-w-0 flex-1 flex-col">{children}</main>

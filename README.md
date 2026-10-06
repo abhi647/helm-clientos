@@ -1,6 +1,6 @@
-# 7B Client OS
+# Helm
 
-Client delivery workspace for Seven Billion. Internal teams run projects, requests, approvals and updates. Customers get a portal that shows only what has been shared with them.
+Helm is the client delivery workspace for Seven Billion. Internal teams run projects, requests, approvals and updates. Customers get a portal that shows only what has been shared with them.
 
 **Stack:** Next.js 16 (App Router, server actions) on **Vercel**, **Supabase** (Postgres + RLS, Auth magic links, Storage), **Resend** for notification emails, HubSpot and Zoho Books integrations.
 
@@ -89,7 +89,7 @@ CI (`.github/workflows/client-os.yml`) runs lint, types, the database tests and 
 4. In **Authentication → URL Configuration**:
    - Set the Site URL to `https://<your-domain>`.
    - Add `https://<your-domain>/auth/confirm` to the redirect URLs.
-5. In **Authentication → Emails**, paste `supabase/templates/magic_link.html` and `invite.html` into the Magic Link and Invite user templates. They use `token_hash` links, which work across devices.
+5. In **Authentication → Emails**, paste `supabase/templates/magic_link.html` and `invite.html` into the Magic Link and Invite user templates. They use `token_hash` links, which work across devices. Set the subjects to "Your sign-in link for Helm" and "You are invited to Helm by Seven Billion".
 6. In **Authentication → Emails → SMTP Settings**, send auth emails through Resend. Supabase's built-in sender is rate-limited and is for testing only.
 
    | Field | Value |

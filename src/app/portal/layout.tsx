@@ -15,8 +15,8 @@ export default async function PortalLayout({ children }: { children: React.React
       <header className="border-b border-line bg-white">
         <div className="mx-auto flex max-w-[1360px] flex-wrap items-center gap-x-5 px-5">
           <Link href="/portal" className="flex h-12 items-center gap-2.5 text-ink no-underline">
-            <BrandMark size={28} />
-            <span className="text-sm font-semibold">Seven Billion</span><span className="text-muted">×</span><span className="text-sm font-semibold">{customer?.name}</span>
+            <BrandMark size={24} className="text-ink" />
+            <span className="text-sm font-semibold">Helm</span><span className="text-muted">×</span><span className="text-sm font-semibold">{customer?.name}</span>
           </Link>
           <div className="flex-1"><Tabs items={[
             { href: '/portal', label: 'Home', exact: true },

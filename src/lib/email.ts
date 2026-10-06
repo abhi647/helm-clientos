@@ -14,11 +14,11 @@ export function renderEmail({ title, body, link, cta }: { title: string; body: s
   const html = `<!doctype html><html><body style="margin:0;background:#f4f6f7;font-family:'IBM Plex Sans',Arial,sans-serif;color:#13343b">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:28px 12px"><tr><td align="center">
 <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border:1px solid #e2e7e9;border-radius:6px">
-<tr><td style="padding:20px 24px 4px"><img src="${site}/brand/mark-64.png" width="26" height="26" alt="Seven Billion" style="display:inline-block;vertical-align:middle;border:0;border-radius:6px"><span style="font-weight:600;font-size:13px;margin-left:8px">Seven Billion</span></td></tr>
+<tr><td style="padding:20px 24px 4px"><img src="${site}/brand/mark-64.png" width="26" height="26" alt="" style="display:inline-block;vertical-align:middle;border:0"><span style="font-weight:600;font-size:14px;margin-left:8px;vertical-align:middle">Helm</span></td></tr>
 <tr><td style="padding:10px 24px 4px"><h1 style="margin:0;font-size:18px;line-height:1.35">${esc(title)}</h1></td></tr>
 <tr><td style="padding:6px 24px 6px;font-size:14px;line-height:1.55;color:#4a5b60">${paragraphs}</td></tr>
 <tr><td style="padding:4px 24px 22px"><a href="${esc(link)}" style="display:inline-block;background:#13343b;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:10px 16px;border-radius:4px">${esc(cta)}</a></td></tr>
-<tr><td style="padding:12px 24px 18px;border-top:1px solid #eef1f2;font-size:12px;color:#5b6b70">You get this because you are part of a Seven Billion workspace. Notification settings are in your workspace.</td></tr>
+<tr><td style="padding:12px 24px 18px;border-top:1px solid #eef1f2;font-size:12px;color:#5b6b70">You get this because you are part of a Helm workspace with Seven Billion. Notification settings are in your workspace.</td></tr>
 </table></td></tr></table></body></html>`
   const text = `${title}\n\n${body}\n\n${cta}: ${link}`
   return { html, text }
@@ -57,7 +57,7 @@ export async function flushOutbox(limit = 25): Promise<{ sent: number; skipped: 
       continue
     }
     const link = new URL(n.link ?? '/', e.NEXT_PUBLIC_SITE_URL).toString()
-    const { html, text } = renderEmail({ title: n.title, body: n.body, link, cta: CTA[n.kind] ?? 'Open in Seven Billion' })
+    const { html, text } = renderEmail({ title: n.title, body: n.body, link, cta: CTA[n.kind] ?? 'Open in Helm' })
 
     if (!resend) {
       console.info(`[email:dev] to=${row.to_email} subject="${n.title}" link=${link}`)

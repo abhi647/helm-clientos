@@ -417,9 +417,9 @@ enabled = true
 # Email templates use the token-hash link so the session is created server-side (see src/app/auth/confirm).
 # Copy the same templates into the hosted project: Authentication > Emails.
 [auth.email.template.magic_link]
-subject = "Your sign-in link for Seven Billion"
+subject = "Your sign-in link for Helm"
 content_path = "./supabase/templates/magic_link.html"
 
 [auth.email.template.invite]
-subject = "You are invited to your Seven Billion workspace"
+subject = "You are invited to Helm by Seven Billion"
 content_path = "./supabase/templates/invite.html"

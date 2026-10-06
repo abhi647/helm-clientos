@@ -23,7 +23,7 @@ export function Rail({ hide = [] }: { hide?: string[] }) {
   const path = usePathname()
   return (
     <nav aria-label="Main" className="flex w-12 flex-none flex-col items-center gap-1 bg-rail py-2.5 max-sm:w-full max-sm:flex-row max-sm:overflow-x-auto max-sm:px-2">
-      <Link href="/home" aria-label="Seven Billion home" className="mb-2 flex size-[32px] items-center justify-center no-underline max-sm:mb-0"><BrandMark size={32} /></Link>
+      <Link href="/home" aria-label="Helm home" title="Helm" className="mb-2 flex size-9 items-center justify-center text-[#D6DBDF] no-underline hover:text-white max-sm:mb-0"><BrandMark size={26} /></Link>
       {RAIL.filter((r) => !hide.includes(r.href)).map(({ href, label, icon: Icon }) => {
         const active = path === href || path.startsWith(`${href}/`)
         return (

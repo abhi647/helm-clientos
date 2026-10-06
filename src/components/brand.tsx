@@ -1,8 +1,8 @@
 /**
- * The Seven Billion helm: a ship's wheel on a brushed-silver tile. Drawn as SVG so it stays sharp at any size.
- * The same drawing is used for the favicon (src/app/icon.svg) and the PNGs in public/brand/ (emails, Apple icon).
+ * Helm's mark: a ship's wheel, drawn as SVG so it stays sharp at any size. Used on its own (no background)
+ * everywhere in the product; only the browser icon (src/app/icon.svg) sits on the brushed-silver tile.
  */
-export function HelmGlyph({ color = '#1B1F24' }: { color?: string }) {
+export function HelmGlyph({ color = 'currentColor' }: { color?: string }) {
   const handle = 'M30.7 17.6 L29.6 9.3 A2.45 2.45 0 1 1 34.4 9.3 L33.3 17.6 Z'
   return (
     <g fill={color} stroke={color}>
@@ -18,33 +18,24 @@ export function HelmGlyph({ color = '#1B1F24' }: { color?: string }) {
   )
 }
 
-/** Silver metallic gradient + soft top highlight, shared by every tile. */
-export function SilverDefs({ id }: { id: string }) {
+/** The wheel on its own; takes the text colour of where it sits (ink on light, silver on the dark rail). */
+export function BrandMark({ size = 28, className, title = 'Helm' }: { size?: number; className?: string; title?: string }) {
   return (
-    <defs>
-      <linearGradient id={`${id}-metal`} x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stopColor="#F7F8F9" />
-        <stop offset="0.28" stopColor="#D9DDE1" />
-        <stop offset="0.52" stopColor="#B4BAC1" />
-        <stop offset="0.7" stopColor="#E4E7EA" />
-        <stop offset="1" stopColor="#A2A9B1" />
-      </linearGradient>
-      <linearGradient id={`${id}-shine`} x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.75" />
-        <stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0" />
-      </linearGradient>
-    </defs>
+    <svg width={size} height={size} viewBox="3 3 58 58" role="img" aria-label={title} className={className}>
+      <HelmGlyph />
+    </svg>
   )
 }
 
-export function BrandMark({ size = 30, className, title = 'Seven Billion' }: { size?: number; className?: string; title?: string }) {
-  const id = 'sb-helm'
+/** Wheel + product name. `by` adds the company line under the name (sign-in pages). */
+export function BrandLockup({ size = 28, by = false, className }: { size?: number; by?: boolean; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label={title} className={className}>
-      <SilverDefs id={id} />
-      <rect x="0.5" y="0.5" width="63" height="63" rx="14" fill={`url(#${id}-metal)`} stroke="#8E959C" strokeWidth="1" />
-      <rect x="2" y="2" width="60" height="30" rx="12.5" fill={`url(#${id}-shine)`} />
-      <HelmGlyph />
-    </svg>
+    <span className={`inline-flex items-center gap-2 text-ink ${className ?? ''}`}>
+      <BrandMark size={size} title="" />
+      <span className="flex flex-col leading-tight">
+        <span className="text-[15px] font-semibold tracking-[-0.01em]">Helm</span>
+        {by ? <span className="text-[11px] text-muted">by Seven Billion</span> : null}
+      </span>
+    </span>
   )
 }

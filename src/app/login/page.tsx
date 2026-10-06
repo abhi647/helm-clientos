@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import { LoginForm } from './login-form'
-import { BrandMark } from '@/components/brand'
+import { BrandLockup } from '@/components/brand'
 
 export const metadata: Metadata = { title: 'Sign in' }
 
@@ -17,8 +17,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="flex items-center justify-center bg-white px-4 py-10">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex items-center gap-2.5">
-            <BrandMark size={34} />
-            <span className="text-sm font-semibold">Seven Billion · Client OS</span>
+            <BrandLockup size={34} by />
           </div>
           <h1 className="m-0 mb-1 text-xl font-semibold">Sign in</h1>
           <p className="mt-0 mb-5 text-[13px] text-muted">Projects, requests, approvals and updates, in one place.</p>

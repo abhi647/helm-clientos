@@ -6,7 +6,7 @@ const sans = IBM_Plex_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '
 const mono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-plex-mono' })
 
 export const metadata: Metadata = {
-  title: { default: 'Seven Billion Client OS', template: '%s · Seven Billion' },
+  title: { default: 'Helm', template: '%s · Helm' },
   description: 'Projects, requests, approvals and updates with Seven Billion, in one place.',
   robots: { index: false, follow: false },
 }
