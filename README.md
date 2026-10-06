@@ -121,23 +121,19 @@ CI (`.github/workflows/client-os.yml`) runs lint, types, the database tests and 
    - `CRON_SECRET` is any random string of 32 or more characters.
 3. Deploy. `vercel.json` sets the region to `bom1` and adds two daily crons: email retry and Zoho sync. On the Pro plan you can make them more frequent, for example `*/10 * * * *`.
 
-### 4. First users
+### 4. First admin
 
-1. Create the organisation and invite yourself: **Supabase → Authentication → Users → Invite user**.
-2. Give yourself access in the SQL editor:
-   ```sql
-   insert into public.orgs (name) values ('Seven Billion') returning id;
-   update auth.users
-     set raw_app_meta_data = raw_app_meta_data || jsonb_build_object(
-       'kind', 'internal', 'internal_role', 'admin', 'org_id', '<org id from above>', 'full_name', 'Your Name')
-     where email = 'you@sevenbillion.ai';
-   ```
-   A trigger turns this into your profile.
-3. Everything else happens in the app:
-   - **Admin:** invite colleagues, change roles or remove access, add customers and set their account owner, switch playbook rules, and check integrations.
-   - **Customers:** invite their people from each customer page.
-   - Choose **Customer executive** or **Customer team member** for each person.
-   - Only people you tick for invoices can see them.
+Run this once from your computer. It creates the organisation and emails you an invitation:
+
+```bash
+# client-os/.env.production.local holds NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY and NEXT_PUBLIC_SITE_URL
+# for production. The file is ignored by git; never commit it.
+npm run bootstrap -- --email you@sevenbillion.co --name "Your Name"
+```
+
+Open the email link, set up two-step sign-in with an authenticator app, and you're in. Everything else happens in the app:
+- **Admin:** invite colleagues, set roles or remove access, add customers and account owners, switch playbook rules, check security and integrations.
+- **Customers:** invite their people from each customer page.
 
 ### 5. HubSpot (optional)
 

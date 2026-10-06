@@ -13,7 +13,8 @@
     "db:types": "supabase gen types typescript --local --schema public > .types.tmp && test -s .types.tmp && mv .types.tmp src/lib/database.types.ts",
     "seed": "node --env-file=.env.local scripts/seed.mjs",
     "test:db": "vitest run tests/rls.test.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "bootstrap": "node --env-file=.env.production.local scripts/bootstrap.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
