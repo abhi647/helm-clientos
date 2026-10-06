@@ -349,3 +349,60 @@ describe('CSAT and feedback', () => {
     expect(data).toEqual([{ score: 5 }])
   })
 })
+
+// ---------------------------------------------------------------- field-level security
+const HIDDEN: Record<string, string[]> = {
+  profiles: ['email', 'org_id', 'internal_role', 'customer_role', 'can_view_invoices'],
+  customers: ['org_id', 'hubspot_company_id', 'zoho_customer_id', 'account_owner_id'],
+  projects: ['template_key', 'hubspot_deal_id'],
+}
+
+describe('restricted fields are never returned', () => {
+  it.each(Object.entries(HIDDEN))('%s: hidden columns are refused for every signed-in user', async (table, cols) => {
+    for (const c of [michel, omar, sahil]) {
+      for (const col of cols) expect((await c.from(table).select(col)).error?.message).toMatch(/permission denied/)
+      expect((await c.from(table).select('*')).error?.message).toMatch(/permission denied/)
+    }
+  })
+
+  it('names and links still work for customers', async () => {
+    const { data, error } = await omar.from('projects').select('id, name, customers(name), pm:profiles!projects_pm_id_fkey(full_name)')
+    expect(error).toBeNull()
+    expect(data!.length).toBeGreaterThan(0)
+    expect(data!.every((p) => (p.pm as unknown as { full_name: string } | null)?.full_name)).toBe(true)
+  })
+
+  it('the staff-only views return nothing to customers and everything to staff', async () => {
+    for (const view of ['directory', 'customers_internal', 'projects_internal']) {
+      expect((await michel.from(view).select('*')).data).toHaveLength(0)
+      expect((await sahil.from(view).select('*')).data!.length).toBeGreaterThan(0)
+    }
+    expect((await cbdLead.from('directory').select('email')).data).toHaveLength(0)
+  })
+
+  it('each person reads only their own full profile', async () => {
+    const { data } = await omar.rpc('get_my_profile')
+    expect(data).toMatchObject({ email: 'omar@nesma.example.com', customer_role: 'customer_member' })
+  })
+
+  it('a low-CSAT follow-up and its replies stay private to the person who scored', async () => {
+    const { data: fb } = await service.from('feedback').select('id').eq('source', 'csat').eq('customer_id', nesma).limit(1).maybeSingle()
+    if (fb) {
+      await service.from('comments').insert({ customer_id: nesma, entity_type: 'feedback', entity_id: fb.id, author_id: await idOf('rahul@example.com'), body: 'Sorry, calling you today', visibility: 'shared' })
+      const scorer = (await service.from('feedback').select('submitted_by').eq('id', fb.id).single()).data!.submitted_by
+      const other = scorer === (await idOf('michel@nesma.example.com')) ? omar : michel
+      expect((await other.from('feedback').select('id').eq('id', fb.id)).data).toHaveLength(0)
+      expect((await other.from('comments').select('id').eq('entity_id', fb.id)).data).toHaveLength(0)
+    }
+  })
+
+  it('form answers are visible to the submitter and executives, not to other team members', async () => {
+    const { data: pbi } = await service.from('projects').select('id').eq('name', 'Power BI Implementation').single()
+    const { data: sub } = await omar.from('form_submissions').insert({ customer_id: nesma, project_id: pbi!.id, form_key: 'data_access', submitted_by: await uid(omar),
+      answers: { systems: 'SAP', method: 'api', it_contact: 'IT desk' } }).select('id').single()
+    expect((await michel.from('form_submissions').select('id').eq('id', sub!.id)).data).toHaveLength(1)   // executive
+    // Michel's kickoff answers are not visible to Omar
+    const { data: kickoff } = await service.from('form_submissions').select('id').eq('form_key', 'kickoff').eq('customer_id', nesma).single()
+    expect((await omar.from('form_submissions').select('id').eq('id', kickoff!.id)).data).toHaveLength(0)
+  })
+})

@@ -11,7 +11,7 @@ export default async function Projects() {
   await requireStaff()
   const supabase = await createClient()
   const [{ data: projects }, { data: progress }] = await Promise.all([
-    supabase.from('projects').select('id, name, health, status, start_date, end_date, template_key, customers(name), pm:profiles!projects_pm_id_fkey(full_name)').order('status').order('name'),
+    supabase.from('projects').select('id, name, health, status, start_date, end_date, customers(name), pm:profiles!projects_pm_id_fkey(full_name)').order('status').order('name'),
     supabase.from('project_progress').select('*'),
   ])
   const prog = new Map((progress ?? []).map((p) => [p.project_id, p.total ? (100 * (p.done ?? 0)) / p.total : 0]))

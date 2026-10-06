@@ -58,14 +58,15 @@ export async function createEngagement(_prev: ActionResult | null, form: FormDat
   // find or create the customer (matched on the HubSpot company)
   let customerId: string | null = null
   if (setup.hubspot_company_id) {
-    const { data: c } = await supabase.from('customers').select('id').eq('hubspot_company_id', setup.hubspot_company_id).maybeSingle()
+    const { data: c } = await supabase.from('customers_internal').select('id').eq('hubspot_company_id', setup.hubspot_company_id).maybeSingle()
     customerId = c?.id ?? null
   }
   if (!customerId) {
-    const { data: c, error } = await supabase.from('customers')
-      .insert({ org_id: setup.org_id, name: setup.company_name, hubspot_company_id: setup.hubspot_company_id }).select('id').single()
-    if (error || !c) return dbFail(error)
-    customerId = c.id
+    // the id is made here: a new customer row cannot be read back inside the same insert under RLS
+    const id = crypto.randomUUID()
+    const { error } = await supabase.from('customers').insert({ id, org_id: setup.org_id, name: setup.company_name, hubspot_company_id: setup.hubspot_company_id })
+    if (error) return dbFail(error)
+    customerId = id
   }
 
   const start = new Date(`${parsed.data.start_date}T00:00:00Z`)
@@ -138,7 +139,7 @@ export async function setStaffRole(userId: string, role: (typeof ROLES)[number] 
   if (userId === me.id) return fail('Ask another admin to change your own role.')
   if (!uuid.safeParse(userId).success || !(role === 'remove' || ROLES.includes(role))) return fail('Unknown person or role.')
   const supabase = await createClient()
-  const { data: target } = await supabase.from('profiles').select('id, org_id, kind').eq('id', userId).maybeSingle()
+  const { data: target } = await supabase.from('directory').select('id, org_id, kind').eq('id', userId).maybeSingle()
   if (!target || target.kind !== 'internal' || target.org_id !== me.org_id) return fail('Person not found.')
   const admin = createAdminClient()
   if (role === 'remove') {
@@ -164,10 +165,11 @@ export async function createCustomer(_prev: ActionResult | null, form: FormData)
   const parsed = customerSchema.safeParse(formObject(form))
   if (!parsed.success) return fail(parsed.error.issues[0]!.message)
   const supabase = await createClient()
-  const { data, error } = await supabase.from('customers').insert({ ...parsed.data, org_id: me.org_id! }).select('id').single()
-  if (error || !data) return dbFail(error, error?.code === '23505' ? 'A customer with that HubSpot or Zoho id already exists.' : undefined)
+  const id = crypto.randomUUID()
+  const { error } = await supabase.from('customers').insert({ id, ...parsed.data, org_id: me.org_id! })
+  if (error) return dbFail(error, error.code === '23505' ? 'A customer with that HubSpot or Zoho id already exists.' : undefined)
   done()
-  redirect(`/customers/${data.id}`)
+  redirect(`/customers/${id}`)
 }
 
 export async function setAccountOwner(customerId: string, ownerId: string): Promise<ActionResult> {

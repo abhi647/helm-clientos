@@ -8,6 +8,7 @@ import { Avatar, Card, Chip, Empty, Health, PageHeader, Progress } from '@/compo
 import { shortDate } from '@/lib/format'
 import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import type { CustomerInternalRow, DirectoryRow } from '@/lib/views'
 
 export const metadata: Metadata = { title: 'Customer' }
 
@@ -16,12 +17,13 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
   const { id } = await params
   const me = await requireStaff()
   const supabase = await createClient()
-  const { data: c } = await supabase.from('customers').select('*').eq('id', id).maybeSingle()
+  const { data: c } = await supabase.from('customers_internal').select('*').eq('id', id).maybeSingle().overrideTypes<CustomerInternalRow, { merge: false }>()
   if (!c) notFound()
   const [{ data: projects }, { data: progress }, { data: people }] = await Promise.all([
     supabase.from('projects').select('id, name, health, status, end_date, pm:profiles!projects_pm_id_fkey(full_name)').eq('customer_id', id).order('status').order('name'),
     supabase.from('project_progress').select('*'),
-    supabase.from('profiles').select('id, full_name, email, customer_role, can_view_invoices').eq('customer_id', id).order('full_name'),
+    supabase.from('directory').select('id, full_name, email, customer_role, can_view_invoices').eq('customer_id', id).order('full_name')
+      .overrideTypes<Pick<DirectoryRow, 'id' | 'full_name' | 'email' | 'customer_role' | 'can_view_invoices'>[], { merge: false }>(),
   ])
   const prog = new Map((progress ?? []).map((p) => [p.project_id, p.total ? (100 * (p.done ?? 0)) / p.total : 0]))
   return (

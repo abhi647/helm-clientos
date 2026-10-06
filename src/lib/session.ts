@@ -12,8 +12,9 @@ export const getProfile = cache(async (): Promise<Profile | null> => {
   const { data: claims } = await supabase.auth.getClaims()
   const uid = claims?.claims?.sub
   if (!uid) return null
-  const { data } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle()
-  return data
+  // the full profile (role, invoice access) is only readable by its owner, through this function
+  const { data } = await supabase.rpc('get_my_profile')
+  return data?.id ? data : null
 })
 
 export async function requireProfile(): Promise<Profile> {

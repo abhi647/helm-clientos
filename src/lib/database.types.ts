@@ -26,6 +26,12 @@ isOneToOne: false
       foreignKeyName: "action_items_assignee_id_fkey"
       columns: ["assignee_id"]
 isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "action_items_assignee_id_fkey"
+      columns: ["assignee_id"]
+isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
     },{
@@ -35,10 +41,22 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "action_items_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "action_items_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "action_items_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "action_items_request_id_fkey"
@@ -69,6 +87,12 @@ isOneToOne: false
       foreignKeyName: "activity_actor_id_fkey"
       columns: ["actor_id"]
 isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "activity_actor_id_fkey"
+      columns: ["actor_id"]
+isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
     },{
@@ -78,10 +102,22 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "activity_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "activity_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "activity_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
       referencedColumns: ["id"]
     }
                   ]
@@ -100,6 +136,12 @@ isOneToOne: false
       foreignKeyName: "approval_events_actor_id_fkey"
       columns: ["actor_id"]
 isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "approval_events_actor_id_fkey"
+      columns: ["actor_id"]
+isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
     },{
@@ -113,6 +155,12 @@ isOneToOne: false
       columns: ["customer_id"]
 isOneToOne: false
       referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "approval_events_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
       referencedColumns: ["id"]
     }
                   ]
@@ -131,6 +179,12 @@ isOneToOne: false
       foreignKeyName: "approvals_approver_id_fkey"
       columns: ["approver_id"]
 isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "approvals_approver_id_fkey"
+      columns: ["approver_id"]
+isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
     },{
@@ -140,16 +194,34 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "approvals_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "approvals_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "approvals_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "approvals_request_id_fkey"
       columns: ["request_id"]
 isOneToOne: false
       referencedRelation: "requests"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "approvals_requested_by_fkey"
+      columns: ["requested_by"]
+isOneToOne: false
+      referencedRelation: "directory"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "approvals_requested_by_fkey"
@@ -199,6 +271,12 @@ isOneToOne: false
       foreignKeyName: "comments_author_id_fkey"
       columns: ["author_id"]
 isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "comments_author_id_fkey"
+      columns: ["author_id"]
+isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
     },{
@@ -206,6 +284,12 @@ isOneToOne: false
       columns: ["customer_id"]
 isOneToOne: false
       referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "comments_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
       referencedColumns: ["id"]
     }
                   ]
@@ -227,10 +311,28 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "csat_surveys_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "csat_surveys_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "csat_surveys_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "csat_surveys_recipient_id_fkey"
+      columns: ["recipient_id"]
+isOneToOne: false
+      referencedRelation: "directory"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "csat_surveys_recipient_id_fkey"
@@ -258,6 +360,12 @@ isOneToOne: false
                   }
                   Relationships: [
                     {
+      foreignKeyName: "customers_account_owner_id_fkey"
+      columns: ["account_owner_id"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "customers_account_owner_id_fkey"
       columns: ["account_owner_id"]
 isOneToOne: false
@@ -289,6 +397,12 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "decisions_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "decisions_meeting_id_fkey"
       columns: ["meeting_id"]
 isOneToOne: false
@@ -299,6 +413,12 @@ isOneToOne: false
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "decisions_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
       referencedColumns: ["id"]
     }
                   ]
@@ -320,10 +440,22 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "document_versions_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "document_versions_document_id_fkey"
       columns: ["document_id"]
 isOneToOne: false
       referencedRelation: "documents"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "document_versions_uploaded_by_fkey"
+      columns: ["uploaded_by"]
+isOneToOne: false
+      referencedRelation: "directory"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "document_versions_uploaded_by_fkey"
@@ -351,16 +483,34 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "documents_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "documents_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "documents_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "documents_request_id_fkey"
       columns: ["request_id"]
 isOneToOne: false
       referencedRelation: "requests"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "documents_uploaded_by_fkey"
+      columns: ["uploaded_by"]
+isOneToOne: false
+      referencedRelation: "directory"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "documents_uploaded_by_fkey"
@@ -412,6 +562,12 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "projects"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "engagement_setups_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
+      referencedColumns: ["id"]
     }
                   ]
                 },"feedback": {
@@ -438,6 +594,18 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "feedback_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "feedback_owner_id_fkey"
+      columns: ["owner_id"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "feedback_owner_id_fkey"
       columns: ["owner_id"]
 isOneToOne: false
@@ -448,6 +616,18 @@ isOneToOne: false
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "feedback_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "feedback_submitted_by_fkey"
+      columns: ["submitted_by"]
+isOneToOne: false
+      referencedRelation: "directory"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "feedback_submitted_by_fkey"
@@ -481,10 +661,28 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "form_submissions_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "form_submissions_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "form_submissions_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "form_submissions_submitted_by_fkey"
+      columns: ["submitted_by"]
+isOneToOne: false
+      referencedRelation: "directory"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "form_submissions_submitted_by_fkey"
@@ -524,6 +722,12 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invoices_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
     }
                   ]
                 },"meeting_actions": {
@@ -541,6 +745,12 @@ isOneToOne: false
       foreignKeyName: "meeting_actions_assignee_id_fkey"
       columns: ["assignee_id"]
 isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "meeting_actions_assignee_id_fkey"
+      columns: ["assignee_id"]
+isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
     },{
@@ -548,6 +758,12 @@ isOneToOne: false
       columns: ["customer_id"]
 isOneToOne: false
       referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "meeting_actions_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "meeting_actions_meeting_id_fkey"
@@ -581,10 +797,22 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "meetings_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "meetings_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "meetings_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
       referencedColumns: ["id"]
     }
                   ]
@@ -600,6 +828,12 @@ isOneToOne: false
                   }
                   Relationships: [
                     {
+      foreignKeyName: "notifications_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "notifications_user_id_fkey"
       columns: ["user_id"]
 isOneToOne: false
@@ -638,6 +872,12 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "payments_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "payments_invoice_id_fkey"
       columns: ["invoice_id"]
 isOneToOne: false
@@ -663,10 +903,22 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "phases_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "phases_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "phases_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
       referencedColumns: ["id"]
     }
                   ]
@@ -686,6 +938,12 @@ isOneToOne: false
       columns: ["customer_id"]
 isOneToOne: false
       referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "profiles_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "profiles_org_id_fkey"
@@ -713,10 +971,22 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "project_commercials_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "project_commercials_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: true
       referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "project_commercials_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: true
+      referencedRelation: "projects_internal"
       referencedColumns: ["id"]
     }
                   ]
@@ -738,10 +1008,28 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "projects_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "projects_customer_lead_id_fkey"
+      columns: ["customer_lead_id"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "projects_customer_lead_id_fkey"
       columns: ["customer_lead_id"]
 isOneToOne: false
       referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "projects_pm_id_fkey"
+      columns: ["pm_id"]
+isOneToOne: false
+      referencedRelation: "directory"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "projects_pm_id_fkey"
@@ -766,6 +1054,12 @@ isOneToOne: false
       foreignKeyName: "request_events_actor_id_fkey"
       columns: ["actor_id"]
 isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "request_events_actor_id_fkey"
+      columns: ["actor_id"]
+isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
     },{
@@ -773,6 +1067,12 @@ isOneToOne: false
       columns: ["customer_id"]
 isOneToOne: false
       referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "request_events_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "request_events_request_id_fkey"
@@ -800,6 +1100,18 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "requests_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "requests_owner_id_fkey"
+      columns: ["owner_id"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "requests_owner_id_fkey"
       columns: ["owner_id"]
 isOneToOne: false
@@ -810,6 +1122,18 @@ isOneToOne: false
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "requests_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "requests_requested_by_fkey"
+      columns: ["requested_by"]
+isOneToOne: false
+      referencedRelation: "directory"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "requests_requested_by_fkey"
@@ -837,6 +1161,12 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "task_estimates_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "task_estimates_task_id_fkey"
       columns: ["task_id"]
 isOneToOne: true
@@ -859,7 +1189,19 @@ isOneToOne: true
       foreignKeyName: "tasks_assignee_id_fkey"
       columns: ["assignee_id"]
 isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tasks_assignee_id_fkey"
+      columns: ["assignee_id"]
+isOneToOne: false
       referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tasks_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "directory"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "tasks_created_by_fkey"
@@ -874,6 +1216,12 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "tasks_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "tasks_phase_id_fkey"
       columns: ["phase_id"]
 isOneToOne: false
@@ -884,6 +1232,12 @@ isOneToOne: false
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tasks_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
       referencedColumns: ["id"]
     }
                   ]
@@ -905,10 +1259,22 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "time_entries_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "time_entries_task_id_fkey"
       columns: ["task_id"]
 isOneToOne: false
       referencedRelation: "tasks"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "time_entries_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "directory"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "time_entries_user_id_fkey"
@@ -933,6 +1299,12 @@ isOneToOne: false
       foreignKeyName: "updates_author_id_fkey"
       columns: ["author_id"]
 isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "updates_author_id_fkey"
+      columns: ["author_id"]
+isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
     },{
@@ -942,17 +1314,91 @@ isOneToOne: false
       referencedRelation: "customers"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "updates_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "updates_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "updates_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
       referencedColumns: ["id"]
     }
                   ]
                 }
           }
           Views: {
-            "project_progress": {
+            "customers_internal": {
+                  Row: {
+                    "account_owner_id": string | null,"created_at": string | null,"hubspot_company_id": string | null,"id": string | null,"name": string | null,"org_id": string | null,"zoho_customer_id": string | null
+                  }
+                  Insert: {
+                           "account_owner_id"?: string | null,"created_at"?: string | null,"hubspot_company_id"?: string | null,"id"?: string | null,"name"?: string | null,"org_id"?: string | null,"zoho_customer_id"?: string | null
+                         }
+                        Update: {
+                           "account_owner_id"?: string | null,"created_at"?: string | null,"hubspot_company_id"?: string | null,"id"?: string | null,"name"?: string | null,"org_id"?: string | null,"zoho_customer_id"?: string | null
+                         }
+                        Relationships: [
+                    {
+      foreignKeyName: "customers_account_owner_id_fkey"
+      columns: ["account_owner_id"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "customers_account_owner_id_fkey"
+      columns: ["account_owner_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "customers_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "orgs"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"directory": {
+                  Row: {
+                    "can_view_invoices": boolean | null,"created_at": string | null,"customer_id": string | null,"customer_role": Database["public"]['Enums']["customer_role"] | null,"email": string | null,"full_name": string | null,"id": string | null,"internal_role": Database["public"]['Enums']["internal_role"] | null,"kind": Database["public"]['Enums']["user_kind"] | null,"org_id": string | null
+                  }
+                  Insert: {
+                           "can_view_invoices"?: boolean | null,"created_at"?: string | null,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email"?: string | null,"full_name"?: string | null,"id"?: string | null,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"kind"?: Database["public"]['Enums']["user_kind"] | null,"org_id"?: string | null
+                         }
+                        Update: {
+                           "can_view_invoices"?: boolean | null,"created_at"?: string | null,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email"?: string | null,"full_name"?: string | null,"id"?: string | null,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"kind"?: Database["public"]['Enums']["user_kind"] | null,"org_id"?: string | null
+                         }
+                        Relationships: [
+                    {
+      foreignKeyName: "profiles_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "profiles_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "profiles_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "orgs"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"project_progress": {
                   Row: {
                     "done": number | null,"project_id": string | null,"total": number | null
                   }
@@ -962,6 +1408,37 @@ isOneToOne: false
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tasks_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"projects_internal": {
+                  Row: {
+                    "customer_id": string | null,"hubspot_deal_id": string | null,"id": string | null,"template_key": string | null
+                  }
+                  Insert: {
+                           "customer_id"?: string | null,"hubspot_deal_id"?: string | null,"id"?: string | null,"template_key"?: string | null
+                         }
+                        Update: {
+                           "customer_id"?: string | null,"hubspot_deal_id"?: string | null,"id"?: string | null,"template_key"?: string | null
+                         }
+                        Relationships: [
+                    {
+      foreignKeyName: "projects_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "projects_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
       referencedColumns: ["id"]
     }
                   ]
@@ -983,6 +1460,25 @@ isOneToOne: false
 "decide_approval":
 { Args: { "p_approval": string,"p_comment"?: string,"p_decision": Database["public"]['Enums']["approval_action"] }; Returns: undefined
                            },
+"get_my_profile":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "can_view_invoices": boolean,
+"created_at": string,
+"customer_id": string | null,
+"customer_role": Database["public"]['Enums']["customer_role"] | null,
+"email": string,
+"full_name": string,
+"id": string,
+"internal_role": Database["public"]['Enums']["internal_role"] | null,
+"kind": Database["public"]['Enums']["user_kind"],
+"org_id": string | null
+            }
+                          SetofOptions: {
+        from: "*"
+        to: "profiles"
+        isOneToOne: true
+        isSetofReturn: false
+      } },
 "publish_update":
 { Args: { "p_update": string }; Returns: undefined
                            },

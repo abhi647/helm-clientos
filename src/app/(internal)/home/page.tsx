@@ -8,6 +8,7 @@ import { shortDate } from '@/lib/format'
 import { loadPortfolio } from '@/lib/portfolio'
 import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import type { DirectoryRow } from '@/lib/views'
 import { TEMPLATES } from '@/lib/templates'
 
 export const metadata: Metadata = { title: 'Home' }
@@ -20,7 +21,8 @@ export default async function Home() {
   const [{ rows, exceptions, counts }, setups, staff, load] = await Promise.all([
     loadPortfolio(),
     supabase.from('engagement_setups').select('*').eq('status', 'pending').order('created_at', { ascending: false }),
-    supabase.from('profiles').select('id, full_name, internal_role').eq('kind', 'internal').order('full_name'),
+    supabase.from('directory').select('id, full_name, internal_role').eq('kind', 'internal').order('full_name')
+      .overrideTypes<Pick<DirectoryRow, 'id' | 'full_name' | 'internal_role'>[], { merge: false }>(),
     supabase.from('tasks').select('assignee_id, due_date, task_estimates(estimate_hours)').neq('status', 'done').not('assignee_id', 'is', null),
   ])
 

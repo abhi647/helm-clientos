@@ -12,8 +12,9 @@ export default async function ProjectLayout({ children, params }: { children: Re
   const { id } = await params
   const me = await requireStaff()
   const supabase = await createClient()
-  const [{ data: p }, { data: prog }, { count: openReq }] = await Promise.all([
-    supabase.from('projects').select('*, customers(id, name), pm:profiles!projects_pm_id_fkey(full_name), lead:profiles!projects_customer_lead_id_fkey(full_name)').eq('id', id).maybeSingle(),
+  const [{ data: p }, { data: internal }, { data: prog }, { count: openReq }] = await Promise.all([
+    supabase.from('projects').select('id, name, health, status, start_date, end_date, customer_id, customers(id, name), pm:profiles!projects_pm_id_fkey(full_name), lead:profiles!projects_customer_lead_id_fkey(full_name)').eq('id', id).maybeSingle(),
+    supabase.from('projects_internal').select('template_key').eq('id', id).maybeSingle(),
     supabase.from('project_progress').select('*').eq('project_id', id).maybeSingle(),
     supabase.from('requests').select('id', { count: 'exact', head: true }).eq('project_id', id).not('status', 'in', '(delivered,cancelled)'),
   ])
@@ -35,7 +36,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
           <span className="font-mono text-xs text-muted">{shortDate(p.start_date)} → {shortDate(p.end_date)}</span>
           <span className="text-xs text-muted">PM <b className="font-medium text-ink">{p.pm?.full_name ?? '–'}</b></span>
           <span className="text-xs text-muted">Customer lead <b className="font-medium text-ink">{p.lead?.full_name ?? '–'}</b></span>
-          {p.template_key ? <span className="text-xs text-muted">Template <b className="font-medium text-ink">{templateByKey(p.template_key)?.name ?? p.template_key}</b></span> : null}
+          {internal?.template_key ? <span className="text-xs text-muted">Template <b className="font-medium text-ink">{templateByKey(internal.template_key)?.name ?? internal.template_key}</b></span> : null}
           {canManage(me) ? <span className="ml-auto"><ProjectState projectId={p.id} health={p.health} status={p.status} /></span> : null}
         </div>
         <Tabs items={[

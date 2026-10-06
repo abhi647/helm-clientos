@@ -67,7 +67,7 @@ npm run dev
 | Command | What it does |
 |---|---|
 | `npm run typecheck` / `npm run lint` | TypeScript and ESLint |
-| `npm run test:db` | 65 RLS, security, playbook and CSAT tests against the local database |
+| `npm run test:db` | 73 row, field, security, playbook and CSAT tests against the local database |
 | `npm run test:e2e` | 10 Playwright flows (needs `npm run build && npm start` first). Set `PW_CHROMIUM_PATH` to use a pre-installed Chromium. |
 
 CI (`.github/workflows/client-os.yml`) runs lint, types, the database tests and the flows on every push that touches `client-os/`. It uses a throwaway local Supabase.
@@ -154,6 +154,26 @@ CI (`.github/workflows/client-os.yml`) runs lint, types, the database tests and 
    - Finance can also press **Sync now**.
 
 ## Security notes
+
+Access is enforced inside Postgres at two levels, so a bug in a page cannot leak data.
+
+- **Rows (RLS on every table, forced):** customers only see Shared rows of their own company. Commercials, estimates, time and integration tables are staff-only.
+- **Fields (column privileges):** sensitive columns can't be read through the tables by any signed-in user. Asking for one fails with "permission denied".
+
+  | Table | Hidden fields |
+  |---|---|
+  | `profiles` | email, organisation, internal role, customer role, invoice access |
+  | `customers` | organisation, HubSpot and Zoho ids, account owner |
+  | `projects` | template, HubSpot deal id |
+
+  - Staff read these through `directory`, `customers_internal` and `projects_internal`, which return rows only to Seven Billion staff of that customer.
+  - Each person reads their own full profile through `get_my_profile()`.
+- **Inside a customer:**
+  - A low-CSAT follow-up and its replies are visible only to the person who gave the score.
+  - Form answers are visible to whoever submitted them and to the customer's executives.
+  - CSAT answers are visible only to the person who was asked.
+
+`tests/rls.test.ts` checks every one of these rules (73 tests), signing in as customers, staff and anonymous callers.
 
 - The secret key is server-only (`src/lib/supabase/admin.ts` imports `server-only`). It is used for the email outbox, integrations and invites.
 - Access is decided in the database, so a bug in a page cannot leak another customer's data. `tests/rls.test.ts` proves this, including attempts to forge requests, post internal comments as a customer, or escalate a profile.

@@ -15,7 +15,7 @@ export default async function PortalProject({ params, searchParams }: { params: 
   const me = await requireCustomer()
   const [{ id }, { task }] = await Promise.all([params, searchParams])
   const supabase = await createClient()
-  const { data: p } = await supabase.from('projects').select('*, pm:profiles!projects_pm_id_fkey(full_name)').eq('id', id).maybeSingle()
+  const { data: p } = await supabase.from('projects').select('id, customer_id, name, status, health, start_date, end_date, pm:profiles!projects_pm_id_fkey(full_name)').eq('id', id).maybeSingle()
   if (!p) notFound()
   const [{ data: phases }, { data: tasks }, { data: prog }, { data: updates }] = await Promise.all([
     supabase.from('phases').select('*').eq('project_id', id).order('position'),

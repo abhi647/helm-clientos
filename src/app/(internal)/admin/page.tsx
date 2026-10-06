@@ -10,6 +10,7 @@ import { isFuture, label, relativeTime } from '@/lib/format'
 import { requireStaff } from '@/lib/session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import type { CustomerInternalRow, DirectoryRow } from '@/lib/views'
 
 export const metadata: Metadata = { title: 'Admin' }
 
@@ -31,12 +32,15 @@ export default async function Admin() {
   if (!['admin', 'ceo'].includes(me.internal_role ?? '')) notFound()
   const supabase = await createClient()
   const [{ data: staff }, { data: customers }, { data: rules }, { data: lastInvoice }, { data: setups }] = await Promise.all([
-    supabase.from('profiles').select('id, full_name, email, internal_role').eq('kind', 'internal').eq('org_id', me.org_id!).order('full_name'),
-    supabase.from('customers').select('id, name, hubspot_company_id, zoho_customer_id, account_owner_id, projects(id, status)').order('name'),
+    supabase.from('directory').select('id, full_name, email, internal_role').eq('kind', 'internal').eq('org_id', me.org_id!).order('full_name')
+      .overrideTypes<Pick<DirectoryRow, 'id' | 'full_name' | 'email' | 'internal_role'>[], { merge: false }>(),
+    supabase.from('customers_internal').select('id, name, hubspot_company_id, zoho_customer_id, account_owner_id').order('name')
+      .overrideTypes<Pick<CustomerInternalRow, 'id' | 'name' | 'hubspot_company_id' | 'zoho_customer_id' | 'account_owner_id'>[], { merge: false }>(),
     supabase.from('automation_rules').select('key, enabled'),
     supabase.from('invoices').select('synced_at').order('synced_at', { ascending: false }).limit(1),
     supabase.from('engagement_setups').select('id').eq('status', 'pending'),
   ])
+  const { data: activeProjects } = await supabase.from('projects').select('customer_id').eq('status', 'active')
   // sign-in status comes from Auth (banned = access removed); this page is admin-only and server-rendered
   const { data: auth } = await createAdminClient().auth.admin.listUsers({ perPage: 1000 })
   const removed = new Set((auth?.users ?? []).filter((u) => isFuture(u.banned_until)).map((u) => u.id))
@@ -76,7 +80,7 @@ export default async function Admin() {
               {(customers ?? []).map((c) => (
                 <div key={c.id} className="row grid-cols-[minmax(0,1fr)_80px_120px_120px_170px]">
                   <Link href={`/customers/${c.id}`} className="truncate font-medium">{c.name}</Link>
-                  <span className="font-mono text-xs">{c.projects.filter((p) => p.status === 'active').length}</span>
+                  <span className="font-mono text-xs">{(activeProjects ?? []).filter((p) => p.customer_id === c.id).length}</span>
                   <span className="truncate font-mono text-xs text-muted">{c.hubspot_company_id ?? '–'}</span>
                   <span className="truncate font-mono text-xs text-muted">{c.zoho_customer_id ?? '–'}</span>
                   <AccountOwnerSelect customerId={c.id} value={c.account_owner_id ?? ''} people={(staff ?? []).map((s) => ({ id: s.id, name: s.full_name }))} />
