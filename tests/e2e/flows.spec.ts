@@ -367,8 +367,12 @@ test('deleting: a task and a phase from the plan, then the whole project after t
   await expect(page).not.toHaveURL(/task=/)
   await expect(tasks).toHaveCount(before - 1)
   await page.locator('summary', { hasText: 'Delete a phase…' }).click()
-  await page.locator('details[open]', { hasText: 'Delete a phase…' }).getByRole('button', { name: 'Delete' }).first().click()
-  await expect(page.getByText(/^Phase deleted/)).toBeVisible()
+  const phases = page.locator('details[open]', { hasText: 'Delete a phase…' }).locator('.row')
+  const phaseName = (await phases.first().locator('span').first().textContent())!.split(' · ')[0]!.trim()
+  const phaseCount = await phases.count()
+  await phases.first().getByRole('button', { name: 'Delete' }).click()
+  await expect(phases).toHaveCount(phaseCount - 1)   // the phase (and its row) is gone
+  await expect(page.locator('summary', { hasText: phaseName })).toHaveCount(0)
 
   await page.getByRole('link', { name: 'Settings' }).click()
   await page.getByText('Delete Orbit dashboards and everything in it').click()
