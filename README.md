@@ -147,6 +147,16 @@ Open the email link, set up two-step sign-in with an authenticator app, and you'
 - **Admin:** invite colleagues, set roles or remove access, add customers and account owners, switch playbook rules, check security and integrations.
 - **Customers:** invite their people from each customer page.
 
+### Test sign-ins for every role
+
+To see Helm as each role, create one sign-in per role. All of them are "+" aliases of one mailbox you own, so every sign-in code arrives in your inbox. Nobody is emailed until you sign in.
+
+```bash
+node --env-file=.env.production.local scripts/test-users.mjs --email you@gmail.com
+```
+
+This creates admin, CEO, PM, consultant and finance staff, plus three customer users (an executive, a member, and a member with invoice access) under a separate customer, "Helm Test Co (test)", with one small project. Sign in at the login page with the 6-digit code. Staff set up an authenticator app the first time. Run it again with `--remove` to delete them all.
+
 ### 5. HubSpot (optional)
 
 1. Create a private app with the scopes `crm.objects.deals.read`, `crm.objects.companies.read` and `crm.objects.contacts.read` (for the import's people to invite), and set `HUBSPOT_ACCESS_TOKEN`.
