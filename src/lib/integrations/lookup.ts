@@ -6,7 +6,7 @@ import { accessToken, apiBase } from '@/lib/integrations/zoho'
  * Checks an id someone typed against HubSpot or Zoho Books, so a customer or project is only linked to a record that
  * exists. Read only. When the integration is not set up the id is accepted as typed (`unchecked`).
  */
-export type Lookup = { found: true; name: string } | { found: false; reason: 'not_found' | 'unchecked' | 'error' }
+export type Lookup = { found: true; name: string; currency?: string } | { found: false; reason: 'not_found' | 'unchecked' | 'error' }
 
 const hubspotReady = () => !!env().HUBSPOT_ACCESS_TOKEN
 const zohoReady = () => { const e = env(); return !!(e.ZOHO_CLIENT_ID && e.ZOHO_CLIENT_SECRET && e.ZOHO_REFRESH_TOKEN && e.ZOHO_ORGANIZATION_ID) }
@@ -39,9 +39,9 @@ export async function lookupZohoCustomer(id: string): Promise<Lookup> {
     // Zoho answers an unknown contact with 404, or with 400 and an error code
     if (res.status === 404 || res.status === 400) return { found: false, reason: 'not_found' }
     if (!res.ok) return { found: false, reason: 'error' }
-    const json = (await res.json()) as { contact?: { contact_name?: string; contact_type?: string } }
+    const json = (await res.json()) as { contact?: { contact_name?: string; currency_code?: string } }
     if (!json.contact) return { found: false, reason: 'not_found' }
-    return { found: true, name: json.contact.contact_name?.trim() || `Zoho customer ${id}` }
+    return { found: true, name: json.contact.contact_name?.trim() || `Zoho customer ${id}`, currency: json.contact.currency_code || undefined }
   } catch {
     return { found: false, reason: 'error' }
   }

@@ -8,6 +8,7 @@ import { KIND_LABEL, KIND_UNIT, PLANNED_LABEL, RateCardStatus, RateLines, Statem
 import { ActionButton, ActionForm } from '@/components/forms'
 import { Card, Empty } from '@/components/ui'
 import { LineFields } from '@/components/rate-line-fields'
+import { CURRENCIES, CURRENCY_CODES } from '@/lib/currencies'
 import { money, relativeTime } from '@/lib/format'
 import { canSeeFinance, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
@@ -57,7 +58,10 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
               <ActionForm action={saveRateCard} submit="Save details" resetOnSuccess={false} primary={false}>
                 <input type="hidden" name="card_id" value={open.id} />
                 <div className="grid grid-cols-2 gap-2 md:grid-cols-[110px_200px_minmax(0,1fr)]">
-                  <input name="currency" aria-label="Currency" defaultValue={open.currency} className="input font-mono uppercase" maxLength={3} />
+                  <select name="currency" aria-label="Currency" defaultValue={open.currency} className="input font-mono">
+                    {CURRENCIES.map(([code, name]) => <option key={code} value={code}>{code} · {name}</option>)}
+                    {CURRENCY_CODES.includes(open.currency) ? null : <option value={open.currency}>{open.currency}</option>}
+                  </select>
                   <input name="po_number" aria-label="PO number" defaultValue={open.po_number ?? ''} placeholder="Customer PO number" className="input font-mono" />
                   <input name="notes" aria-label="Notes for the customer" defaultValue={open.notes} placeholder="Notes for the customer (payment terms, what is included)" className="input col-span-2 md:col-span-1" />
                 </div>
@@ -80,7 +84,7 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
                         <div className="border-t border-line-soft bg-[#fbfcfc] p-2.5">
                           <ActionForm action={updateRateCardLine} submit="Save line" resetOnSuccess={false} primary={false}>
                             <input type="hidden" name="line_id" value={l.id} />
-                            <LineFields line={l} />
+                            <LineFields line={l} currency={open.currency} />
                           </ActionForm>
                           <div className="mt-1"><ActionButton run={removeRateCardLine.bind(null, l.id)} className="btn-ghost text-xs" confirm={`Remove "${l.label}"?`}>Remove line</ActionButton></div>
                         </div>
@@ -92,7 +96,7 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
                   <p className="label mt-0 mb-2">{open.rate_card_lines.length ? 'Add another line' : 'Add a line'}</p>
                   <ActionForm action={addRateCardLine} submit="Add line">
                     <input type="hidden" name="card_id" value={open.id} />
-                    <LineFields />
+                    <LineFields currency={open.currency} />
                     <p className="m-0 text-xs text-muted">
                       One line per resource, delivery or unit: add as many as the contract has. Day rate: planned quantity is the
                       number of people ({KIND_UNIT.day_rate}s are filled in each period).

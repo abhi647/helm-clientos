@@ -580,7 +580,12 @@ test.describe('on a phone, billing', () => {
     await page.getByRole('link', { name: 'Power BI Implementation' }).first().click()
     await page.getByRole('link', { name: 'Billing' }).click()
     await page.getByRole('button', { name: 'Start the rate card' }).click()
+    // billed in US dollars
+    await page.getByLabel('Currency').selectOption('USD')
+    await page.getByRole('button', { name: 'Save details' }).click()
+    await expect(page.getByText('Saved.')).toBeVisible()
     const add = page.locator('form', { has: page.getByRole('button', { name: 'Add line' }) })
+    await expect(add.getByText('Rate (USD)')).toBeVisible()
     const addLine = async (label: string, rate: string, n: number) => {
       await add.getByLabel('Role, delivery or unit').fill(label)
       await add.getByLabel('Rate', { exact: true }).fill(rate)
@@ -601,6 +606,7 @@ test.describe('on a phone, billing', () => {
     const list = page.locator('details summary')
     await expect(list).toHaveCount(5)
     await expect(list.filter({ hasText: 'Per delivery' })).toHaveCount(3)
+    await expect(list.filter({ hasText: 'Sales dashboard' })).toContainText('$500.00')
     await expect(list.filter({ hasText: 'Day rate per resource' })).toHaveCount(2)
     await shot(page, '37-phone-rate-card-lines')
     // a line opens for editing

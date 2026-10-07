@@ -31,7 +31,7 @@ function Field({ label, hint, className, children }: { label: string; hint?: str
  * are kept when "Add line" clears the form, so the next line starts from the same model: three
  * deliveries in a row stay deliveries.
  */
-export function LineFields({ line }: { line?: { kind: Kind; label: string; unit: string; rate: number; planned_quantity: number | null; description: string; zoho_item_id: string | null } }) {
+export function LineFields({ line, currency }: { currency: string; line?: { kind: Kind; label: string; unit: string; rate: number; planned_quantity: number | null; description: string; zoho_item_id: string | null } }) {
   const start = line?.kind ?? 'day_rate'
   const [kind, setKind] = useState<Kind>(start)
   const [unit, setUnit] = useState(line?.unit ?? KIND_UNIT[start])
@@ -78,7 +78,7 @@ export function LineFields({ line }: { line?: { kind: Kind; label: string; unit:
           onChange={(e) => { setUnit(e.target.value); last.current = { ...last.current, unit: e.target.value } }}
           placeholder="dashboard, user…" className={cn('input', fixed && 'bg-head text-muted')} />
       </Field>
-      <Field label="Rate" hint={`Per ${fixed ?? (unit || 'unit')}`}>
+      <Field label={`Rate (${currency})`} hint={`${currency} per ${fixed ?? (unit || 'unit')}`}>
         <input name="rate" aria-label="Rate" required inputMode="decimal" defaultValue={line?.rate} placeholder="e.g. 25000" className="input font-mono" />
       </Field>
       <Field label="Planned qty" hint={PLANNED_LABEL[kind] ?? 'Leave empty'}>

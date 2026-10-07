@@ -247,11 +247,11 @@ export async function createCustomer(_prev: ActionResult | null, form: FormData)
 }
 
 /** Checks HubSpot and Zoho ids against the real records; returns the name found there (HubSpot first). */
-async function checkCustomerIds(hubspot: string | null, zoho: string | null): Promise<{ name: string | null } | ActionResult> {
+async function checkCustomerIds(hubspot: string | null, zoho: string | null): Promise<{ name: string | null; currency?: string } | ActionResult> {
   const [h, z] = await Promise.all([hubspot ? lookupHubSpotCompany(hubspot) : null, zoho ? lookupZohoCustomer(zoho) : null])
   const problem = (hubspot && h && lookupProblem('HubSpot company', hubspot, h)) || (zoho && z && lookupProblem('Zoho customer', zoho, z))
   if (problem) return fail(problem)
-  return { name: (h?.found ? h.name : null) ?? (z?.found ? z.name : null) }
+  return { name: (h?.found ? h.name : null) ?? (z?.found ? z.name : null), currency: z?.found ? z.currency : undefined }
 }
 
 const linksSchema = z.object({
@@ -272,7 +272,7 @@ export async function setCustomerLinks(_prev: ActionResult | null, form: FormDat
   const supabase = await createClient()
   const { error } = await supabase.from('customers').update(ids).eq('id', customer_id)
   if (error) return dbFail(error, error.code === '23505' ? 'Another customer is already linked to that HubSpot or Zoho id.' : undefined)
-  return done(checked.name ? `Linked. Found "${checked.name}".` : 'Saved.')
+  return done(checked.name ? `Linked. Found "${checked.name}"${checked.currency ? `, billed in ${checked.currency} on Zoho` : ''}.` : 'Saved.')
 }
 
 export async function setAccountOwner(customerId: string, ownerId: string): Promise<ActionResult> {

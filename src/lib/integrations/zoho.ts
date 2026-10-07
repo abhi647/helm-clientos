@@ -1,6 +1,8 @@
 import 'server-only'
 import { env } from '@/lib/env'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { currencyProblem } from '@/lib/currencies'
+import { lookupZohoCustomer } from '@/lib/integrations/lookup'
 
 type ZohoInvoice = {
   invoice_id: string; invoice_number: string; customer_id: string; customer_name: string; status: string
@@ -151,6 +153,11 @@ export async function createZohoDraftInvoice(statementId: string): Promise<Draft
   ])
   if (!customer?.zoho_customer_id) return fail(`${customer?.name ?? 'This customer'} has no Zoho customer id. Add it in Admin → Customers, then press Retry.`)
   if (!lines?.length) return fail('The statement has no lines with a quantity.')
+
+  // Zoho bills a customer in the currency set on them in Zoho; an invoice can't be in another one
+  const zohoCustomer = await lookupZohoCustomer(customer.zoho_customer_id)
+  const mismatch = zohoCustomer.found ? currencyProblem(zohoCustomer.name, zohoCustomer.currency, card?.currency) : null
+  if (mismatch) return fail(mismatch)
 
   const periodText = `${st.period_start} to ${st.period_end}`
   const body = {

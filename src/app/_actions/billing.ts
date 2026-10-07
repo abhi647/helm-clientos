@@ -7,6 +7,8 @@ import { createZohoDraftInvoice } from '@/lib/integrations/zoho'
 import { requireCustomer, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { type ActionResult, dbFail, done, fail, uuid } from './shared'
+import { CURRENCY_CODES } from '@/lib/currencies'
+import { lookupZohoCustomer } from '@/lib/integrations/lookup'
 
 // Rates are typed from the signed contract by finance; who may do what is enforced in the database (see the billing migration).
 
@@ -20,13 +22,21 @@ export async function startRateCard(projectId: string): Promise<ActionResult> {
   await requireStaff()
   if (!uuid.safeParse(projectId).success) return fail('Unknown project.')
   const supabase = await createClient()
-  const { error } = await supabase.rpc('start_rate_card', { p_project: projectId })
-  return error ? dbFail(error) : done()
+  const { data: card, error } = await supabase.rpc('start_rate_card', { p_project: projectId })
+  if (error) return dbFail(error)
+  // the first rate card starts in the currency the customer is billed in on Zoho
+  const { data: c } = await supabase.from('rate_cards').select('version, customer_id').eq('id', card).maybeSingle()
+  if (c?.version === 1) {
+    const { data: cust } = await supabase.from('customers_internal').select('zoho_customer_id').eq('id', c.customer_id).maybeSingle()
+    const z = cust?.zoho_customer_id ? await lookupZohoCustomer(cust.zoho_customer_id) : null
+    if (z?.found && z.currency && CURRENCY_CODES.includes(z.currency)) await supabase.from('rate_cards').update({ currency: z.currency }).eq('id', card)
+  }
+  return done()
 }
 
 const cardSchema = z.object({
   card_id: uuid,
-  currency: z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/, 'Use a 3-letter currency code, for example INR or USD.'),
+  currency: z.string().trim().toUpperCase().refine((c) => CURRENCY_CODES.includes(c), 'Choose a currency from the list.'),
   po_number: z.preprocess((v) => (v === '' ? null : v), z.string().trim().max(80).nullable()),
   notes: text(2000),
 })
