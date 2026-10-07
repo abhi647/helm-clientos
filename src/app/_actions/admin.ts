@@ -31,8 +31,10 @@ export async function inviteCustomerUser(_prev: ActionResult | null, form: FormD
   if (!customer) return fail('Customer not found.')
 
   const admin = createAdminClient()
+  const { data: named } = await supabase.from('customers').select('name').eq('id', customer.id).single()
   const { data, error } = await admin.auth.admin.inviteUserByEmail(parsed.data.email, {
     redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm?next=/portal`,
+    data: emailNames(parsed.data.full_name, named?.name ?? 'Helm'),   // for the invite email's greeting
   })
   if (error || !data.user) return dbFail(error, error?.message.includes('already') ? 'That email already has an account.' : 'Invitation failed.')
   const { error: metaError } = await admin.auth.admin.updateUserById(data.user.id, {
@@ -110,6 +112,10 @@ export async function dismissEngagement(setupId: string): Promise<ActionResult> 
 
 const isAdmin = (role: string | null) => role === 'admin' || role === 'ceo'
 
+/** Name and workspace on the account, so Supabase's sign-in and invite emails can greet people (see migration 016). */
+const emailNames = (fullName: string, workspace: string) =>
+  ({ full_name: fullName, first_name: fullName.trim().split(/\s+/)[0] || 'there', workspace })
+
 const staffSchema = z.object({
   email: z.string().trim().toLowerCase().email('Enter a valid email.'),
   full_name: z.string().trim().min(1, 'Enter their name.').max(120),
@@ -123,8 +129,11 @@ export async function inviteStaff(_prev: ActionResult | null, form: FormData): P
   const parsed = staffSchema.safeParse(formObject(form))
   if (!parsed.success) return fail(parsed.error.issues[0]!.message)
   const admin = createAdminClient()
+  const supabase = await createClient()
+  const { data: org } = await supabase.from('orgs').select('name').eq('id', me.org_id!).maybeSingle()
   const { data, error } = await admin.auth.admin.inviteUserByEmail(parsed.data.email, {
     redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm?next=/home`,
+    data: emailNames(parsed.data.full_name, org?.name ?? 'Seven Billion'),   // for the invite email's greeting
   })
   if (error || !data.user) return dbFail(error, error?.message.includes('already') ? 'That email already has an account.' : 'Invitation failed.')
   const { error: metaError } = await admin.auth.admin.updateUserById(data.user.id, {

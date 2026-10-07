@@ -466,7 +466,7 @@ test('sign in with the code from the email, and the session lasts 30 days', asyn
   // a wrong code keeps the email and says so
   await page.getByLabel('Or enter the code from the email').fill('000000')
   await page.getByRole('button', { name: 'Sign in' }).click()
-  await expect(page.getByRole('alert')).toContainText('wrong or has expired')
+  await expect(page.getByText('That code is wrong or has expired')).toBeVisible()   // not getByRole('alert'): Next adds a route announcer
   const code = await latestCode(email, started)
   await page.getByLabel('Or enter the code from the email').fill(code)
   await page.getByRole('button', { name: 'Sign in' }).click()
