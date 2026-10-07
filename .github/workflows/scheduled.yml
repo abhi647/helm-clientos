@@ -23,10 +23,12 @@ jobs:
         run: echo "::notice::Add the HELM_URL and CRON_SECRET repository secrets to turn on uptime checks and frequent jobs."
       - name: The site is up
         if: env.HELM_URL != '' && env.CRON_SECRET != ''
-        run: curl -fsS --retry 2 --retry-delay 10 --max-time 20 "$HELM_URL/api/health"
+        run: |
+          curl -fsS --retry 2 --retry-delay 10 --max-time 20 "$HELM_URL/api/health"
       - name: Send emails, surveys and file scans
         if: env.HELM_URL != '' && env.CRON_SECRET != ''
-        run: curl -fsS --max-time 90 -H "Authorization: Bearer $CRON_SECRET" "$HELM_URL/api/cron/emails"
+        run: |
+          curl -fsS --max-time 90 -H "Authorization: Bearer $CRON_SECRET" "$HELM_URL/api/cron/emails"
       - name: Sync Zoho Books (once an hour)
         if: env.HELM_URL != '' && env.CRON_SECRET != ''
         run: |

@@ -1,0 +1,67 @@
+name: backup
+
+# Nightly encrypted backup of the production database and uploaded files, kept for 30 days as a workflow artifact.
+# Turn on with these repository secrets:
+#   SUPABASE_DB_URL     Supabase → Connect → Session pooler connection string (with the database password)
+#   BACKUP_PASSPHRASE   a long random phrase; keep it in your password manager, it is needed to restore
+#   NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY   (optional) also copy uploaded files
+# Restore steps are in the README ("Backups").
+on:
+  schedule:
+    - cron: '30 21 * * *'   # 03:00 India time
+  workflow_dispatch:
+
+concurrency: backup
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+    steps:
+      - name: Not set up yet
+        if: env.SUPABASE_DB_URL == '' || env.BACKUP_PASSPHRASE == ''
+        run: echo "::notice::Add the SUPABASE_DB_URL and BACKUP_PASSPHRASE secrets to turn on nightly backups."
+      - uses: actions/checkout@v4
+        if: env.SUPABASE_DB_URL != '' && env.BACKUP_PASSPHRASE != ''
+      - uses: actions/setup-node@v4
+        if: env.SUPABASE_DB_URL != '' && env.BACKUP_PASSPHRASE != ''
+        with:
+          node-version: 22
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        if: env.SUPABASE_DB_URL != '' && env.BACKUP_PASSPHRASE != ''
+        with:
+          version: 2.120.0
+      - name: Dump the database
+        if: env.SUPABASE_DB_URL != '' && env.BACKUP_PASSPHRASE != ''
+        run: |
+          mkdir -p backup
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/roles.sql --role-only
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/data.sql --data-only --use-copy
+      - name: Copy uploaded files
+        if: env.SUPABASE_DB_URL != '' && env.BACKUP_PASSPHRASE != '' && env.SUPABASE_SECRET_KEY != ''
+        run: |
+          npm ci --ignore-scripts
+          node scripts/backup-files.mjs --out backup/files
+      - name: Encrypt
+        if: env.SUPABASE_DB_URL != '' && env.BACKUP_PASSPHRASE != ''
+        run: |
+          name="helm-backup-$(date -u +%Y-%m-%d)"
+          tar czf "$name.tgz" -C backup .
+          echo "$BACKUP_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --symmetric --cipher-algo AES256 -o "$name.tgz.gpg" "$name.tgz"
+          rm -rf backup "$name.tgz"
+          echo "NAME=$name" >> "$GITHUB_ENV"
+          ls -la "$name.tgz.gpg"
+      - uses: actions/upload-artifact@v4
+        if: env.SUPABASE_DB_URL != '' && env.BACKUP_PASSPHRASE != ''
+        with:
+          name: ${{ env.NAME }}
+          path: ${{ env.NAME }}.tgz.gpg
+          retention-days: 30
+          if-no-files-found: error
