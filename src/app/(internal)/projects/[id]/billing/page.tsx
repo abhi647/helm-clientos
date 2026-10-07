@@ -9,6 +9,7 @@ import { KIND_LABEL, KIND_UNIT, PLANNED_LABEL, RateCardStatus, RateLines, Statem
 import { ActionButton, ActionForm, ApproveForCustomer } from '@/components/forms'
 import { Card, Empty } from '@/components/ui'
 import { LineFields } from '@/components/rate-line-fields'
+import { LinePeople, UnbilledTime } from '@/components/time-billing'
 import { CURRENCIES, CURRENCY_CODES } from '@/lib/currencies'
 import { money, relativeTime } from '@/lib/format'
 import { canSeeFinance, requireStaff } from '@/lib/session'
@@ -38,6 +39,14 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
     supabase.from('project_deals').select('id, deal_name, stage_label, closed_on, invoice_number').eq('project_id', id).order('closed_on', { ascending: false }),
     supabase.from('invoices').select('number, total, balance, currency, status, issued_on').eq('project_id', id),
   ])
+  const lineIds = (cards ?? []).filter((c) => c.status !== 'superseded').flatMap((c) => c.rate_card_lines.map((l) => l.id))
+  const [{ data: staff }, { data: covers }, { data: unbilled }] = await Promise.all([
+    supabase.from('profiles').select('id, full_name').eq('kind', 'internal').order('full_name'),
+    lineIds.length ? supabase.from('rate_line_people').select('rate_card_line_id, profile_id').in('rate_card_line_id', lineIds) : Promise.resolve({ data: [] }),
+    supabase.rpc('unbilled_time', { p_project: id }),
+  ])
+  const covered = new Map<string, string[]>()
+  for (const c of covers ?? []) covered.set(c.rate_card_line_id, [...(covered.get(c.rate_card_line_id) ?? []), c.profile_id])
   const invoiceByNumber = new Map((invoices ?? []).map((i) => [i.number, i]))
   if (!project) notFound()
   const live = cards?.find((c) => c.status === 'approved')
@@ -108,6 +117,7 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
                   </ActionForm>
                 </div>
               </div>
+              <div className="-mx-3"><LinePeople lines={open.rate_card_lines} people={staff ?? []} covered={covered} /></div>
               <div className="flex flex-col gap-2 border-t border-line-soft pt-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <ActionButton run={submitRateCard.bind(null, open.id)} primary guard={UNSAVED_LINE}
@@ -141,6 +151,7 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
           <>
             <div className="overflow-x-auto"><RateLines lines={sortLines(live.rate_card_lines)} currency={live.currency} /></div>
             {live.notes ? <p className="m-0 border-t border-line-soft px-3 py-2 text-xs text-muted">{live.notes}</p> : null}
+            <LinePeople lines={live.rate_card_lines} people={staff ?? []} covered={covered} />
             {!open ? <div className="border-t border-line-soft p-3"><ActionButton run={startRateCard.bind(null, id)}>Revise rates</ActionButton></div> : null}
           </>
         ) : !open ? (
@@ -150,6 +161,8 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
           </Empty>
         ) : <Empty title="Not approved yet">Statements can be prepared once the customer approves the rate card.</Empty>}
       </Card>
+
+      <UnbilledTime rows={unbilled ?? []} />
 
       {deals?.length ? (
         <Card flush title="History from HubSpot & Zoho" extra={`${deals.length} billing period${deals.length === 1 ? '' : 's'}`}>
@@ -182,7 +195,7 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                 <label className="flex items-center gap-1.5">From <input type="date" name="period_start" required defaultValue={firstOfMonth} className="input" /></label>
                 <label className="flex items-center gap-1.5">to <input type="date" name="period_end" required defaultValue={endOfMonth} className="input" /></label>
-                <span>Day rates start at resources × working days; retainers at 1 month.</span>
+                <span>Day rates with people named are filled from their approved days; others start at resources × working days. Retainers at 1 month.</span>
               </div>
             </ActionForm>
           </div>

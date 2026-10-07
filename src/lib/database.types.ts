@@ -1309,6 +1309,49 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"rate_line_people": {
+                  Row: {
+                    "customer_id": string,"profile_id": string,"rate_card_line_id": string
+                  }
+                  Insert: {
+                    "customer_id": string,"profile_id": string,"rate_card_line_id": string
+                  }
+                  Update: {
+                    "customer_id"?: string,"profile_id"?: string,"rate_card_line_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "rate_line_people_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rate_line_people_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rate_line_people_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rate_line_people_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "rate_line_people_rate_card_line_id_fkey"
+      columns: ["rate_card_line_id"]
+isOneToOne: false
+      referencedRelation: "rate_card_lines"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"request_events": {
                   Row: {
                     "actor_id": string | null,"created_at": string,"customer_id": string,"id": number,"note": string | null,"request_id": string,"status": Database["public"]['Enums']["request_status"]
@@ -1581,16 +1624,28 @@ isOneToOne: false
                   ]
                 },"time_entries": {
                   Row: {
-                    "billable": boolean,"created_at": string,"customer_id": string,"days": number,"id": string,"note": string | null,"task_id": string,"user_id": string,"worked_on": string
+                    "approved_at": string | null,"approved_by": string | null,"billable": boolean,"created_at": string,"customer_id": string,"days": number,"id": string,"note": string | null,"returned_at": string | null,"returned_note": string | null,"statement_id": string | null,"task_id": string,"user_id": string,"worked_on": string
                   }
                   Insert: {
-                    "billable"?: boolean,"created_at"?: string,"customer_id": string,"days": number,"id"?: string,"note"?: string | null,"task_id": string,"user_id": string,"worked_on"?: string
+                    "approved_at"?: string | null,"approved_by"?: string | null,"billable"?: boolean,"created_at"?: string,"customer_id": string,"days": number,"id"?: string,"note"?: string | null,"returned_at"?: string | null,"returned_note"?: string | null,"statement_id"?: string | null,"task_id": string,"user_id": string,"worked_on"?: string
                   }
                   Update: {
-                    "billable"?: boolean,"created_at"?: string,"customer_id"?: string,"days"?: number,"id"?: string,"note"?: string | null,"task_id"?: string,"user_id"?: string,"worked_on"?: string
+                    "approved_at"?: string | null,"approved_by"?: string | null,"billable"?: boolean,"created_at"?: string,"customer_id"?: string,"days"?: number,"id"?: string,"note"?: string | null,"returned_at"?: string | null,"returned_note"?: string | null,"statement_id"?: string | null,"task_id"?: string,"user_id"?: string,"worked_on"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "time_entries_approved_by_fkey"
+      columns: ["approved_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "time_entries_approved_by_fkey"
+      columns: ["approved_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "time_entries_customer_id_fkey"
       columns: ["customer_id"]
 isOneToOne: false
@@ -1601,6 +1656,12 @@ isOneToOne: false
       columns: ["customer_id"]
 isOneToOne: false
       referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "time_entries_statement_id_fkey"
+      columns: ["statement_id"]
+isOneToOne: false
+      referencedRelation: "billing_statements"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "time_entries_task_id_fkey"
@@ -1801,6 +1862,9 @@ isOneToOne: false
 "approve_statement_for_customer":
 { Args: { "p_note"?: string,"p_statement": string }; Returns: undefined
                            },
+"approve_time":
+{ Args: { "p_entries": (string)[] }; Returns: number
+                           },
 "archive_document":
 { Args: { "p_archive": boolean,"p_document": string }; Returns: undefined
                            },
@@ -1853,17 +1917,26 @@ isOneToOne: false
 "publish_update":
 { Args: { "p_update": string }; Returns: undefined
                            },
+"refill_statement":
+{ Args: { "p_statement": string }; Returns: undefined
+                           },
 "request_to_task":
 { Args: { "p_assignee"?: string,"p_due"?: string,"p_estimate"?: number,"p_phase"?: string,"p_project"?: string,"p_request": string,"p_shared"?: boolean,"p_unit"?: string }; Returns: string
                            },
 "resubmit_approval":
 { Args: { "p_approval": string,"p_comment"?: string,"p_effort": number,"p_summary": string,"p_target"?: string,"p_unit"?: string }; Returns: undefined
                            },
+"return_time":
+{ Args: { "p_entries": (string)[],"p_note": string }; Returns: number
+                           },
 "send_csat_pulses":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
 "set_access":
 { Args: { "p_revoked": boolean,"p_user": string }; Returns: undefined
+                           },
+"set_line_people":
+{ Args: { "p_line": string,"p_people": (string)[] }; Returns: undefined
                            },
 "set_request_status":
 { Args: { "p_note"?: string,"p_request": string,"p_status": Database["public"]['Enums']["request_status"] }; Returns: undefined
@@ -1876,6 +1949,14 @@ isOneToOne: false
                            },
 "submit_statement":
 { Args: { "p_statement": string }; Returns: undefined
+                           },
+"unapprove_time":
+{ Args: { "p_entries": (string)[] }; Returns: number
+                           },
+"unbilled_time":
+{ Args: { "p_project"?: string }; Returns: {
+              "currency": string,"customer_name": string,"days": number,"full_name": string,"line_label": string,"oldest": string,"project_id": string,"project_name": string,"rate": number,"user_id": string
+            }[]
                            }
           }
           Enums: {

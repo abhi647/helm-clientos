@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { approveStatementForCustomer, deleteStatement, retryZohoInvoice, saveStatement, submitStatement } from '@/app/_actions/billing'
+import { approveStatementForCustomer, deleteStatement, refillStatement, retryZohoInvoice, saveStatement, submitStatement } from '@/app/_actions/billing'
 import { KIND_LABEL, StatementLines, StatementStatus, period, plural } from '@/components/billing'
 import { ActionButton, ActionForm, ApproveForCustomer } from '@/components/forms'
 import { Card } from '@/components/ui'
@@ -23,16 +23,24 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
   if (!st) notFound()
   // days the team logged on this project's tasks in the period: the evidence for day-rate quantities
   const { data: time } = await supabase.from('time_entries')
-    .select('days, billable, user:profiles!time_entries_user_id_fkey(full_name), tasks!inner(project_id)')
+    .select('days, billable, approved_at, returned_at, statement_id, user:profiles!time_entries_user_id_fkey(full_name), tasks!inner(project_id)')
     .eq('tasks.project_id', id).gte('worked_on', st.period_start).lte('worked_on', st.period_end)
-  const byPerson = new Map<string, { days: number; billable: number }>()
+  const byPerson = new Map<string, { days: number; billable: number; approved: number; waiting: number; billed: number }>()
   for (const t of time ?? []) {
     const name = t.user?.full_name ?? 'Unknown'
-    const row = byPerson.get(name) ?? { days: 0, billable: 0 }
-    row.days += Number(t.days)
-    if (t.billable) row.billable += Number(t.days)
+    const row = byPerson.get(name) ?? { days: 0, billable: 0, approved: 0, waiting: 0, billed: 0 }
+    const d = Number(t.days)
+    row.days += d
+    if (t.billable) row.billable += d
+    if (t.billable && t.approved_at) row.approved += d
+    if (t.billable && !t.approved_at && !t.returned_at) row.waiting += d   // returned days wait on the person, not the PM
+    if (t.statement_id) row.billed += d
     byPerson.set(name, row)
   }
+  const waitingDays = [...byPerson.values()].reduce((s, r) => s + r.waiting, 0)
+  const { data: mapped } = await supabase.from('rate_line_people').select('rate_card_line_id')
+    .in('rate_card_line_id', st.statement_lines.map((l) => l.rate_card_line_id).filter((x): x is string => !!x))
+  const fromTimesheets = new Set((mapped ?? []).map((m) => m.rate_card_line_id))
   const currency = st.rate_cards?.currency ?? 'INR'
   const lines = [...st.statement_lines].sort((a, b) => a.position - b.position)
   const editable = ['draft', 'changes_requested'].includes(st.status)
@@ -45,8 +53,20 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
         {st.status === 'changes_requested' && st.decision_note ? (
           <p role="alert" className="mt-0 mb-3 rounded-md bg-warn-bg p-2.5 text-xs text-warn-ink"><b>The customer asked for changes:</b> {st.decision_note}</p>
         ) : null}
+        {editable && waitingDays > 0 ? (
+          <p role="alert" className="mt-0 mb-3 rounded-md bg-warn-bg p-2.5 text-xs text-warn-ink">
+            <b>{+waitingDays.toFixed(2)} billable {waitingDays === 1 ? 'day is' : 'days are'} still waiting for approval in this period.</b>{' '}
+            They are not billed until the PM approves them on <Link href="/timesheets">Timesheets</Link>; then press Fill from timesheets.
+          </p>
+        ) : null}
         {editable ? (
           <div className="flex flex-col gap-3">
+            {fromTimesheets.size ? (
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                <ActionButton run={refillStatement.bind(null, st.id)} confirm="Fill the day-rate lines again from approved timesheets? Their quantities and notes are replaced. Save any other changes first.">Fill from timesheets</ActionButton>
+                <span>Lines marked ⏱ are filled from the approved days of the people named on them. Lowering a quantity writes the rest off.</span>
+              </div>
+            ) : null}
             <ActionForm action={saveStatement} submit="Save" resetOnSuccess={false} primary={false}>
               <input type="hidden" name="statement_id" value={st.id} />
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
@@ -58,7 +78,7 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
                   <div className="row row-head grid-cols-[minmax(0,1fr)_120px_120px_minmax(0,1fr)]"><span>Item</span><span className="text-right">Rate</span><span>Quantity</span><span>Note for the customer</span></div>
                   {lines.map((l) => (
                     <div key={l.id} className="row grid-cols-[minmax(0,1fr)_120px_120px_minmax(0,1fr)] py-1">
-                      <span className="flex min-w-0 flex-col"><span className="truncate font-medium">{l.label}</span><span className="text-xs text-muted">{KIND_LABEL[l.kind]}</span></span>
+                      <span className="flex min-w-0 flex-col"><span className="truncate font-medium">{l.rate_card_line_id && fromTimesheets.has(l.rate_card_line_id) ? <span title="Filled from approved timesheets">⏱ </span> : null}{l.label}</span><span className="text-xs text-muted">{KIND_LABEL[l.kind]}</span></span>
                       <span className="text-right font-mono text-xs">{money(l.rate, currency, { exact: true })} <span className="text-muted">/ {l.unit}</span></span>
                       <label className="flex items-center gap-1.5">
                         <input name={`q_${l.id}`} aria-label={`Quantity for ${l.label}`} inputMode="decimal" defaultValue={Number(l.quantity)} className="input w-[72px] text-right font-mono" />
@@ -103,15 +123,20 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
       </Card>
       <Card flush title="Days logged in this period" extra="From the team's time entries on this project">
         {byPerson.size ? (
-          <div>
-            <div className="row row-head grid-cols-[minmax(0,1fr)_120px_120px]"><span>Person</span><span className="text-right">Days</span><span className="text-right">Billable</span></div>
-            {[...byPerson.entries()].sort((a, b) => b[1].days - a[1].days).map(([name, h]) => (
-              <div key={name} className="row grid-cols-[minmax(0,1fr)_120px_120px]">
-                <span>{name}</span>
-                <span className="text-right font-mono text-xs">{+h.days.toFixed(2)}</span>
-                <span className="text-right font-mono text-xs">{+h.billable.toFixed(2)}</span>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <div className="min-w-[560px]">
+              <div className="row row-head grid-cols-[minmax(0,1fr)_80px_80px_90px_80px_80px]"><span>Person</span><span className="text-right">Days</span><span className="text-right">Billable</span><span className="text-right">Approved</span><span className="text-right">Waiting</span><span className="text-right">Billed</span></div>
+              {[...byPerson.entries()].sort((a, b) => b[1].days - a[1].days).map(([name, h]) => (
+                <div key={name} className="row grid-cols-[minmax(0,1fr)_80px_80px_90px_80px_80px]">
+                  <span>{name}</span>
+                  <span className="text-right font-mono text-xs">{+h.days.toFixed(2)}</span>
+                  <span className="text-right font-mono text-xs">{+h.billable.toFixed(2)}</span>
+                  <span className="text-right font-mono text-xs">{+h.approved.toFixed(2)}</span>
+                  <span className={`text-right font-mono text-xs ${h.waiting ? 'text-warn-ink' : ''}`}>{+h.waiting.toFixed(2)}</span>
+                  <span className="text-right font-mono text-xs">{+h.billed.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
           </div>
         ) : <p className="m-0 p-3 text-xs text-muted">No time logged on this project between these dates.</p>}
       </Card>

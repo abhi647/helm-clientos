@@ -8,16 +8,18 @@ import { createClient } from '@/lib/supabase/server'
 export default async function InternalLayout({ children }: { children: React.ReactNode }) {
   const me = await requireStaff()
   const supabase = await createClient()
-  const [{ data: projects }, { data: customers }, { data: requests }] = await Promise.all([
+  const [{ data: projects }, { data: customers }, { data: requests }, { count: pmOf }] = await Promise.all([
     supabase.from('projects').select('id, name, customers(name)').eq('status', 'active').order('name').limit(200),
     supabase.from('customers').select('id, name').order('name').limit(200),
     supabase.from('requests').select('id, number, title').not('status', 'in', '(delivered,cancelled)').order('created_at', { ascending: false }).limit(100),
+    supabase.from('projects').select('id', { count: 'exact', head: true }).eq('pm_id', me.id),
   ])
+  const approvesTime = ['admin', 'ceo'].includes(me.internal_role ?? '') || !!pmOf   // admins, the CEO and anyone who runs a project
   const admin = ['admin', 'ceo'].includes(me.internal_role ?? '')
-  const hidden = [...(canSeeFinance(me) ? [] : ['/finance']), ...(admin ? [] : ['/admin'])]
+  const hidden = [...(canSeeFinance(me) ? [] : ['/finance']), ...(admin ? [] : ['/admin']), ...(approvesTime ? [] : ['/timesheets'])]
   const palette: PaletteItem[] = [
     ...[['Home', '/home'], ['My Work', '/my-work'], ['Projects', '/projects'], ['Requests', '/requests'], ['Customers', '/customers'], ['CSAT & feedback', '/feedback'], ['Inbox', '/inbox'],
-      ...(canSeeFinance(me) ? [['Finance', '/finance']] : []), ...(admin ? [['Admin', '/admin']] : [])].map(([label, href]) => ({ group: 'Pages', label: label!, href: href! })),
+      ...(approvesTime ? [['Timesheets', '/timesheets']] : []), ...(canSeeFinance(me) ? [['Finance', '/finance']] : []), ...(admin ? [['Admin', '/admin']] : [])].map(([label, href]) => ({ group: 'Pages', label: label!, href: href! })),
     ...(projects ?? []).map((p) => ({ group: 'Projects', label: p.name, hint: p.customers?.name, href: `/projects/${p.id}` })),
     ...(customers ?? []).map((c) => ({ group: 'Customers', label: c.name, href: `/customers/${c.id}` })),
     ...(requests ?? []).map((r) => ({ group: 'Open requests', label: `${r.number} ${r.title}`, href: `/requests/${r.id}` })),

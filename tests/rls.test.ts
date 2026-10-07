@@ -38,6 +38,10 @@ const CUSTOMER_TABLES = ['customers', 'projects', 'phases', 'tasks', 'requests',
 const STAFF_ONLY = ['project_commercials', 'task_estimates', 'time_entries', 'automation_rules', 'customer_contacts', 'project_deals']
 const SERVICE_ONLY = ['email_outbox', 'integration_events']
 
+// the CEO signs in once: a second sign-in cannot enrol another authenticator without the first
+let ceoClient: Promise<SupabaseClient> | undefined
+const asCeo = () => (ceoClient ??= as('abhijit@example.com'))
+
 let nesma: string, cbd: string
 let michel: SupabaseClient, omar: SupabaseClient, cbdLead: SupabaseClient, rahul: SupabaseClient, sahil: SupabaseClient, finance: SupabaseClient
 
@@ -760,10 +764,11 @@ describe('approving for the customer', () => {
 
 describe('system health', () => {
   it('only admins and the CEO read the system log and job runs; nobody but the server writes them', async () => {
-    await service.from('system_log').insert({ source: 'test', message: 'probe' })
+    const probe = `probe ${Date.now()}`   // the log is not reseeded between runs
+    await service.from('system_log').insert({ source: 'test', message: probe })
     await service.from('job_runs').upsert({ job: 'test-job', last_ok_at: new Date().toISOString() })
-    const ceo = await as('abhijit@example.com')
-    expect((await ceo.from('system_log').select('id').eq('source', 'test')).data).toHaveLength(1)
+    const ceo = await asCeo()
+    expect((await ceo.from('system_log').select('id').eq('message', probe)).data).toHaveLength(1)
     expect((await ceo.from('job_runs').select('job').eq('job', 'test-job')).data).toHaveLength(1)
     expect((await ceo.rpc('outbox_health')).data).toHaveLength(1)
     for (const c of [rahul, sahil, finance, michel]) {
@@ -773,5 +778,119 @@ describe('system health', () => {
     }
     expect((await ceo.from('system_log').insert({ source: 'x', message: 'y' })).error).not.toBeNull()
     expect((await ceo.from('system_log').delete().eq('source', 'test').select('id')).data ?? []).toHaveLength(0)
+  })
+})
+
+describe('time to billing', () => {
+  let project: string, task: string, sahilId: string, entries: string[], engineer: string, pmLine: string, st1: string, st2: string
+  const day = (d: number) => `2026-11-${String(d).padStart(2, '0')}`
+
+  beforeAll(async () => {
+    project = (await service.from('projects').select('id').eq('name', 'Infor LN Integration').single()).data!.id
+    task = (await service.from('tasks').select('id').eq('project_id', project).limit(1).single()).data!.id
+    sahilId = (await service.from('profiles').select('id').eq('email', 'sahil@example.com').single()).data!.id
+  })
+
+  it('people log days unapproved; nobody approves their own days by writing the row', async () => {
+    const rows = [2, 3, 4, 5].map((d) => ({ task_id: task, customer_id: nesma, user_id: sahilId, days: 1, worked_on: day(d), billable: d !== 5 }))
+    const { data, error } = await sahil.from('time_entries').insert(rows).select('id')
+    expect(error).toBeNull()
+    entries = data!.map((r) => r.id)
+    const sneaky = await sahil.from('time_entries').insert({ ...rows[0]!, approved_at: new Date().toISOString() }).select('id')
+    expect(sneaky.error).not.toBeNull()
+    expect((await sahil.from('time_entries').update({ approved_at: new Date().toISOString() } as never).eq('id', entries[0]!).select('id')).data ?? []).toHaveLength(0)
+  })
+
+  it('only the project PM, an admin or the CEO approve or return days; returning needs a note and tells the person', async () => {
+    expect((await sahil.rpc('approve_time', { p_entries: entries })).error?.message).toMatch(/not allowed/)
+    expect((await finance.rpc('approve_time', { p_entries: entries })).error?.message).toMatch(/not allowed/)
+    expect((await michel.rpc('approve_time', { p_entries: entries })).error).not.toBeNull()
+    expect((await rahul.rpc('return_time', { p_entries: [entries[2]!], p_note: ' ' })).error?.message).toMatch(/say what should change/)
+    expect((await rahul.rpc('return_time', { p_entries: [entries[2]!], p_note: 'Log the 4th on the reporting task' })).data).toBe(1)
+    const { data: told } = await sahil.from('notifications').select('title, body, link, needs_action').eq('kind', 'time.returned')
+    expect(told).toHaveLength(1)
+    expect(told![0]).toMatchObject({ body: 'Log the 4th on the reporting task', link: '/my-work', needs_action: true })
+    // a PM's own days go to an admin or the CEO
+    const rahulId = (await service.from('profiles').select('id').eq('email', 'rahul@example.com').single()).data!.id
+    const { data: own } = await rahul.from('time_entries').insert({ task_id: task, customer_id: nesma, user_id: rahulId, days: 1, worked_on: day(6), billable: true }).select('id').single()
+    expect((await rahul.rpc('approve_time', { p_entries: [own!.id] })).error?.message).toMatch(/your own days are approved by an admin or the CEO/)
+    expect((await (await asCeo()).rpc('approve_time', { p_entries: [own!.id] })).data).toBe(1)
+    await service.from('time_entries').delete().eq('id', own!.id)
+    expect((await rahul.rpc('approve_time', { p_entries: [entries[0]!, entries[1]!, entries[3]!] })).data).toBe(3)
+    expect((await service.from('time_entries').select('approved_at').eq('id', entries[2]!).single()).data!.approved_at).toBeNull()
+  })
+
+  it('approved days are locked; a returned day can be deleted and logged again', async () => {
+    expect((await sahil.from('time_entries').delete().eq('id', entries[0]!).select('id')).data ?? []).toHaveLength(0)
+    expect((await sahil.from('time_entries').delete().eq('id', entries[2]!).select('id')).data).toHaveLength(1)
+    const again = await sahil.from('time_entries').insert({ task_id: task, customer_id: nesma, user_id: sahilId, days: 0.5, worked_on: day(4), billable: true }).select('id').single()
+    expect(again.error).toBeNull()
+    entries[2] = again.data!.id
+    expect((await rahul.rpc('approve_time', { p_entries: [entries[2]!] })).data).toBe(1)
+  })
+
+  it('finance names the people a day-rate line bills; nobody else can, and the customer never sees it', async () => {
+    const { data: card } = await finance.rpc('start_rate_card', { p_project: project })
+    await finance.rpc('add_rate_card_line', { p_card: card as string, p_kind: 'day_rate', p_label: 'Engineer', p_unit: 'day', p_rate: 100, p_planned: 1 })
+    await finance.rpc('add_rate_card_line', { p_card: card as string, p_kind: 'day_rate', p_label: 'Project manager', p_unit: 'day', p_rate: 150, p_planned: 1 })
+    const ls = (await finance.from('rate_card_lines').select('id, label').eq('rate_card_id', card as string)).data!
+    engineer = ls.find((l) => l.label === 'Engineer')!.id
+    pmLine = ls.find((l) => l.label === 'Project manager')!.id
+    expect((await finance.rpc('approve_rate_card_for_customer', { p_card: card as string })).error).toBeNull()
+    // the live card: allowed, since who a line covers is not a price
+    expect((await rahul.rpc('set_line_people', { p_line: engineer, p_people: [sahilId] })).error?.message).toMatch(/not allowed/)
+    expect((await finance.rpc('set_line_people', { p_line: engineer, p_people: [sahilId] })).error).toBeNull()
+    expect((await finance.rpc('set_line_people', { p_line: pmLine, p_people: [sahilId] })).error?.message).toMatch(/already on another line/)
+    const michelId = (await service.from('profiles').select('id').eq('email', 'michel@nesma.example.com').single()).data!.id
+    expect((await finance.rpc('set_line_people', { p_line: pmLine, p_people: [michelId] })).error?.message).toMatch(/only Seven Billion people/)
+    expect((await michel.from('rate_line_people').select('profile_id')).data ?? []).toHaveLength(0)
+    expect((await finance.from('rate_line_people').select('profile_id').eq('rate_card_line_id', engineer)).data).toEqual([{ profile_id: sahilId }])
+  })
+
+  it('unbilled work: approved billable days at the agreed rate, for finance only (money is not shown to PMs)', async () => {
+    const { data } = await finance.rpc('unbilled_time', { p_project: project })
+    expect(data).toHaveLength(1)
+    expect(data![0]).toMatchObject({ full_name: 'Sahil', line_label: 'Engineer', currency: 'INR' })
+    expect(Number(data![0]!.days)).toBe(2.5)                          // 1 + 1 + 0.5; the non-billable day is left out
+    expect(Number(data![0]!.rate)).toBe(100)
+    expect((await rahul.rpc('unbilled_time', { p_project: project })).data ?? []).toHaveLength(0)
+    expect((await sahil.rpc('unbilled_time', { p_project: project })).data ?? []).toHaveLength(0)
+    expect((await michel.rpc('unbilled_time', {})).data ?? []).toHaveLength(0)
+  })
+
+  it('a statement fills the line from approved timesheets; lines without people keep resources x working days', async () => {
+    const { data: id, error } = await finance.rpc('create_statement', { p_project: project, p_start: day(1), p_end: '2026-11-30' })
+    expect(error).toBeNull()
+    st1 = id as string
+    const ls = (await finance.from('statement_lines').select('label, quantity, note').eq('statement_id', st1)).data!
+    expect(ls.find((l) => l.label === 'Engineer')).toMatchObject({ note: 'From approved timesheets: Sahil 2.5 days' })
+    expect(Number(ls.find((l) => l.label === 'Engineer')!.quantity)).toBe(2.5)
+    expect(Number(ls.find((l) => l.label === 'Project manager')!.quantity)).toBe(21)   // 1 resource x 21 weekdays in November 2026
+    // an overlapping statement sees the same days until one of them is approved
+    st2 = (await finance.rpc('create_statement', { p_project: project, p_start: day(1), p_end: day(15) })).data as string
+    expect(Number((await finance.from('statement_lines').select('quantity').eq('statement_id', st2).eq('label', 'Engineer').single()).data!.quantity)).toBe(2.5)
+  })
+
+  it('approving the statement bills the days, once: never again on another statement, and the approval cannot be undone', async () => {
+    expect((await finance.rpc('approve_statement_for_customer', { p_statement: st1 })).error).toBeNull()
+    const billed = (await service.from('time_entries').select('id').eq('statement_id', st1)).data!.map((r) => r.id).sort()
+    expect(billed).toEqual([entries[0]!, entries[1]!, entries[2]!].sort())          // not the non-billable day
+    expect((await rahul.rpc('unapprove_time', { p_entries: [entries[0]!] })).error?.message).toMatch(/already billed/)
+    expect((await finance.rpc('unbilled_time', { p_project: project })).data ?? []).toHaveLength(0)
+    // the overlapping draft still says 2.5: it cannot be sent or approved until filled again
+    expect((await finance.rpc('submit_statement', { p_statement: st2 })).error?.message).toMatch(/Engineer bills 2.5 days but only 0 approved, unbilled days/)
+    expect((await finance.rpc('approve_statement_for_customer', { p_statement: st2 })).error?.message).toMatch(/Fill from timesheets again/)
+    expect((await rahul.rpc('refill_statement', { p_statement: st2 })).error?.message).toMatch(/not allowed/)
+    expect((await finance.rpc('refill_statement', { p_statement: st2 })).error).toBeNull()
+    const line = (await finance.from('statement_lines').select('quantity, note').eq('statement_id', st2).eq('label', 'Engineer').single()).data!
+    expect(Number(line.quantity)).toBe(0)
+    expect(line.note).toBe('No approved days in this period')
+  })
+
+  it('a new version of the rate card keeps who each line bills', async () => {
+    const { data: v2 } = await finance.rpc('start_rate_card', { p_project: project })
+    const line = (await finance.from('rate_card_lines').select('id').eq('rate_card_id', v2 as string).eq('label', 'Engineer').single()).data!
+    expect((await finance.from('rate_line_people').select('profile_id').eq('rate_card_line_id', line.id)).data).toEqual([{ profile_id: sahilId }])
+    await service.from('rate_cards').delete().eq('id', v2 as string)
   })
 })

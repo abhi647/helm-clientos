@@ -192,6 +192,27 @@ export async function saveStatement(_prev: ActionResult | null, form: FormData):
   return done('Saved.')
 }
 
+/** Fills the day-rate lines that name people with their approved, unbilled days in the period. */
+export async function refillStatement(statementId: string): Promise<ActionResult> {
+  await requireStaff()
+  if (!uuid.safeParse(statementId).success) return fail('Unknown statement.')
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('refill_statement', { p_statement: statementId })
+  return error ? dbFail(error) : done('Filled from approved timesheets.')
+}
+
+/** Who a day-rate line bills: their approved days fill it on each statement. */
+export async function setLinePeople(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!canSeeFinance(me)) return fail('Only finance, the CEO or an admin can change this.')
+  const line = uuid.safeParse(form.get('people_line'))
+  const people = z.array(uuid).max(50).safeParse(form.getAll('person'))
+  if (!line.success || !people.success) return fail('Unknown line or person.')
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('set_line_people', { p_line: line.data, p_people: people.data })
+  return error ? dbFail(error) : done(people.data.length ? 'Saved. Their approved days fill this line on statements.' : 'Saved. This line is filled by working days again.')
+}
+
 export async function submitStatement(statementId: string): Promise<ActionResult> {
   await requireStaff()
   const supabase = await createClient()

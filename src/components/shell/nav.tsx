@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  Building2, Folder, House, Inbox, Menu, MessageSquareHeart, PanelLeftClose, PanelLeftOpen, Receipt, Settings, SquareCheck, X,
+  Building2, Clock, Folder, House, Inbox, Menu, MessageSquareHeart, PanelLeftClose, PanelLeftOpen, Receipt, Settings, SquareCheck, X,
 } from 'lucide-react'
 import { cn } from '@/components/ui'
 import { BrandMark } from '@/components/brand'
@@ -19,6 +19,7 @@ const SECTIONS = [
   { title: 'Delivery', items: [
     { href: '/customers', label: 'Customers', icon: Building2 },
     { href: '/projects', label: 'Projects', icon: Folder },
+    { href: '/timesheets', label: 'Timesheets', icon: Clock },
     { href: '/feedback', label: 'CSAT & feedback', icon: MessageSquareHeart },
   ] },
   { title: 'Business', items: [

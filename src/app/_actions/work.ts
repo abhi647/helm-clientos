@@ -89,6 +89,51 @@ export async function logTime(_prev: ActionResult | null, form: FormData): Promi
   return error ? dbFail(error) : done(`${effort(parsed.data.days)} logged.`)
 }
 
+/** Deletes your own day while nobody has approved or billed it (returned days are fixed this way). */
+export async function deleteTime(entryId: string): Promise<ActionResult> {
+  await requireStaff()
+  if (!uuid.safeParse(entryId).success) return fail('Unknown entry.')
+  const supabase = await createClient()
+  const { data, error } = await supabase.from('time_entries').delete().eq('id', entryId).select('id')
+  if (error) return dbFail(error)
+  return data.length ? done('Entry deleted.') : fail('Approved or billed days cannot be deleted. Ask the PM to undo the approval.')
+}
+
+const entryIds = z.array(uuid).min(1, 'Pick at least one entry.').max(500)
+const idsFrom = (form: FormData) => entryIds.safeParse(form.getAll('entry'))
+const entries = (n: number) => `${n} ${n === 1 ? 'entry' : 'entries'}`
+
+/** Timesheets (the project's PM, an admin or the CEO): approve the ticked entries. */
+export async function approveTime(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  await requireStaff()
+  const ids = idsFrom(form)
+  if (!ids.success) return fail(ids.error.issues[0]!.message)
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc('approve_time', { p_entries: ids.data })
+  return error ? dbFail(error) : done(`${entries(data ?? 0)} approved.`)
+}
+
+/** Sends the ticked entries back to the people who logged them, with a note saying what to fix. */
+export async function returnTime(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  await requireStaff()
+  const ids = idsFrom(form)
+  if (!ids.success) return fail(ids.error.issues[0]!.message)
+  const note = z.string().trim().min(3, 'Say what should change.').max(500).safeParse(form.get('note') ?? '')
+  if (!note.success) return fail(note.error.issues[0]!.message)
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc('return_time', { p_entries: ids.data, p_note: note.data })
+  return error ? dbFail(error) : done(`${entries(data ?? 0)} returned. They have been told.`)
+}
+
+/** Undoes an approval made by mistake, while the days are not billed. */
+export async function unapproveTime(entryId: string): Promise<ActionResult> {
+  await requireStaff()
+  if (!uuid.safeParse(entryId).success) return fail('Unknown entry.')
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('unapprove_time', { p_entries: [entryId] })
+  return error ? dbFail(error) : done('Approval undone.')
+}
+
 const projectState = z.object({ health: z.enum(['on_track', 'needs_attention', 'at_risk']).optional(), status: z.enum(['active', 'on_hold', 'completed']).optional() })
 
 /** Health and status drive the playbook: At Risk alerts the PM and CEO, Completed sends the closure form. */

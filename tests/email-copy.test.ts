@@ -57,6 +57,13 @@ describe('notification emails', () => {
     expect(text).toContain('P.S. Not sure yet?')
   })
 
+  it('returned time quotes the PM note and points to My Work', () => {
+    const { html, subject } = composeEmail({ ...base, kind: 'time.returned', title: 'Rahul returned 1 time entry', body: 'Log the 4th on the reporting task', link: '/my-work', c: rahul })
+    expect(subject).toBe('Quick fix: Rahul returned 1 time entry')
+    expect(html).toMatch(/font-style:italic[^>]*><p[^>]*>Log the 4th on the reporting task/)
+    expect(html).toContain('Open My Work')
+  })
+
   it('a customer comment reads as a quote, and the stage is not repeated under the progress bar', () => {
     expect(composeEmail({ ...base, kind: 'approval.changes_requested', title: 'x', body: 'Split it in two', c: rahul }).html).toMatch(/font-style:italic[^>]*><p[^>]*>Split it in two/)
     const { html } = composeEmail({ ...base, kind: 'request.status', title: 'x', c: { ...omar, stage: 'uat', details: [['Stage', 'UAT'], ['Priority', 'High']] } })

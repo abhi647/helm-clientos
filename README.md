@@ -212,7 +212,7 @@ Every customer can be billed differently, and a project can mix models:
 
 | Model | Rate card line | Each statement |
 |---|---|---|
-| Day rate per resource | role, rate per day, number of resources | days worked (pre-filled: resources × working days; finance adjusts, using the days logged that the statement shows) |
+| Day rate per resource | role, rate per day, number of resources, and optionally the people it covers | days worked: the named people's approved days (see *Time to billing*), otherwise resources × working days for finance to adjust |
 | Per delivery / milestone | deliverable, price | 1 for each delivery accepted in the period |
 | Per unit delivered | unit (report, model…), rate, planned units | units delivered |
 | Monthly retainer | fee per month | 1 (pre-filled) |
@@ -221,6 +221,15 @@ Every customer can be billed differently, and a project can mix models:
 2. **Statement**: each period, finance creates a statement on the approved rates and enters the quantities. The statement shows the days the team logged on the project in that period. Rates can't be changed on a statement; the database copies them from the approved card.
 3. **Approval**: the customer approves the statement in the portal (**Billing**), or asks for changes.
 4. **Zoho**: on approval, Helm creates a **draft** invoice in Zoho Books, with one line per item at rate × quantity and the PO number as the reference. Finance reviews it, Zoho adds tax and numbering, and Finance sends it from Zoho. The next sync shows it on the Finance page and to the customer. If Zoho isn't connected, or the customer has no Zoho id, the statement shows the reason and a **Retry Zoho** button.
+
+**Time to billing.** Days logged on tasks become the quantities on the statement:
+
+1. **Log**: everyone logs days on a task (project plan → task → Log time). **My Work → My time** shows each entry as Waiting, Approved, Returned (with the PM's note) or Billed. Unapproved entries can be deleted; approved and billed ones are locked.
+2. **Approve**: **Timesheets** lists the days waiting on the projects you run (admins and the CEO see every project). Tick entries and **Approve ticked**, or **Return ticked…** with a note: the person is emailed and fixes the entry by deleting it and logging it again. An approval can be undone until the days are billed. A PM's own days are approved by an admin or the CEO. Nobody can create an approved entry directly; the database refuses it.
+3. **Name the people on a day rate**: on project → Billing, under *Day rates from timesheets*, finance picks who each day-rate line covers (e.g. "Data engineer" = Sahil and Priya). This is internal: the customer sees the line and its days, never the list. It can be set on the approved rates, a new version of the rate card keeps it, and one person can be on only one line per card.
+4. **Statement**: a new statement fills each such line with those people's approved, billable, not yet billed days in the period, with a note like "From approved timesheets: Sahil 3 days, Priya 2.5 days" (lines with nobody named still start at resources × working days). **Fill from timesheets** fills them again after more approvals or a period change. The statement warns about billable days in the period still waiting for approval, and shows each person's days logged, approved, waiting and billed.
+5. **Billed once**: when the statement is approved (by the customer or for them), those days are marked billed on it and never fill another statement. A statement that would bill more days than are approved and unbilled (another statement billed some since it was filled) cannot be sent or approved until it is filled again. Lowering a quantity writes the rest of those days off.
+6. **Unbilled work** on the project's Billing page and on Finance: approved billable days not billed yet, per person, at the agreed day rate, flagging anyone not on a day-rate line.
 
 **Assigning work.** A task's owner is chosen when it is created and can be changed from the task panel on the plan. The new owner is notified (a template's tasks produce one notification per batch). A customer owner gets it on their home page; the to-do follows the task if it moves to a colleague, and closes if the task comes back to Seven Billion.
 

@@ -51,6 +51,8 @@ export function voice(kind: string, title: string, c: EmailContext): Voice {
       return { eyebrow: 'You were mentioned', intro: `Hi ${c.first}, someone asked for you by name.`, subject: t, cta: 'Reply in Helm' }
     case 'csat.request': case 'csat.pulse':
       return { eyebrow: 'Ten seconds, one number', intro: `Hi ${c.first}, how are we doing? One click on a 1 to 5 scale helps us steer.`, subject: `Ten seconds, ${c.first}? ${t}`, cta: 'Give a rating' }
+    case 'time.returned':
+      return { eyebrow: 'Quick fix needed', intro: `Hi ${c.first}, some of your logged time came back with a note. Delete the entry in My Work and log it again.`, subject: `Quick fix: ${t}`, cta: 'Open My Work' }
     case 'billing':
       return { eyebrow: 'Numbers to check', intro: `Hi ${c.first}, there is something in Billing for you to look at.`, subject: t, cta: 'Open Billing' }
     default:
@@ -105,6 +107,8 @@ export function look(kind: string, c: EmailContext): Look {
       return { mood: 'inky', badge: 'at-inky', signoff: 'Over and out', ps: 'Replying in Helm keeps the whole thread in one place.' }
     case 'csat.request': case 'csat.pulse':
       return { mood: 'berry', badge: 'star-berry', signoff: 'With thanks', ps: 'Comments are optional, but we read every one.' }
+    case 'time.returned':
+      return { mood: 'peacock', badge: 'pencil-peacock', signoff: 'Thanks for keeping the log straight', ps: 'Approved days fill the billing statement, so getting them right saves a round trip later.' }
     case 'billing':
       return { mood: 'peacock', badge: 'receipt-peacock', signoff: 'Steady hands on the wheel' }
     default:
@@ -150,7 +154,7 @@ ${lines.join('<tr><td colspan="' + per + '" style="border-top:1px dashed #dbe6e8
 }
 
 // messages people wrote read as a quote; system summaries as plain text
-const QUOTED = ['approval.changes_requested', 'comment.mention']
+const QUOTED = ['approval.changes_requested', 'comment.mention', 'time.returned']
 
 export function composeEmail({ kind, title, body, link, c, siteOrigin, to }: {
   kind: string; title: string; body: string; link: string; c: EmailContext; siteOrigin: string; to: string
