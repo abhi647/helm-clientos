@@ -104,10 +104,10 @@ export function Progress({ value, width = 80 }: { value: number; width?: number 
 
 export function PageHeader({ title, meta, actions, children }: { title: React.ReactNode; meta?: React.ReactNode; actions?: React.ReactNode; children?: React.ReactNode }) {
   return (
-    <header className="border-b border-line bg-white px-4 pt-2">
+    <header className="border-b border-line bg-white px-5 pt-2.5">
       {children}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
-        <h1 className="m-0 text-lg font-semibold">{title}</h1>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
+        <h1 className="m-0 text-[19px] font-semibold tracking-[-.01em]">{title}</h1>
         {meta}
         {actions ? <div className="ml-auto flex flex-wrap gap-1.5">{actions}</div> : null}
       </div>

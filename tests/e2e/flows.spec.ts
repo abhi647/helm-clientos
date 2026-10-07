@@ -366,3 +366,18 @@ test('admin previews and runs the HubSpot + Zoho import', async ({ page }) => {
   await page.goto('/customers')
   await shot(page, '26-customers-after-import')
 })
+
+test('the sidebar shows names, collapses to icons and remembers the choice', async ({ page }) => {
+  await signIn(page, 'abhijit@example.com')
+  const nav = page.getByRole('navigation', { name: 'Main' })
+  await expect(nav.getByRole('link', { name: 'Customers' })).toContainText('Customers')
+  await shot(page, '27-nav-expanded')
+  await nav.getByRole('button', { name: 'Collapse navigation' }).click()
+  await expect(nav.getByRole('button', { name: 'Expand navigation' })).toBeVisible()
+  await page.reload()
+  await expect(nav.getByRole('button', { name: 'Expand navigation' })).toBeVisible()   // kept across reloads
+  await nav.getByRole('link', { name: 'Customers' }).hover()
+  await expect(nav.getByRole('tooltip', { name: 'Customers' })).toBeVisible()
+  await shot(page, '28-nav-collapsed')
+  await nav.getByRole('button', { name: 'Expand navigation' }).click()
+})

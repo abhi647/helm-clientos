@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers'
 import { CommandPalette, type PaletteItem } from '@/components/shell/command-palette'
 import { Rail } from '@/components/shell/nav'
 import { UserMenu } from '@/components/shell/user-menu'
@@ -22,10 +23,10 @@ export default async function InternalLayout({ children }: { children: React.Rea
   ]
   return (
     <div className="flex min-h-screen max-sm:flex-col">
-      <Rail hide={[...(canSeeFinance(me) ? [] : ['/finance']), ...(admin ? [] : ['/admin'])]} />
+      <Rail hide={[...(canSeeFinance(me) ? [] : ['/finance']), ...(admin ? [] : ['/admin'])]} collapsed={(await cookies()).get('helm_nav')?.value === 'collapsed'} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex h-11 items-center justify-between gap-3 border-b border-line bg-white px-4">
-          <span className="truncate text-xs text-muted"><b className="font-semibold text-ink">Helm</b> · Seven Billion</span>
+        <div className="sticky top-0 z-20 flex h-12 items-center justify-between gap-3 border-b border-line bg-white/90 px-4 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+          <span className="truncate text-xs text-muted">Seven Billion <span className="text-line">/</span> <b className="font-medium text-ink">{me.full_name}</b></span>
           <span className="flex items-center gap-2"><CommandPalette items={palette} /><UserMenu profile={me} base="" /></span>
         </div>
         <main className="flex min-w-0 flex-1 flex-col">{children}</main>
