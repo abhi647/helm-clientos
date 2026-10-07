@@ -1359,13 +1359,13 @@ isOneToOne: false
                   ]
                 },"requests": {
                   Row: {
-                    "created_at": string,"customer_id": string,"desired_date": string | null,"id": string,"number": string,"owner_id": string | null,"priority": Database["public"]['Enums']["priority"],"project_id": string | null,"requested_by": string | null,"status": Database["public"]['Enums']["request_status"],"title": string,"type": Database["public"]['Enums']["request_type"],"updated_at": string,"what": string,"why": string
+                    "created_at": string,"customer_id": string,"desired_date": string | null,"id": string,"number": string,"owner_id": string | null,"priority": Database["public"]['Enums']["priority"],"project_id": string | null,"raised_by": string | null,"requested_by": string | null,"status": Database["public"]['Enums']["request_status"],"title": string,"type": Database["public"]['Enums']["request_type"],"updated_at": string,"what": string,"why": string
                   }
                   Insert: {
-                    "created_at"?: string,"customer_id": string,"desired_date"?: string | null,"id"?: string,"number"?: string,"owner_id"?: string | null,"priority"?: Database["public"]['Enums']["priority"],"project_id"?: string | null,"requested_by"?: string | null,"status"?: Database["public"]['Enums']["request_status"],"title": string,"type"?: Database["public"]['Enums']["request_type"],"updated_at"?: string,"what"?: string,"why"?: string
+                    "created_at"?: string,"customer_id": string,"desired_date"?: string | null,"id"?: string,"number"?: string,"owner_id"?: string | null,"priority"?: Database["public"]['Enums']["priority"],"project_id"?: string | null,"raised_by"?: string | null,"requested_by"?: string | null,"status"?: Database["public"]['Enums']["request_status"],"title": string,"type"?: Database["public"]['Enums']["request_type"],"updated_at"?: string,"what"?: string,"why"?: string
                   }
                   Update: {
-                    "created_at"?: string,"customer_id"?: string,"desired_date"?: string | null,"id"?: string,"number"?: string,"owner_id"?: string | null,"priority"?: Database["public"]['Enums']["priority"],"project_id"?: string | null,"requested_by"?: string | null,"status"?: Database["public"]['Enums']["request_status"],"title"?: string,"type"?: Database["public"]['Enums']["request_type"],"updated_at"?: string,"what"?: string,"why"?: string
+                    "created_at"?: string,"customer_id"?: string,"desired_date"?: string | null,"id"?: string,"number"?: string,"owner_id"?: string | null,"priority"?: Database["public"]['Enums']["priority"],"project_id"?: string | null,"raised_by"?: string | null,"requested_by"?: string | null,"status"?: Database["public"]['Enums']["request_status"],"title"?: string,"type"?: Database["public"]['Enums']["request_type"],"updated_at"?: string,"what"?: string,"why"?: string
                   }
                   Relationships: [
                     {
@@ -1403,6 +1403,18 @@ isOneToOne: false
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "requests_raised_by_fkey"
+      columns: ["raised_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "requests_raised_by_fkey"
+      columns: ["raised_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "requests_requested_by_fkey"
@@ -1488,13 +1500,13 @@ isOneToOne: true
                   ]
                 },"tasks": {
                   Row: {
-                    "assignee_id": string | null,"completed_at": string | null,"created_at": string,"created_by": string | null,"customer_id": string,"description": string,"due_date": string | null,"id": string,"owner_side": Database["public"]['Enums']["owner_side"],"phase_id": string | null,"position": number,"project_id": string,"spotlight": boolean,"start_date": string | null,"status": Database["public"]['Enums']["task_status"],"title": string,"updated_at": string,"visibility": Database["public"]['Enums']["visibility"]
+                    "assignee_id": string | null,"completed_at": string | null,"created_at": string,"created_by": string | null,"customer_id": string,"description": string,"due_date": string | null,"id": string,"owner_side": Database["public"]['Enums']["owner_side"],"phase_id": string | null,"position": number,"project_id": string,"request_id": string | null,"spotlight": boolean,"start_date": string | null,"status": Database["public"]['Enums']["task_status"],"title": string,"updated_at": string,"visibility": Database["public"]['Enums']["visibility"]
                   }
                   Insert: {
-                    "assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"customer_id": string,"description"?: string,"due_date"?: string | null,"id"?: string,"owner_side"?: Database["public"]['Enums']["owner_side"],"phase_id"?: string | null,"position"?: number,"project_id": string,"spotlight"?: boolean,"start_date"?: string | null,"status"?: Database["public"]['Enums']["task_status"],"title": string,"updated_at"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
+                    "assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"customer_id": string,"description"?: string,"due_date"?: string | null,"id"?: string,"owner_side"?: Database["public"]['Enums']["owner_side"],"phase_id"?: string | null,"position"?: number,"project_id": string,"request_id"?: string | null,"spotlight"?: boolean,"start_date"?: string | null,"status"?: Database["public"]['Enums']["task_status"],"title": string,"updated_at"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
                   }
                   Update: {
-                    "assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"customer_id"?: string,"description"?: string,"due_date"?: string | null,"id"?: string,"owner_side"?: Database["public"]['Enums']["owner_side"],"phase_id"?: string | null,"position"?: number,"project_id"?: string,"spotlight"?: boolean,"start_date"?: string | null,"status"?: Database["public"]['Enums']["task_status"],"title"?: string,"updated_at"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
+                    "assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"customer_id"?: string,"description"?: string,"due_date"?: string | null,"id"?: string,"owner_side"?: Database["public"]['Enums']["owner_side"],"phase_id"?: string | null,"position"?: number,"project_id"?: string,"request_id"?: string | null,"spotlight"?: boolean,"start_date"?: string | null,"status"?: Database["public"]['Enums']["task_status"],"title"?: string,"updated_at"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
                   }
                   Relationships: [
                     {
@@ -1550,6 +1562,12 @@ isOneToOne: false
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tasks_request_id_fkey"
+      columns: ["request_id"]
+isOneToOne: false
+      referencedRelation: "requests"
       referencedColumns: ["id"]
     }
                   ]
@@ -1812,6 +1830,9 @@ isOneToOne: false
       } },
 "publish_update":
 { Args: { "p_update": string }; Returns: undefined
+                           },
+"request_to_task":
+{ Args: { "p_assignee"?: string,"p_due"?: string,"p_estimate"?: number,"p_phase"?: string,"p_project"?: string,"p_request": string,"p_shared"?: boolean,"p_unit"?: string }; Returns: string
                            },
 "resubmit_approval":
 { Args: { "p_approval": string,"p_comment"?: string,"p_effort": number,"p_summary": string,"p_target"?: string,"p_unit"?: string }; Returns: undefined

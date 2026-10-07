@@ -10,7 +10,7 @@ export function EffortInput({ name, unitName, units, defaultValue, defaultUnit, 
   return (
     <span className="flex items-center gap-1.5">
       <input type="number" name={name} step={step} min={step} defaultValue={defaultValue ?? ''} required={required}
-        placeholder={placeholder} aria-label={`${placeholder} in ${list.length === 1 ? `${unit}s` : 'the chosen unit'}`} className="input w-20 font-mono" />
+        placeholder={placeholder} aria-label={`${placeholder} in ${list.length === 1 ? `${unit}s` : 'the chosen unit'}`} className="input w-24 font-mono" />
       {list.length === 1 ? (
         <><input type="hidden" name={unitName} value={unit} /><span className="text-xs text-muted">{unit === 'day' ? 'days' : unit}</span></>
       ) : (

@@ -232,6 +232,64 @@ describe('meetings and action lines', () => {
   })
 })
 
+describe('assigning tasks', () => {
+  it('a PM hands a task to a consultant, who is told; a customer task follows its owner and closes when it comes back', async () => {
+    const { data: t } = await service.from('tasks').select('id, project_id').eq('title', 'Wireframes').single()
+    const before = (await notificationsFor('sahil@example.com', 'task.assigned')).length
+    expect((await rahul.from('tasks').update({ assignee_id: await idOf('sahil@example.com'), owner_side: 'seven_billion' }).eq('id', t!.id)).error).toBeNull()
+    expect((await notificationsFor('sahil@example.com', 'task.assigned')).length).toBe(before + 1)
+    expect((await sahil.from('tasks').select('id').eq('id', t!.id).eq('assignee_id', await uid(sahil))).data).toHaveLength(1)
+
+    // to the customer: it lands on their home page; to a colleague: the action moves; back to us: it closes
+    await rahul.from('tasks').update({ assignee_id: await idOf('omar@nesma.example.com'), owner_side: 'customer' }).eq('id', t!.id)
+    expect((await omar.from('action_items').select('id').eq('task_id', t!.id).eq('status', 'open')).data).toHaveLength(1)
+    await rahul.from('tasks').update({ assignee_id: await idOf('michel@nesma.example.com') }).eq('id', t!.id)
+    const open = (await service.from('action_items').select('assignee_id').eq('task_id', t!.id).eq('status', 'open')).data!
+    expect(open).toEqual([{ assignee_id: await idOf('michel@nesma.example.com') }])   // one open action, now Michel's
+    await rahul.from('tasks').update({ assignee_id: await idOf('sahil@example.com'), owner_side: 'seven_billion' }).eq('id', t!.id)
+    expect((await service.from('action_items').select('id').eq('task_id', t!.id).eq('status', 'open')).data).toHaveLength(0)
+    // customers cannot reassign Seven Billion's work
+    expect((await omar.from('tasks').update({ assignee_id: await idOf('omar@nesma.example.com') }).eq('id', t!.id).select('id')).data ?? []).toHaveLength(0)
+  })
+})
+
+describe('requests logged for a customer, and requests that become tasks', () => {
+  let reqId: string
+  it('a PM logs a request on behalf of a customer person: it is theirs, they are told, and nobody can fake who logged it', async () => {
+    const omarId = await idOf('omar@nesma.example.com'), rahulId = await idOf('rahul@example.com')
+    const { data, error } = await rahul.from('requests')
+      .insert({ customer_id: nesma, title: 'Add a weekly stock email', what: 'Asked on the Monday call', requested_by: omarId, raised_by: rahulId })
+      .select('id').single()
+    expect(error).toBeNull()
+    reqId = data!.id
+    expect((await omar.from('requests').select('id').eq('id', reqId)).data).toHaveLength(1)                    // in their portal
+    expect((await notificationsFor('omar@nesma.example.com', 'request.logged')).length).toBeGreaterThan(0)       // and they were told
+    const { data: ev } = await omar.from('request_events').select('note').eq('request_id', reqId)
+    expect(ev![0]!.note).toMatch(/^Logged by Rahul on behalf of Omar/)
+    // a customer cannot claim Seven Billion logged it; staff log only as themselves; the requester must be at that customer
+    expect((await omar.from('requests').insert({ customer_id: nesma, title: 'Fake', what: 'x', requested_by: omarId, raised_by: rahulId })).error).not.toBeNull()
+    expect((await sahil.from('requests').insert({ customer_id: nesma, title: 'As Rahul', what: 'x', raised_by: rahulId })).error).not.toBeNull()
+    expect((await rahul.from('requests').insert({ customer_id: nesma, title: 'Wrong customer', what: 'x', requested_by: await idOf('lead@cbd.example.com'), raised_by: rahulId })).error).not.toBeNull()
+  })
+
+  it('a request becomes a shared task the customer sees, or an internal one they do not', async () => {
+    const project = (await service.from('projects').select('id').eq('name', 'Power BI Implementation').single()).data!.id
+    expect((await omar.rpc('request_to_task', { p_request: reqId, p_project: project })).error).not.toBeNull()   // staff only
+    expect((await rahul.rpc('request_to_task', { p_request: reqId })).error?.message).toMatch(/choose the project/)
+    const internal = await rahul.rpc('request_to_task', { p_request: reqId, p_project: project, p_shared: false, p_assignee: await idOf('sahil@example.com') })
+    expect(internal.error).toBeNull()
+    expect((await omar.from('tasks').select('id').eq('id', internal.data!)).data).toHaveLength(0)
+    expect((await service.from('requests').select('status').eq('id', reqId).single()).data!.status).toBe('submitted')
+    const shared = await rahul.rpc('request_to_task', { p_request: reqId, p_shared: true, p_estimate: 2, p_unit: 'day' })
+    expect(shared.error).toBeNull()
+    const { data: t } = await omar.from('tasks').select('title, request_id, visibility').eq('id', shared.data!).single()
+    expect(t).toMatchObject({ request_id: reqId, visibility: 'shared' })
+    expect(t!.title).toMatch(/^REQ-\d+ Add a weekly stock email$/)
+    expect((await service.from('requests').select('status, project_id').eq('id', reqId).single()).data).toEqual({ status: 'scheduled', project_id: project })
+    expect((await service.from('task_estimates').select('estimate, unit').eq('task_id', shared.data!).single()).data).toEqual({ estimate: 2, unit: 'day' })
+  })
+})
+
 describe('@mentions', () => {
   it('notify people who can read the comment and drop everyone else', async () => {
     const { data: task } = await service.from('tasks').select('id').eq('title', 'Data mapping').single()

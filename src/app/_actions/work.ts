@@ -17,6 +17,21 @@ export async function setTaskStatus(taskId: string, status: (typeof STATUSES)[nu
   return error ? dbFail(error) : done()
 }
 
+/** Gives a task to someone else. Customer people make it a customer-side task (it shows on their home page). */
+export async function setTaskOwner(taskId: string, assigneeId: string): Promise<ActionResult> {
+  await requireStaff()
+  if (!uuid.safeParse(taskId).success || (assigneeId && !uuid.safeParse(assigneeId).success)) return fail('Unknown task or person.')
+  const supabase = await createClient()
+  let owner_side: 'seven_billion' | 'customer' = 'seven_billion'
+  if (assigneeId) {
+    const { data: who } = await supabase.from('profiles').select('kind').eq('id', assigneeId).single()
+    if (!who) return fail('Person not found.')
+    if (who.kind === 'customer') owner_side = 'customer'
+  }
+  const { error } = await supabase.from('tasks').update({ assignee_id: assigneeId || null, owner_side }).eq('id', taskId)
+  return error ? dbFail(error) : done(assigneeId ? 'Owner changed. They have been notified.' : 'Task unassigned.')
+}
+
 export async function setSpotlight(taskId: string, spotlight: boolean): Promise<ActionResult> {
   await requireStaff()
   const supabase = await createClient()

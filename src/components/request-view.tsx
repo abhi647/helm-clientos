@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { decideApproval, requestApproval, resubmitApproval, setRequestStatus } from '@/app/_actions/requests'
+import { decideApproval, requestApproval, requestToTask, resubmitApproval, setRequestStatus } from '@/app/_actions/requests'
 import { ActionForm, DecisionForm } from '@/components/forms'
 import { FileRows } from '@/components/file-rows'
 import { FOLDERS } from '@/components/project-parts'
@@ -19,15 +19,19 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
   const staff = me.kind === 'internal'
   const base = staff ? '' : '/portal'
   const { data: r } = await supabase.from('requests')
-    .select('*, customers(name), projects(id, name), owner:profiles!requests_owner_id_fkey(full_name), requester:profiles!requests_requested_by_fkey(full_name)')
+    .select('*, customers(name), projects(id, name), owner:profiles!requests_owner_id_fkey(full_name), requester:profiles!requests_requested_by_fkey(full_name), raiser:profiles!requests_raised_by_fkey(full_name)')
     .eq('id', id).maybeSingle()
   if (!r) notFound()
-  const [{ data: events }, { data: approvals }, { data: customerUsers }, { data: units }] = await Promise.all([
+  const [{ data: events }, { data: approvals }, { data: customerUsers }, { data: units }, { data: linked }, { data: staffPeople }, { data: customerProjects }] = await Promise.all([
     supabase.from('request_events').select('id, status, note, created_at, actor:profiles!request_events_actor_id_fkey(full_name)').eq('request_id', id).order('id'),
     supabase.from('approvals').select('*, approver:profiles!approvals_approver_id_fkey(full_name), approval_events(id, action, version, comment, created_at, actor:profiles!approval_events_actor_id_fkey(full_name))').eq('request_id', id).order('created_at', { ascending: false }),
     staff ? supabase.from('profiles').select('id, full_name').eq('customer_id', r.customer_id) : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
     // effort is estimated in the project's billing units (days, or the billed unit for delivery work)
     staff && r.project_id ? supabase.rpc('effort_units', { p_project: r.project_id }) : Promise.resolve({ data: ['day'] }),
+    // tasks this request became (customers see the shared ones only, by RLS)
+    supabase.from('tasks').select('id, title, status, visibility, project_id, assignee:profiles!tasks_assignee_id_fkey(full_name)').eq('request_id', id).order('created_at'),
+    staff ? supabase.from('directory').select('id, full_name').eq('kind', 'internal').is('access_revoked_at', null).order('full_name') : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
+    staff ? supabase.from('projects').select('id, name').eq('customer_id', r.customer_id).neq('status', 'completed').order('name') : Promise.resolve({ data: [] as { id: string; name: string }[] }),
   ])
   const current = REQUEST_STATUS_ORDER.indexOf(r.status as Enums<'request_status'>)
   const reached = new Map((events ?? []).map((e) => [e.status, e.created_at]))
@@ -36,7 +40,7 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
 
   return (
     <div className="flex flex-col gap-3 p-4">
-      {created ? <p role="status" className="m-0 rounded-md bg-good-bg px-3 py-2 text-[13px] font-medium text-good-ink"><b>{created}</b> created. Seven Billion has it and will review it shortly.</p> : null}
+      {created ? <p role="status" className="m-0 rounded-md bg-good-bg px-3 py-2 text-[13px] font-medium text-good-ink"><b>{created}</b> {staff ? `logged for ${r.requester?.full_name ?? r.customers?.name}. ${r.requester ? 'They have' : 'The customer has'} been emailed and can follow it in their portal.` : 'created. Seven Billion has it and will review it shortly.'}</p> : null}
       <div className="card flex flex-col gap-2.5 px-3.5 py-3">
         <Link href={`${base}/requests`} className="text-xs font-medium">← Requests</Link>
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
@@ -50,7 +54,7 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
           <div><dt className="label">Project</dt><dd className="m-0">{r.projects ? (staff ? <Link href={`/projects/${r.projects.id}`}>{r.projects.name}</Link> : r.projects.name) : '–'}</dd></div>
           <div><dt className="label">Type</dt><dd className="m-0">{label(r.type)}</dd></div>
           <div><dt className="label">Priority</dt><dd className="m-0"><PriorityText priority={r.priority} /></dd></div>
-          <div><dt className="label">Requested</dt><dd className="m-0">{r.requester?.full_name ?? '–'} · <span className="font-mono">{shortDate(r.created_at)}</span></dd></div>
+          <div><dt className="label">Requested</dt><dd className="m-0">{r.requester?.full_name ?? r.customers?.name ?? 'Your company'} · <span className="font-mono">{shortDate(r.created_at)}</span>{r.raiser ? <span className="block text-xs text-muted">Logged by {r.raiser.full_name} on their behalf</span> : null}</dd></div>
           <div><dt className="label">Owner</dt><dd className="m-0">{r.owner?.full_name ?? 'Not assigned yet'}</dd></div>
           <div><dt className="label">Wanted by</dt><dd className="m-0 font-mono">{shortDate(r.desired_date)}</dd></div>
         </dl>
@@ -86,6 +90,47 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
         </div>
 
         <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-3">
+          {linked?.length ? (
+            <Card title="On the plan">
+              <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[13px]">
+                {linked.map((t) => (
+                  <li key={t.id} className="flex flex-wrap items-center gap-2">
+                    {staff ? <Link href={`/projects/${t.project_id}?task=${t.id}`} className="font-medium">{t.title}</Link> : <span className="font-medium">{t.title}</span>}
+                    <span className="text-xs text-muted">{label(t.status)}{t.assignee ? ` · ${t.assignee.full_name}` : ''}</span>
+                    {staff ? <Visibility value={t.visibility} /> : null}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
+
+          {staff && !['delivered', 'cancelled'].includes(r.status) ? (
+            <Card title="Turn into a task">
+              <ActionForm action={requestToTask} submit="Add to the plan">
+                <input type="hidden" name="request_id" value={r.id} />
+                {r.project_id ? <input type="hidden" name="project_id" value={r.project_id} /> : (
+                  <label className="flex flex-col gap-1 text-xs"><span className="label">Project</span>
+                    <select name="project_id" required className="input"><option value="">Choose…</option>{(customerProjects ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+                )}
+                <label className="flex flex-col gap-1 text-xs"><span className="label">Owner</span>
+                  <select name="assignee_id" aria-label="Task owner" className="input">
+                    <option value="">Unassigned</option>
+                    <optgroup label="Seven Billion">{(staffPeople ?? []).map((u) => <option key={u.id} value={u.id ?? ""}>{u.full_name}</option>)}</optgroup>
+                    <optgroup label={r.customers?.name ?? 'Customer'}>{(customerUsers ?? []).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}</optgroup>
+                  </select></label>
+                <div className="flex flex-wrap gap-2">
+                  <input type="date" name="due_date" defaultValue={r.desired_date ?? ''} aria-label="Due date" className="input flex-1" />
+                  <EffortInput name="estimate" unitName="unit" units={units ?? ['day']} placeholder="Estimate" />
+                </div>
+                <fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0 text-xs">
+                  <legend className="label mb-1">Who can see the task?</legend>
+                  <label className="flex items-start gap-2"><input type="radio" name="visibility" value="shared" defaultChecked className="mt-0.5" /><span><b>Shared with the customer.</b> It appears on their plan and the request moves to Scheduled.</span></label>
+                  <label className="flex items-start gap-2"><input type="radio" name="visibility" value="internal" className="mt-0.5" /><span><b>Internal.</b> Only Seven Billion sees the task; the request&apos;s stage stays as it is.</span></label>
+                </fieldset>
+              </ActionForm>
+            </Card>
+          ) : null}
+
           {approval ? (
             <section className={cn('card flex flex-col gap-2 p-3', approval.status === 'pending' && 'border-ink')}>
               <div className="flex items-center gap-2"><span className="label">Approval · {approval.kind}</span><span className="ml-auto"><ApprovalStatusChip status={approval.status} /></span></div>

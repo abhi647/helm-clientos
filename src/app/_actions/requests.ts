@@ -19,6 +19,7 @@ const requestSchema = z.object({
   project_id: z.preprocess((v) => (v === '' ? null : v), uuid.nullable()),
   desired_date: optionalDate,
   customer_id: uuid.optional(),
+  on_behalf_of: z.preprocess((v) => (v === '' || v == null ? null : v), uuid.nullable()).optional(),   // staff only: a person at the customer, or the company
 })
 
 /** Customers raise requests for their own company; staff can log one on a customer's behalf. */
@@ -29,9 +30,12 @@ export async function createRequest(_prev: ActionResult | null, form: FormData):
   const customer_id = me.kind === 'customer' ? me.customer_id! : parsed.data.customer_id
   if (!customer_id) return fail('Choose the customer.')
   const supabase = await createClient()
+  const { on_behalf_of, ...fields } = parsed.data
+  // staff log a request the customer gave them (a call, a meeting): it is the customer's request, logged by them
+  const people = me.kind === 'customer' ? { requested_by: me.id } : { requested_by: on_behalf_of ?? null, raised_by: me.id, owner_id: me.id }   // whoever logged it owns it until reassigned
   const { data, error } = await supabase.from('requests')
-    .insert({ ...parsed.data, customer_id, requested_by: me.id }).select('id, number').single()
-  if (error || !data) return dbFail(error)
+    .insert({ ...fields, customer_id, ...people }).select('id, number').single()
+  if (error || !data) return dbFail(error, error?.message.includes('requester must be') ? 'Choose someone at this customer.' : undefined)
   done()
   redirect(`${me.kind === 'customer' ? '/portal' : ''}/requests/${data.id}?created=${data.number}`)
 }
@@ -113,4 +117,29 @@ export async function completeAction(actionId: string): Promise<ActionResult> {
   const supabase = await createClient()
   const { error } = await supabase.rpc('complete_action_item', { p_action: actionId })
   return error ? dbFail(error) : done('Done. Seven Billion has been told.')
+}
+
+const toTaskSchema = z.object({
+  request_id: uuid,
+  project_id: z.preprocess((v) => (v === '' ? null : v), uuid.nullable()),
+  assignee_id: z.preprocess((v) => (v === '' ? null : v), uuid.nullable()),
+  due_date: optionalDate,
+  estimate: z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().positive().max(5000).nullable()),
+  unit: z.string().trim().min(1).max(40).default('day'),
+  visibility: z.enum(['shared', 'internal']),
+})
+
+/** Puts a request on the plan as a task. Shared: the customer sees it and the request moves to Scheduled. */
+export async function requestToTask(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  await requireStaff()
+  const parsed = toTaskSchema.safeParse(formObject(form))
+  if (!parsed.success) return fail(parsed.error.issues[0]!.message)
+  const d = parsed.data
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('request_to_task', {
+    p_request: d.request_id, p_assignee: d.assignee_id ?? undefined, p_shared: d.visibility === 'shared', p_due: d.due_date ?? undefined,
+    p_project: d.project_id ?? undefined, p_estimate: d.estimate ?? undefined, p_unit: d.unit,
+  })
+  if (error) return dbFail(error, error.message.includes('choose the project') ? 'Choose the project this request belongs to.' : undefined)
+  return done(d.visibility === 'shared' ? 'Added to the plan. The customer can see it.' : 'Added to the plan as an internal task.')
 }

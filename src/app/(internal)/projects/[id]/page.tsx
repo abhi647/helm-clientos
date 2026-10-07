@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { createTask, logTime, setSpotlight, setTaskStatus } from '@/app/_actions/work'
+import { createTask, logTime, setSpotlight, setTaskStatus, setTaskOwner } from '@/app/_actions/work'
 import { ActionButton, ActionForm, StatusSelect } from '@/components/forms'
 import { Thread } from '@/components/thread'
 import { Avatar, Chip, TaskStatusChip, Visibility, cn } from '@/components/ui'
@@ -25,7 +25,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
   const [{ data: project }, { data: phases }, { data: tasks }, { data: time }, { data: comments }, { data: units }] = await Promise.all([
     supabase.from('projects').select('id, customer_id, pm_id').eq('id', id).single(),
     supabase.from('phases').select('*').eq('project_id', id).order('position'),
-    supabase.from('tasks').select('*, assignee:profiles!tasks_assignee_id_fkey(id, full_name, kind), task_estimates(estimate, unit)').eq('project_id', id).order('position'),
+    supabase.from('tasks').select('*, assignee:profiles!tasks_assignee_id_fkey(id, full_name, kind), task_estimates(estimate, unit), request:requests(id, number)').eq('project_id', id).order('position'),
     supabase.from('time_entries').select('task_id, days').in('task_id', (await supabase.from('tasks').select('id').eq('project_id', id)).data?.map((t) => t.id) ?? []),
     supabase.from('comments').select('entity_id').eq('entity_type', 'task'),
     supabase.rpc('effort_units', { p_project: id }),   // the project's billing units: effort is estimated in these
@@ -159,6 +159,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
             <div className="flex flex-col gap-3.5 p-3">
               <dl className="m-0 grid grid-cols-[96px_minmax(0,1fr)] gap-y-1.5 text-[13px]">
                 <dt className="text-muted">Owner</dt><dd className="m-0">{sel.assignee?.full_name ?? 'Unassigned'} · {sel.owner_side === 'customer' ? 'Customer' : 'Seven Billion'}</dd>
+                {sel.request ? <><dt className="text-muted">Request</dt><dd className="m-0"><Link href={`/requests/${sel.request.id}`} className="font-mono">{sel.request.number}</Link></dd></> : null}
                 <dt className="text-muted">Start → Due</dt><dd className="m-0 font-mono">{shortDate(sel.start_date)} → {shortDate(sel.due_date)}</dd>
                 {!preview ? <><dt className="text-muted">Effort</dt><dd className="m-0 font-mono">{effort(logged.get(sel.id) ?? 0)} logged · estimate {est(sel) ? effort(est(sel), unitOf(sel)) : '–'}</dd></> : null}
               </dl>
@@ -166,6 +167,8 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
               {!preview ? (
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusSelect label="Task status" value={sel.status} options={statusOptions} onChange={setTaskStatus.bind(null, sel.id)} />
+                  <StatusSelect key={`owner-${sel.id}-${sel.assignee_id ?? ''}`} label="Task owner" value={sel.assignee_id ?? ''} onChange={setTaskOwner.bind(null, sel.id)}
+                    options={[{ value: '', label: 'Unassigned' }, ...people.map((p) => ({ value: p.id, label: `${p.full_name}${p.kind === 'customer' ? ' (customer)' : ''}` }))]} />
                   <ActionButton run={setSpotlight.bind(null, sel.id, !sel.spotlight)}>{sel.spotlight ? 'Remove spotlight' : '★ Spotlight for customer'}</ActionButton>
                 </div>
               ) : null}

@@ -32,7 +32,7 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
   const prog = new Map((progress ?? []).map((p) => [p.project_id, p.total ? (100 * (p.done ?? 0)) / p.total : 0]))
   return (
     <>
-      <PageHeader title={c.name} meta={<span className="text-xs text-muted">{c.hubspot_company_id ? `HubSpot company ${c.hubspot_company_id}` : 'Not linked to HubSpot'}</span>} />
+      <PageHeader title={c.name} meta={<span className="text-xs text-muted">{c.hubspot_company_id ? `HubSpot company ${c.hubspot_company_id}` : 'Not linked to HubSpot'}</span>} actions={<Link href={`/requests/new?customer=${c.id}`} className="btn">+ Log a request</Link>} />
       <div className="flex flex-col gap-3 p-4">
         <div className="flex flex-wrap items-start gap-3">
           <Card flush className="min-w-0 flex-[999_1_520px] overflow-x-auto" title="Projects">
