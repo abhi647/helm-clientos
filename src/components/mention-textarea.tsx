@@ -14,7 +14,7 @@ const TRIGGER = /(^|[\s(])@([^\s@]{0,30})$/
  * inserts "@Full Name" and records their id in a hidden `mentions` field. The database keeps a mention only
  * if that person can read the comment, so this list is a convenience, not a permission.
  */
-export const MentionTextarea = forwardRef<{ clear: () => void }, {
+export const MentionTextarea = forwardRef<{ clear: (sent?: string) => void }, {
   id: string; name: string; people: Person[]; placeholder?: string; className?: string; rows?: number; required?: boolean
 }>(function MentionTextarea({ id, name, people, placeholder, className, rows = 2, required }, ref) {
   const area = useRef<HTMLTextAreaElement>(null)
@@ -24,7 +24,13 @@ export const MentionTextarea = forwardRef<{ clear: () => void }, {
   const [pos, setPos] = useState({ top: 0, left: 0 })
   const [active, setActive] = useState('')
 
-  useImperativeHandle(ref, () => ({ clear: () => { setText(''); setPicked([]); setQuery(null) } }), [])
+  // after a post, empty the box only if it still holds what was sent: anything typed since is kept
+  useImperativeHandle(ref, () => ({
+    clear: (sent?: string) => {
+      if (sent !== undefined && (area.current?.value ?? '') !== sent) return
+      setText(''); setPicked([]); setQuery(null)
+    },
+  }), [])
 
   const matches = useMemo(() => {
     if (query == null) return []

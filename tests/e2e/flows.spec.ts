@@ -142,6 +142,7 @@ test('PM: resubmits, posts internal and shared comments, previews as customer', 
   await reply.fill('Internal: keep the OData fallback warm.')
   await page.getByRole('button', { name: 'Post' }).click()
   await expect(page.getByText('Internal: keep the OData fallback warm.')).toBeVisible()
+  await expect(reply).toHaveValue('')   // the box empties once the post is saved
   await page.getByRole('radio', { name: 'Shared with customer' }).click()
   await reply.fill('Shared: validation results are attached.')
   await page.getByRole('button', { name: 'Post' }).click()

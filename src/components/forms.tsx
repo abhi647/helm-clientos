@@ -42,10 +42,10 @@ export function CommentBox({ action, entityType, entityId, customerId, staff, de
 }) {
   const [vis, setVis] = useState<'internal' | 'shared'>(defaultShared ? 'shared' : 'internal')
   const ref = useRef<HTMLFormElement>(null)
-  const box = useRef<{ clear: () => void }>(null)
+  const box = useRef<{ clear: (sent?: string) => void }>(null)
   const [state, run, pending] = useActionState<ActionResult | null, FormData>(async (prev, form) => {
     const res = await action(prev, form)
-    if (res.ok) { ref.current?.reset(); box.current?.clear() }
+    if (res.ok) box.current?.clear(String(form.get('body') ?? ''))
     return res
   }, null)
   // internal comments can only mention Seven Billion people
