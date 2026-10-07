@@ -542,7 +542,7 @@ test.describe('on a phone', () => {
     await expect(page).toHaveURL(/\/projects$/)
     await expect(menu).toBeHidden()
     await page.goto('/projects')
-    const project = (await page.locator('main a[href^="/projects/"]').first().getAttribute('href'))!
+    const project = (await page.locator('main a[href^="/projects/"]:not([href^="/projects/new"])').first().getAttribute('href'))!
     await page.goto('/customers')
     const customer = (await page.locator('main a[href^="/customers/"]').first().getAttribute('href'))!
     for (const path of ['/home', '/my-work', '/requests', '/customers', customer, '/projects', project, `${project}/requests`, `${project}/documents`, `${project}/updates`, `${project}/billing`,

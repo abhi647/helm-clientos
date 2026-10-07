@@ -42,10 +42,15 @@ export async function saveRateCard(_prev: ActionResult | null, form: FormData): 
   return data.length ? done('Saved.') : fail('This rate card can no longer be edited.')
 }
 
+// the unit a line is charged per: fixed for day rates (day) and retainers (month); a delivery is charged per delivery
+// unless told otherwise; a per-unit line names its own unit (dashboard, user, report…)
+const unitFor = (kind: (typeof KINDS)[number], unit: string) =>
+  kind === 'day_rate' ? 'day' : kind === 'retainer' ? 'month' : unit === 'day' ? (kind === 'delivery' ? 'delivery' : 'unit') : unit
+
 const lineSchema = z.object({
   kind: z.enum(KINDS),
   label: z.string().trim().min(1, 'Name the role, delivery or unit.').max(120),
-  unit: z.string().trim().min(1).max(30),
+  unit: z.string().trim().min(1, 'Say what the rate is charged per (day, month, dashboard…).').max(30),
   rate: amount,
   planned_quantity: optionalAmount,
   description: text(500),
@@ -55,7 +60,7 @@ const lineSchema = z.object({
 export async function addRateCardLine(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   await requireStaff()
   const card = uuid.safeParse(form.get('card_id'))
-  const parsed = lineSchema.safeParse(Object.fromEntries(form))
+  const parsed = lineSchema.transform((l) => ({ ...l, unit: unitFor(l.kind, l.unit) })).safeParse(Object.fromEntries(form))
   if (!card.success) return fail('Unknown rate card.')
   if (!parsed.success) return fail(parsed.error.issues[0]!.message)
   const l = parsed.data
@@ -70,7 +75,7 @@ export async function addRateCardLine(_prev: ActionResult | null, form: FormData
 export async function updateRateCardLine(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   await requireStaff()
   const id = uuid.safeParse(form.get('line_id'))
-  const parsed = lineSchema.safeParse(Object.fromEntries(form))
+  const parsed = lineSchema.transform((l) => ({ ...l, unit: unitFor(l.kind, l.unit) })).safeParse(Object.fromEntries(form))
   if (!id.success) return fail('Unknown line.')
   if (!parsed.success) return fail(parsed.error.issues[0]!.message)
   const supabase = await createClient()

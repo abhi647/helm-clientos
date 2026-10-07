@@ -6,7 +6,7 @@ import {
 } from '@/app/_actions/billing'
 import { KIND_LABEL, KIND_UNIT, RateCardStatus, RateLines, StatementStatus, period } from '@/components/billing'
 import { ActionButton, ActionForm } from '@/components/forms'
-import { Card, Empty } from '@/components/ui'
+import { Card, Empty, cn } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
 import { money, relativeTime } from '@/lib/format'
 import { canSeeFinance, requireStaff } from '@/lib/session'
@@ -16,18 +16,42 @@ export const metadata: Metadata = { title: 'Billing' }
 
 const KINDS = Object.keys(KIND_LABEL) as Enums<'billing_kind'>[]
 
+function Field({ label, hint, className, children }: { label: string; hint?: string; className?: string; children: React.ReactNode }) {
+  return (
+    <label className={cn('flex min-w-0 flex-col gap-1', className)}>
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">{label}</span>
+      {children}
+      {hint ? <span className="text-[11px] text-muted">{hint}</span> : null}
+    </label>
+  )
+}
+
 function LineFields({ line }: { line?: { kind: Enums<'billing_kind'>; label: string; unit: string; rate: number; planned_quantity: number | null; description: string; zoho_item_id: string | null } }) {
   return (
-    <div className="grid grid-cols-2 gap-2 md:grid-cols-[180px_minmax(0,1fr)_90px_120px_100px]">
-      <select name="kind" aria-label="Billing model" defaultValue={line?.kind ?? 'day_rate'} className="input">
-        {KINDS.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
-      </select>
-      <input name="label" aria-label="Role, delivery or unit" required defaultValue={line?.label} placeholder="Role, delivery or unit (e.g. Data engineer)" className="input" />
-      <input name="unit" aria-label="Unit" required defaultValue={line?.unit ?? 'day'} placeholder="day" className="input" />
-      <input name="rate" aria-label="Rate" required inputMode="decimal" defaultValue={line?.rate} placeholder="Rate" className="input font-mono" />
-      <input name="planned_quantity" aria-label="Planned quantity" inputMode="decimal" defaultValue={line?.planned_quantity ?? ''} placeholder="Resources / units" className="input font-mono" />
-      <input name="description" aria-label="Description" defaultValue={line?.description} placeholder="Description on the invoice (optional)" className="input col-span-2 md:col-span-3" />
-      <input name="zoho_item_id" aria-label="Zoho item id" defaultValue={line?.zoho_item_id ?? ''} placeholder="Zoho item id (optional, for tax/HSN)" className="input col-span-2 font-mono" />
+    <div className="grid grid-cols-2 gap-2 md:grid-cols-[180px_minmax(0,1fr)_110px_120px_110px]">
+      <Field label="Billing model">
+        <select name="kind" aria-label="Billing model" defaultValue={line?.kind ?? 'day_rate'} className="input">
+          {KINDS.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
+        </select>
+      </Field>
+      <Field label="What is billed">
+        <input name="label" aria-label="Role, delivery or unit" required defaultValue={line?.label} placeholder="e.g. Data engineer" className="input" />
+      </Field>
+      <Field label="Charged per" hint="Set by the model, except per unit">
+        <input name="unit" aria-label="Unit" required defaultValue={line?.unit ?? 'day'} placeholder="day, month, dashboard…" className="input" />
+      </Field>
+      <Field label="Rate">
+        <input name="rate" aria-label="Rate" required inputMode="decimal" defaultValue={line?.rate} placeholder="e.g. 25000" className="input font-mono" />
+      </Field>
+      <Field label="Planned qty" hint="Resources, or units">
+        <input name="planned_quantity" aria-label="Planned quantity" inputMode="decimal" defaultValue={line?.planned_quantity ?? ''} placeholder="Optional" className="input font-mono" />
+      </Field>
+      <Field label="Description on the invoice" className="col-span-2 md:col-span-3">
+        <input name="description" aria-label="Description" defaultValue={line?.description} placeholder="Optional" className="input" />
+      </Field>
+      <Field label="Zoho item id" className="col-span-2">
+        <input name="zoho_item_id" aria-label="Zoho item id" defaultValue={line?.zoho_item_id ?? ''} placeholder="Optional, for tax / HSN" className="input font-mono" />
+      </Field>
     </div>
   )
 }
