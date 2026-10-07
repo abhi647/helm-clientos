@@ -15,9 +15,18 @@ function Message({ state }: { state: ActionResult | null }) {
     : <p role="alert" className="m-0 text-xs text-crit-ink">{state.error}</p>
 }
 
+/** Fields matching `selector` that still hold typed text: a guard against sending before "Add line" was pressed. */
+export type UnsavedGuard = { selector: string; message: string }
+function stoppedBy(guard?: UnsavedGuard) {
+  if (!guard) return false
+  const typed = Array.from(document.querySelectorAll<HTMLInputElement>(guard.selector)).some((el) => el.value.trim() !== '')
+  if (typed) window.alert(guard.message)
+  return typed
+}
+
 /** A form bound to a server action, with pending state and an inline result message. */
-export function ActionForm({ action, children, submit, className, resetOnSuccess = true, primary = true }: {
-  action: FormAction; children?: React.ReactNode; submit: string; className?: string; resetOnSuccess?: boolean; primary?: boolean
+export function ActionForm({ action, children, submit, className, resetOnSuccess = true, primary = true, guard }: {
+  action: FormAction; children?: React.ReactNode; submit: string; className?: string; resetOnSuccess?: boolean; primary?: boolean; guard?: UnsavedGuard
 }) {
   const ref = useRef<HTMLFormElement>(null)
   const [state, run, pending] = useActionState<ActionResult | null, FormData>(async (prev, form) => {
@@ -26,7 +35,7 @@ export function ActionForm({ action, children, submit, className, resetOnSuccess
     return res
   }, null)
   return (
-    <form ref={ref} action={run} className={cn('flex flex-col gap-2', className)}>
+    <form ref={ref} action={run} onSubmit={(e) => { if (stoppedBy(guard)) e.preventDefault() }} className={cn('flex flex-col gap-2', className)}>
       {children}
       <div className="flex flex-wrap items-center gap-2">
         <button type="submit" disabled={pending} className={cn('btn', primary && 'btn-primary')}>{pending ? 'Saving…' : submit}</button>
@@ -85,8 +94,8 @@ export function CommentBox({ action, entityType, entityId, customerId, staff, de
 }
 
 /** Runs a server action from a button (no form fields), showing a pending state and the result. */
-export function ActionButton({ run, children, primary, className, confirm }: {
-  run: () => Promise<ActionResult>; children: React.ReactNode; primary?: boolean; className?: string; confirm?: string
+export function ActionButton({ run, children, primary, className, confirm, guard }: {
+  run: () => Promise<ActionResult>; children: React.ReactNode; primary?: boolean; className?: string; confirm?: string; guard?: UnsavedGuard
 }) {
   const [pending, start] = useTransition()
   const [state, setState] = useState<ActionResult | null>(null)
@@ -94,6 +103,7 @@ export function ActionButton({ run, children, primary, className, confirm }: {
     <span className="inline-flex flex-wrap items-center gap-2">
       <button type="button" disabled={pending} className={cn('btn', primary && 'btn-primary', className)}
         onClick={() => {
+          if (stoppedBy(guard)) return
           if (confirm && !window.confirm(confirm)) return
           start(async () => setState(await run()))
         }}>
@@ -138,5 +148,24 @@ export function DecisionForm({ action, approvalId, idName = 'approval_id' }: { a
       </div>
       <Message state={state} />
     </form>
+  )
+}
+
+/**
+ * "Approve for the customer": Seven Billion confirms something the customer agreed outside Helm (the contract, a call,
+ * an email). Folded away so it is a deliberate step; the note is kept on the record and sent to the customer.
+ */
+export function ApproveForCustomer({ action, idName, id, label = 'Approve for the customer', hint, guard }: {
+  action: FormAction; idName: string; id: string; label?: string; hint?: string; guard?: UnsavedGuard
+}) {
+  return (
+    <details className="rounded-md border border-line-soft bg-head/40 p-2.5">
+      <summary className="cursor-pointer list-none text-xs font-semibold text-link">✓ {label}</summary>
+      <ActionForm action={action} submit={label} className="mt-2" resetOnSuccess={false} guard={guard}>
+        <input type="hidden" name={idName} value={id} />
+        <input name="note" maxLength={500} aria-label="How the customer agreed" placeholder="How they agreed, e.g. signed contract, call on 7 Oct (optional)" className="input" />
+        <p className="m-0 text-xs text-muted">{hint ?? 'The customer is told by email and it shows as approved by you for them.'}</p>
+      </ActionForm>
+    </details>
   )
 }

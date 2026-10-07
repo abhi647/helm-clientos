@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import type { Enums } from '@/lib/database.types'
-import { requireProfile, requireStaff } from '@/lib/session'
+import { canManage, requireProfile, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { type ActionResult, dbFail, done, fail, formObject, optionalDate, uuid } from './shared'
 
@@ -93,6 +93,18 @@ export async function decideApproval(_prev: ActionResult | null, form: FormData)
   const supabase = await createClient()
   const { error } = await supabase.rpc('decide_approval', { p_approval: parsed.data.approval_id, p_decision: parsed.data.decision, p_comment: parsed.data.comment || undefined })
   return error ? dbFail(error) : done(parsed.data.decision === 'approved' ? 'Approved. Thank you.' : 'Sent back with your comments.')
+}
+
+/** The PM, CEO or an admin approve for the customer (agreed on a call or by email); the customer is told. */
+export async function approveForCustomer(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!canManage(me)) return fail('Only a PM, the CEO or an admin can approve for the customer.')
+  const id = uuid.safeParse(form.get('approval_id'))
+  const note = z.string().trim().max(500).safeParse(form.get('note') ?? '')
+  if (!id.success || !note.success) return fail('Unknown approval.')
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('approve_for_customer', { p_approval: id.data, p_note: note.data || undefined })
+  return error ? dbFail(error) : done('Approved. The customer has been told.')
 }
 
 export async function resubmitApproval(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {

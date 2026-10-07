@@ -2,10 +2,11 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import {
-  addRateCardLine, createStatement, discardRateCard, removeRateCardLine, saveRateCard, startRateCard, submitRateCard, updateRateCardLine,
+  addRateCardLine, approveRateCardForCustomer, createStatement, discardRateCard, removeRateCardLine, saveRateCard, startRateCard, submitRateCard,
+  updateRateCardLine,
 } from '@/app/_actions/billing'
 import { KIND_LABEL, KIND_UNIT, PLANNED_LABEL, RateCardStatus, RateLines, StatementStatus, period } from '@/components/billing'
-import { ActionButton, ActionForm } from '@/components/forms'
+import { ActionButton, ActionForm, ApproveForCustomer } from '@/components/forms'
 import { Card, Empty } from '@/components/ui'
 import { LineFields } from '@/components/rate-line-fields'
 import { CURRENCIES, CURRENCY_CODES } from '@/lib/currencies'
@@ -14,6 +15,9 @@ import { canSeeFinance, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { title: 'Billing' }
+
+// a line typed into "Add a line" but not added yet
+const UNSAVED_LINE = { selector: '[data-add-line] input[name="label"], [data-add-line] input[name="rate"]', message: 'There is a line in "Add a line" that has not been added yet. Press Add line first, or clear it.' }
 
 
 /**
@@ -92,7 +96,7 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
                     ))}
                   </div>
                 ) : null}
-                <div className="rounded-md border border-dashed border-line p-2.5">
+                <div data-add-line className="rounded-md border border-dashed border-line p-2.5">
                   <p className="label mt-0 mb-2">{open.rate_card_lines.length ? 'Add another line' : 'Add a line'}</p>
                   <ActionForm action={addRateCardLine} submit="Add line">
                     <input type="hidden" name="card_id" value={open.id} />
@@ -104,22 +108,35 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
                   </ActionForm>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 border-t border-line-soft pt-3">
-                <ActionButton run={submitRateCard.bind(null, open.id)} primary confirm="Send these rates to the customer for approval? They can't be edited while the customer reviews them.">
-                  Send to customer for approval
-                </ActionButton>
-                {open.status === 'draft' ? <ActionButton run={discardRateCard.bind(null, open.id)} className="btn-ghost" confirm="Discard this draft rate card?">Discard draft</ActionButton> : null}
+              <div className="flex flex-col gap-2 border-t border-line-soft pt-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <ActionButton run={submitRateCard.bind(null, open.id)} primary guard={UNSAVED_LINE}
+                    confirm="Send these rates to the customer for approval? They can't be edited while the customer reviews them.">
+                    Send to customer for approval
+                  </ActionButton>
+                  {open.status === 'draft' ? <ActionButton run={discardRateCard.bind(null, open.id)} className="btn-ghost" confirm="Discard this draft rate card?">Discard draft</ActionButton> : null}
+                </div>
+                {canSeeFinance(me) && open.rate_card_lines.length ? (
+                  <ApproveForCustomer action={approveRateCardForCustomer} idName="card_id" id={open.id} label="Approve the rates for the customer" guard={UNSAVED_LINE}
+                    hint="For rates already agreed in the contract or on a call. They become the approved rates now, and the customer's billing contacts are told by email." />
+                ) : null}
               </div>
             </div>
           ) : (
-            <div className="overflow-x-auto"><RateLines lines={sortLines(open.rate_card_lines)} currency={open.currency} /></div>
+            <div className="flex flex-col gap-3">
+              <div className="overflow-x-auto"><RateLines lines={sortLines(open.rate_card_lines)} currency={open.currency} /></div>
+              {canSeeFinance(me) ? (
+                <ApproveForCustomer action={approveRateCardForCustomer} idName="card_id" id={open.id} label="Approve the rates for the customer"
+                  hint="No need to wait: confirm the rates as agreed. The customer's billing contacts are told by email." />
+              ) : null}
+            </div>
           )}
         </Card>
       ) : null}
 
       {/* ------------------------------------------------ the approved rates */}
       <Card flush title={live ? <span className="flex items-center gap-2">Approved rates v{live.version} <RateCardStatus status="approved" /></span> : 'Rate card'}
-        extra={live ? <span className="font-mono">{live.currency}{live.po_number ? ` · PO ${live.po_number}` : ''}</span> : undefined}>
+        extra={live ? <span className="font-mono">{live.currency}{live.po_number ? ` · PO ${live.po_number}` : ''}{live.approved_for_customer ? ' · approved by us for the customer' : ''}</span> : undefined}>
         {live ? (
           <>
             <div className="overflow-x-auto"><RateLines lines={sortLines(live.rate_card_lines)} currency={live.currency} /></div>

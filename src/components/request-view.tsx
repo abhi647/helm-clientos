@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { decideApproval, requestApproval, requestToTask, resubmitApproval, setRequestStatus } from '@/app/_actions/requests'
-import { ActionForm, DecisionForm } from '@/components/forms'
+import { approveForCustomer, decideApproval, requestApproval, requestToTask, resubmitApproval, setRequestStatus } from '@/app/_actions/requests'
+import { ActionForm, ApproveForCustomer, DecisionForm } from '@/components/forms'
 import { FileRows } from '@/components/file-rows'
 import { FOLDERS } from '@/components/project-parts'
 import { Thread } from '@/components/thread'
@@ -10,7 +10,7 @@ import { ApprovalStatusChip, Card, PriorityText, RequestStatusChip, Visibility, 
 import type { Enums } from '@/lib/database.types'
 import { REQUEST_STATUS_ORDER, effort, label, relativeTime, shortDate } from '@/lib/format'
 import { EffortInput } from '@/components/effort-input'
-import type { Profile } from '@/lib/session'
+import { canManage, type Profile } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
 /** Request detail for staff and customers. What each sees is decided by RLS; staff also get the controls. */
@@ -144,6 +144,10 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
               <p className="m-0 text-xs leading-relaxed text-muted whitespace-pre-wrap">{approval.summary}</p>
               {canDecide ? <DecisionForm action={decideApproval} approvalId={approval.id} /> : null}
               {staff && approval.status === 'pending' ? <p className="m-0 text-xs font-medium text-warn-ink">Waiting for {approval.approver?.full_name} · requested {relativeTime(approval.created_at)}</p> : null}
+              {staff && canManage(me) && approval.status === 'pending' ? (
+                <ApproveForCustomer action={approveForCustomer} idName="approval_id" id={approval.id}
+                  hint={`${approval.approver?.full_name ?? 'The customer'} is told by email, and the request moves to Approved.`} />
+              ) : null}
               {staff && approval.status === 'changes_requested' ? (
                 <details open>
                   <summary className="cursor-pointer text-xs font-medium text-link">Revise and resubmit as v{approval.version + 1}</summary>

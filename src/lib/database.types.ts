@@ -3,25 +3,7 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 
 export type Database = {
   
-  "graphql_public": {
-          Tables: {
-            [_ in never]: never
-          }
-          Views: {
-            [_ in never]: never
-          }
-          Functions: {
-            "graphql":
-{ Args: { "extensions"?: Json,"operationName"?: string,"query"?: string,"variables"?: Json }; Returns: Json
-                           }
-          }
-          Enums: {
-            [_ in never]: never
-          }
-          CompositeTypes: {
-            [_ in never]: never
-          }
-        },"public": {
+  "public": {
           Tables: {
             "action_items": {
                   Row: {
@@ -276,13 +258,13 @@ isOneToOne: false
                   ]
                 },"billing_statements": {
                   Row: {
-                    "created_at": string,"created_by": string | null,"customer_id": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"id": string,"invoice_error": string | null,"invoiced_at": string | null,"note": string,"period_end": string,"period_start": string,"project_id": string,"rate_card_id": string,"status": Database["public"]['Enums']["statement_status"],"submitted_at": string | null,"submitted_by": string | null,"zoho_claimed_at": string | null,"zoho_invoice_id": string | null,"zoho_invoice_number": string | null
+                    "approved_for_customer": boolean,"created_at": string,"created_by": string | null,"customer_id": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"id": string,"invoice_error": string | null,"invoiced_at": string | null,"note": string,"period_end": string,"period_start": string,"project_id": string,"rate_card_id": string,"status": Database["public"]['Enums']["statement_status"],"submitted_at": string | null,"submitted_by": string | null,"zoho_claimed_at": string | null,"zoho_invoice_id": string | null,"zoho_invoice_number": string | null
                   }
                   Insert: {
-                    "created_at"?: string,"created_by"?: string | null,"customer_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"invoice_error"?: string | null,"invoiced_at"?: string | null,"note"?: string,"period_end": string,"period_start": string,"project_id": string,"rate_card_id": string,"status"?: Database["public"]['Enums']["statement_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"zoho_claimed_at"?: string | null,"zoho_invoice_id"?: string | null,"zoho_invoice_number"?: string | null
+                    "approved_for_customer"?: boolean,"created_at"?: string,"created_by"?: string | null,"customer_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"invoice_error"?: string | null,"invoiced_at"?: string | null,"note"?: string,"period_end": string,"period_start": string,"project_id": string,"rate_card_id": string,"status"?: Database["public"]['Enums']["statement_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"zoho_claimed_at"?: string | null,"zoho_invoice_id"?: string | null,"zoho_invoice_number"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"created_by"?: string | null,"customer_id"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"invoice_error"?: string | null,"invoiced_at"?: string | null,"note"?: string,"period_end"?: string,"period_start"?: string,"project_id"?: string,"rate_card_id"?: string,"status"?: Database["public"]['Enums']["statement_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"zoho_claimed_at"?: string | null,"zoho_invoice_id"?: string | null,"zoho_invoice_number"?: string | null
+                    "approved_for_customer"?: boolean,"created_at"?: string,"created_by"?: string | null,"customer_id"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"invoice_error"?: string | null,"invoiced_at"?: string | null,"note"?: string,"period_end"?: string,"period_start"?: string,"project_id"?: string,"rate_card_id"?: string,"status"?: Database["public"]['Enums']["statement_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"zoho_claimed_at"?: string | null,"zoho_invoice_id"?: string | null,"zoho_invoice_number"?: string | null
                   }
                   Relationships: [
                     {
@@ -1243,13 +1225,13 @@ isOneToOne: false
                   ]
                 },"rate_cards": {
                   Row: {
-                    "created_at": string,"created_by": string | null,"currency": string,"customer_id": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"id": string,"notes": string,"po_number": string | null,"project_id": string,"status": Database["public"]['Enums']["rate_card_status"],"submitted_at": string | null,"submitted_by": string | null,"version": number
+                    "approved_for_customer": boolean,"created_at": string,"created_by": string | null,"currency": string,"customer_id": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"id": string,"notes": string,"po_number": string | null,"project_id": string,"status": Database["public"]['Enums']["rate_card_status"],"submitted_at": string | null,"submitted_by": string | null,"version": number
                   }
                   Insert: {
-                    "created_at"?: string,"created_by"?: string | null,"currency"?: string,"customer_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"notes"?: string,"po_number"?: string | null,"project_id": string,"status"?: Database["public"]['Enums']["rate_card_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"version"?: number
+                    "approved_for_customer"?: boolean,"created_at"?: string,"created_by"?: string | null,"currency"?: string,"customer_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"notes"?: string,"po_number"?: string | null,"project_id": string,"status"?: Database["public"]['Enums']["rate_card_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "created_at"?: string,"created_by"?: string | null,"currency"?: string,"customer_id"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"notes"?: string,"po_number"?: string | null,"project_id"?: string,"status"?: Database["public"]['Enums']["rate_card_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"version"?: number
+                    "approved_for_customer"?: boolean,"created_at"?: string,"created_by"?: string | null,"currency"?: string,"customer_id"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"notes"?: string,"po_number"?: string | null,"project_id"?: string,"status"?: Database["public"]['Enums']["rate_card_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -1784,6 +1766,15 @@ isOneToOne: false
 "answer_csat":
 { Args: { "p_comment"?: string,"p_score": number,"p_survey": string }; Returns: undefined
                            },
+"approve_for_customer":
+{ Args: { "p_approval": string,"p_note"?: string }; Returns: undefined
+                           },
+"approve_rate_card_for_customer":
+{ Args: { "p_card": string,"p_note"?: string }; Returns: undefined
+                           },
+"approve_statement_for_customer":
+{ Args: { "p_note"?: string,"p_statement": string }; Returns: undefined
+                           },
 "archive_document":
 { Args: { "p_archive": boolean,"p_document": string }; Returns: undefined
                            },
@@ -1971,11 +1962,7 @@ export type CompositeTypes<
   : never
 
 export const Constants = {
-  "graphql_public": {
-          Enums: {
-            
-          }
-        },"public": {
+  "public": {
           Enums: {
             "action_status": ["open", "completed", "cancelled"],"action_type": ["approval", "form", "task", "clarification", "uat", "upload", "decision", "invoice", "meeting_action"],"approval_action": ["requested", "approved", "changes_requested", "resubmitted", "cancelled"],"approval_status": ["pending", "approved", "changes_requested", "cancelled"],"billing_kind": ["day_rate", "delivery", "unit", "retainer"],"csat_kind": ["request", "pulse", "closure"],"customer_role": ["customer_exec", "customer_member"],"feedback_kind": ["praise", "suggestion", "issue", "other"],"feedback_status": ["new", "acknowledged", "actioned", "closed"],"health": ["on_track", "needs_attention", "at_risk"],"internal_role": ["admin", "ceo", "pm", "consultant", "finance"],"owner_side": ["seven_billion", "customer"],"priority": ["low", "normal", "high", "critical"],"project_status": ["active", "on_hold", "completed"],"rate_card_status": ["draft", "pending", "approved", "changes_requested", "superseded"],"request_status": ["submitted", "under_review", "clarification", "estimated", "approved", "scheduled", "in_development", "uat", "delivered", "cancelled"],"request_type": ["requirement", "enhancement", "change_request", "bug", "new_report", "data_request", "access_request", "support", "other"],"setup_status": ["pending", "created", "dismissed"],"statement_status": ["draft", "pending", "approved", "changes_requested", "invoiced"],"task_status": ["todo", "in_progress", "in_review", "waiting_customer", "blocked", "done"],"update_status": ["draft", "published"],"user_kind": ["internal", "customer"],"visibility": ["internal", "shared"]
           }

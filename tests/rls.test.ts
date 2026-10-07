@@ -704,3 +704,56 @@ describe('import from HubSpot and Zoho', () => {
     expect((await michel.from('customer_contacts').select('id')).data).toHaveLength(0)
   })
 })
+
+describe('approving for the customer', () => {
+  it('finance, the CEO or an admin confirm rates for the customer; the PM and the customer cannot use it', async () => {
+    const project = (await service.from('projects').select('id').eq('name', 'Management Reporting').single()).data!.id
+    const { data: v3 } = await finance.rpc('start_rate_card', { p_project: project })
+    const card = v3 as string
+    expect((await rahul.rpc('approve_rate_card_for_customer', { p_card: card })).error?.message).toMatch(/not allowed/)
+    expect((await michel.rpc('approve_rate_card_for_customer', { p_card: card })).error?.message).toMatch(/not allowed/)
+    // straight from the draft, without sending it to the customer first
+    expect((await finance.rpc('approve_rate_card_for_customer', { p_card: card, p_note: 'Signed SOW, 7 Oct' })).error).toBeNull()
+    const { data } = await service.from('rate_cards').select('status, approved_for_customer, decision_note').eq('id', card).single()
+    expect(data).toMatchObject({ status: 'approved', approved_for_customer: true })
+    expect(data!.decision_note).toMatch(/for the customer: Signed SOW, 7 Oct/)
+    expect((await service.from('rate_cards').select('id').eq('project_id', project).eq('status', 'approved')).data).toHaveLength(1)
+    expect((await finance.rpc('approve_rate_card_for_customer', { p_card: card })).error?.message).toMatch(/already decided/)
+    // the customer's billing contact is told, as information rather than a task
+    const { data: told } = await michel.from('notifications').select('title, needs_action').like('title', 'Rates confirmed%')
+    expect(told!.length).toBe(1)
+    expect(told![0]!.needs_action).toBe(false)
+  })
+
+  it('a statement can be approved for the customer from the draft; the PM cannot', async () => {
+    const project = (await service.from('projects').select('id').eq('name', 'Management Reporting').single()).data!.id
+    const { data: id } = await finance.rpc('create_statement', { p_project: project, p_start: '2026-10-01', p_end: '2026-10-31' })
+    const st = id as string
+    expect((await rahul.rpc('approve_statement_for_customer', { p_statement: st })).error?.message).toMatch(/not allowed/)
+    expect((await finance.rpc('approve_statement_for_customer', { p_statement: st })).error).toBeNull()
+    expect((await service.from('billing_statements').select('status, approved_for_customer').eq('id', st).single()).data)
+      .toMatchObject({ status: 'approved', approved_for_customer: true })
+    expect((await michel.from('notifications').select('id').like('title', 'Statement confirmed%')).data!.length).toBe(1)
+  })
+
+  it('the PM approves an estimate for the customer; a consultant and the customer cannot use it', async () => {
+    const michelId = (await service.from('profiles').select('id').eq('email', 'michel@nesma.example.com').single()).data!.id
+    const { data: req } = await service.from('requests').select('id, customer_id, project_id, number, title')
+      .eq('customer_id', (await service.from('profiles').select('customer_id').eq('id', michelId).single()).data!.customer_id!)
+      .not('project_id', 'is', null).limit(1).single()
+    const { data: ap, error } = await service.from('approvals').insert({
+      request_id: req!.id, customer_id: req!.customer_id, project_id: req!.project_id, kind: 'estimate', title: `Estimate for ${req!.number}`,
+      summary: 'Two days', effort: 2, effort_unit: 'day', approver_id: michelId,
+      requested_by: (await service.from('profiles').select('id').eq('email', 'rahul@example.com').single()).data!.id,
+    }).select('id').single()
+    expect(error).toBeNull()
+    expect((await sahil.rpc('approve_for_customer', { p_approval: ap!.id })).error?.message).toMatch(/not allowed/)
+    expect((await michel.rpc('approve_for_customer', { p_approval: ap!.id })).error?.message).toMatch(/not allowed/)
+    expect((await rahul.rpc('approve_for_customer', { p_approval: ap!.id, p_note: 'agreed on the call' })).error).toBeNull()
+    expect((await service.from('approvals').select('status').eq('id', ap!.id).single()).data!.status).toBe('approved')
+    const { data: ev } = await service.from('approval_events').select('action, comment').eq('approval_id', ap!.id).eq('action', 'approved').single()
+    expect(ev!.comment).toMatch(/on behalf of .*Michel.*: agreed on the call/)
+    // no open action left for the customer
+    expect((await service.from('action_items').select('id').eq('approval_id', ap!.id).eq('status', 'open')).data).toHaveLength(0)
+  })
+})

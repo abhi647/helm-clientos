@@ -364,7 +364,7 @@ test('billing (finance only): rate card approved by the customer, a statement ap
   await add.getByLabel('Role, delivery or unit').fill('Sales dashboard')
   await add.getByLabel('Rate', { exact: true }).fill('500')
   await add.getByRole('button', { name: 'Add line' }).click()
-  await expect(page.locator('details summary', { hasText: 'Sales dashboard' })).toBeVisible()
+  await expect(page.locator('details summary', { hasText: 'Sales dashboard' }).first()).toBeVisible()
   await shot(page, '21-billing-rate-card')
   await page.getByRole('button', { name: 'Send to customer for approval' }).click()
   await expect(page.getByText('Waiting for customer')).toBeVisible()
@@ -603,7 +603,7 @@ test.describe('on a phone, billing', () => {
     await add.getByLabel('Billing model').selectOption('day_rate')
     await addLine('Data engineer', '90', 4)
     await addLine('BI developer', '80', 5)
-    const list = page.locator('details summary')
+    const list = page.locator('details', { has: page.locator('input[name="line_id"]') }).locator('summary')
     await expect(list).toHaveCount(5)
     await expect(list.filter({ hasText: 'Per delivery' })).toHaveCount(3)
     await expect(list.filter({ hasText: 'Sales dashboard' })).toContainText('$500.00')
@@ -612,5 +612,23 @@ test.describe('on a phone, billing', () => {
     // a line opens for editing
     await list.filter({ hasText: 'Inventory dashboard' }).click()
     await expect(page.locator('details[open] input[name="label"]')).toHaveValue('Inventory dashboard')
+    await list.filter({ hasText: 'Inventory dashboard' }).click()
+
+    // a line typed but not added stops the send, so it is never lost
+    await add.getByLabel('Role, delivery or unit').fill('Forgotten line')
+    let warning = ''
+    page.once('dialog', (d) => { warning = d.message(); void d.accept() })
+    await page.getByRole('button', { name: 'Send to customer for approval' }).click()
+    await expect.poll(() => warning).toContain('has not been added yet')
+    await expect(page.getByText('Rate card v1')).toBeVisible()
+    await add.getByLabel('Role, delivery or unit').fill('')
+
+    // agreed in the contract: approved here, the customer is told
+    await page.getByText('✓ Approve the rates for the customer').click()
+    await page.getByLabel('How the customer agreed').fill('Signed SOW')
+    await page.getByRole('button', { name: 'Approve the rates for the customer' }).click()
+    await expect(page.getByRole('heading', { name: /Approved rates v1/ })).toBeVisible()   // the draft is replaced by the approved rates
+    await expect(page.getByText('Rate card v1')).toHaveCount(0)
+    await shot(page, '38-phone-rates-approved-for-customer')
   })
 })

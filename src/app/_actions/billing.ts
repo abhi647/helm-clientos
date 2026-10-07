@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { after } from 'next/server'
 import { z } from 'zod'
 import { createZohoDraftInvoice } from '@/lib/integrations/zoho'
-import { requireCustomer, requireStaff } from '@/lib/session'
+import { canSeeFinance, requireCustomer, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { type ActionResult, dbFail, done, fail, uuid } from './shared'
 import { CURRENCY_CODES } from '@/lib/currencies'
@@ -107,6 +107,37 @@ export async function submitRateCard(cardId: string): Promise<ActionResult> {
   const supabase = await createClient()
   const { error } = await supabase.rpc('submit_rate_card', { p_card: cardId })
   return error ? dbFail(error) : done('Sent to the customer for approval.')
+}
+
+const onBehalf = z.object({ note: z.preprocess((v) => (v == null ? '' : v), z.string().trim().max(500)) })
+
+/** Admin, CEO or finance approve the rates for the customer (agreed in the contract or on a call); the customer is told. */
+export async function approveRateCardForCustomer(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!canSeeFinance(me)) return fail('Only finance, the CEO or an admin can approve rates for the customer.')
+  const id = uuid.safeParse(form.get('card_id'))
+  const parsed = onBehalf.safeParse(Object.fromEntries(form))
+  if (!id.success || !parsed.success) return fail('Unknown rate card.')
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('approve_rate_card_for_customer', { p_card: id.data, p_note: parsed.data.note || undefined })
+  return error ? dbFail(error) : done('Approved. The customer has been told.')
+}
+
+/** The same for a statement; the Zoho draft invoice follows straight away. */
+export async function approveStatementForCustomer(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!canSeeFinance(me)) return fail('Only finance, the CEO or an admin can approve a statement for the customer.')
+  const id = uuid.safeParse(form.get('statement_id'))
+  const parsed = onBehalf.safeParse(Object.fromEntries(form))
+  if (!id.success || !parsed.success) return fail('Unknown statement.')
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('approve_statement_for_customer', { p_statement: id.data, p_note: parsed.data.note || undefined })
+  if (error) return dbFail(error)
+  after(async () => {
+    const res = await createZohoDraftInvoice(id.data)
+    if (!res.ok) console.error('[zoho] draft invoice', id.data, res.error)
+  })
+  return done('Approved. The customer has been told, and the draft invoice is being created in Zoho.')
 }
 
 export async function discardRateCard(cardId: string): Promise<ActionResult> {
