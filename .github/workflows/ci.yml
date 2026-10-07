@@ -28,7 +28,7 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.120.0   # pinned: "latest" asks the GitHub API, which rate-limits shared runners
       - name: Start Supabase
         run: supabase start -x vector,logflare,supavisor,imgproxy,postgres-meta,studio,realtime,edge-runtime
       - name: Write .env.local from the local stack (throwaway keys)
