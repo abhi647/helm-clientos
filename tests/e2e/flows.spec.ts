@@ -285,6 +285,56 @@ test('CEO sees the portfolio and finance', async ({ page }) => {
   await shot(page, '12-customer')
 })
 
+test('CEO adds a customer, links it to HubSpot and Zoho, and starts projects by hand', async ({ page }) => {
+  await signIn(page, 'abhijit@example.com')
+  await page.goto('/customers')
+  await page.getByText('+ Add customer').click()
+  await page.getByLabel('Customer name').fill('Orbit Foods')
+  await page.getByLabel('HubSpot company id').fill('9100001')
+  await page.getByRole('button', { name: 'Add customer' }).click()
+  await expect(page.getByRole('heading', { name: 'Orbit Foods' })).toBeVisible()
+  await expect(page.getByText('HubSpot 9100001 · Not linked to Zoho')).toBeVisible()
+
+  // link the Zoho customer afterwards (no integrations in tests, so the ids are saved as typed)
+  await page.getByLabel('Zoho Books customer id').fill('7700001')
+  await page.getByRole('button', { name: 'Save links' }).click()
+  await expect(page.getByRole('status').getByText('Saved.')).toBeVisible()
+  await page.reload()
+  await expect(page.getByText('HubSpot 9100001 · Zoho 7700001')).toBeVisible()
+  await shot(page, '35-customer-links')
+
+  // a blank project
+  await page.getByRole('link', { name: '+ New project' }).click()
+  await page.getByLabel('Project name').fill('Orbit pilot')
+  await page.getByRole('button', { name: 'Create project' }).click()
+  await expect(page).toHaveURL(/\/projects\/[0-9a-f-]+\?created=1/)
+  await expect(page.getByRole('heading', { name: 'Orbit pilot' })).toBeVisible()
+  await expect(page.getByText('Delivery').first()).toBeVisible()
+  await shot(page, '36-new-project')
+
+  // one from a template, linked to a HubSpot deal
+  await page.goto('/projects/new')
+  await page.getByRole('link', { name: 'Orbit Foods' }).click()
+  await page.getByLabel('Project name').fill('Orbit dashboards')
+  await page.getByLabel('Plan').selectOption({ index: 1 })
+  await page.getByLabel('HubSpot deal id (optional)').fill('5500001')
+  await page.getByRole('button', { name: 'Create project' }).click()
+  await expect(page.getByRole('heading', { name: 'Orbit dashboards' })).toBeVisible()
+
+  // the same deal cannot be linked twice
+  await page.goto('/projects/new')
+  await page.getByRole('link', { name: 'Orbit Foods' }).click()
+  await page.getByLabel('Project name').fill('Orbit again')
+  await page.getByLabel('HubSpot deal id (optional)').fill('5500001')
+  await page.getByRole('button', { name: 'Create project' }).click()
+  await expect(page.getByText('That HubSpot deal is already linked to another project.')).toBeVisible()
+
+  // a consultant cannot start projects
+  await signIn(page, 'sahil@example.com')
+  await page.goto('/projects')
+  await expect(page.getByRole('link', { name: '+ New project' })).toHaveCount(0)
+})
+
 test('billing (finance only): rate card approved by the customer, a statement approved, then sent to Zoho', async ({ page }) => {
   page.on('dialog', (d) => d.accept())
   const openBilling = async () => {

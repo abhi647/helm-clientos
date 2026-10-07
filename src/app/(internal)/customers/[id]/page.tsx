@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { dismissContact, inviteCustomerUser, setCustomerAccess } from '@/app/_actions/admin'
+import { dismissContact, inviteCustomerUser, setCustomerAccess, setCustomerLinks } from '@/app/_actions/admin'
 import { ActionButton, ActionForm } from '@/components/forms'
 import { ActivityList, DocumentsPanel } from '@/components/project-parts'
 import { Avatar, Card, Chip, Empty, Health, PageHeader, Progress } from '@/components/ui'
@@ -32,7 +32,12 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
   const prog = new Map((progress ?? []).map((p) => [p.project_id, p.total ? (100 * (p.done ?? 0)) / p.total : 0]))
   return (
     <>
-      <PageHeader title={c.name} meta={<span className="text-xs text-muted">{c.hubspot_company_id ? `HubSpot company ${c.hubspot_company_id}` : 'Not linked to HubSpot'}</span>} actions={<Link href={`/requests/new?customer=${c.id}`} className="btn">+ Log a request</Link>} />
+      <PageHeader title={c.name}
+        meta={<span className="text-xs text-muted">{c.hubspot_company_id ? `HubSpot ${c.hubspot_company_id}` : 'Not linked to HubSpot'} · {c.zoho_customer_id ? `Zoho ${c.zoho_customer_id}` : 'Not linked to Zoho'}</span>}
+        actions={<div className="flex flex-wrap gap-2">
+          {canManage(me) ? <Link href={`/projects/new?customer=${c.id}`} className="btn">+ New project</Link> : null}
+          <Link href={`/requests/new?customer=${c.id}`} className="btn">+ Log a request</Link>
+        </div>} />
       <div className="flex flex-col gap-3 p-4">
         <div className="flex flex-wrap items-start gap-3">
           <Card flush className="min-w-0 flex-[999_1_520px] overflow-x-auto" title="Projects">
@@ -42,6 +47,23 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                 <span className="truncate text-xs">{p.pm?.full_name}</span><span className="font-mono text-xs text-muted">{shortDate(p.end_date)}</span>
               </Link>
             )) : <Empty title="No projects yet" />}
+          </Card>
+          <Card className="min-w-0 flex-[1_1_320px]" title="HubSpot and Zoho">
+            {canManage(me) ? (
+              <ActionForm action={setCustomerLinks} submit="Save links" resetOnSuccess={false} primary={false}>
+                <input type="hidden" name="customer_id" value={c.id} />
+                <label className="flex flex-col gap-1"><span className="label">HubSpot company id</span>
+                  <input name="hubspot_company_id" defaultValue={c.hubspot_company_id ?? ''} inputMode="numeric" className="input" placeholder="Not linked" /></label>
+                <label className="flex flex-col gap-1"><span className="label">Zoho Books customer id</span>
+                  <input name="zoho_customer_id" defaultValue={c.zoho_customer_id ?? ''} inputMode="numeric" className="input" placeholder="Not linked" /></label>
+                <p className="m-0 text-xs text-muted">Checked against HubSpot and Zoho before saving. Zoho invoices and payments follow this id; HubSpot deals and contacts follow the company id.</p>
+              </ActionForm>
+            ) : (
+              <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[13px]">
+                <dt className="text-muted">HubSpot</dt><dd className="m-0 font-mono">{c.hubspot_company_id ?? 'Not linked'}</dd>
+                <dt className="text-muted">Zoho</dt><dd className="m-0 font-mono">{c.zoho_customer_id ?? 'Not linked'}</dd>
+              </dl>
+            )}
           </Card>
           <Card className="min-w-0 flex-[1_1_320px]" title="Portal users" extra={`${people?.length ?? 0}`}>
             <div className="flex flex-col gap-1.5">

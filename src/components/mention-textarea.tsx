@@ -3,6 +3,7 @@
 import { Command } from 'cmdk'
 import getCaretCoordinates from 'textarea-caret'
 import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Avatar, cn } from '@/components/ui'
 
 export type Person = { id: string; name: string; customer: boolean }
@@ -57,10 +58,15 @@ export const MentionTextarea = forwardRef<{ clear: (sent?: string) => void }, {
     const caret = el.selectionStart
     const before = el.value.slice(0, caret).replace(/@([^\s@]{0,30})$/, `@${p.name} `)
     const next = before + el.value.slice(caret)
-    setText(next)
-    setPicked((list) => (list.some((x) => x.id === p.id) ? list : [...list, p]))
-    setQuery(null)
-    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(before.length, before.length) })
+    // render the new text now and put the caret after the name in the same step: if the caret moved a frame later,
+    // anything typed in between would land before the name
+    flushSync(() => {
+      setText(next)
+      setPicked((list) => (list.some((x) => x.id === p.id) ? list : [...list, p]))
+      setQuery(null)
+    })
+    el.focus()
+    el.setSelectionRange(before.length, before.length)
   }
 
   return (

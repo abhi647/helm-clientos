@@ -2,13 +2,13 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Card, Empty, Health, PageHeader, Progress } from '@/components/ui'
 import { shortDate } from '@/lib/format'
-import { requireStaff } from '@/lib/session'
+import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { title: 'Projects' }
 
 export default async function Projects() {
-  await requireStaff()
+  const me = await requireStaff()
   const supabase = await createClient()
   const [{ data: projects }, { data: progress }] = await Promise.all([
     supabase.from('projects').select('id, name, health, status, start_date, end_date, customers(name), pm:profiles!projects_pm_id_fkey(full_name)').order('status').order('name'),
@@ -17,7 +17,8 @@ export default async function Projects() {
   const prog = new Map((progress ?? []).map((p) => [p.project_id, p.total ? (100 * (p.done ?? 0)) / p.total : 0]))
   return (
     <>
-      <PageHeader title="Projects" meta={<span className="text-xs text-muted">{projects?.length ?? 0} projects</span>} />
+      <PageHeader title="Projects" meta={<span className="text-xs text-muted">{projects?.length ?? 0} projects</span>}
+        actions={canManage(me) ? <Link href="/projects/new" className="btn btn-primary">+ New project</Link> : null} />
       <div className="p-4">
         <Card flush className="overflow-x-auto">
           {projects?.length ? (
@@ -35,7 +36,7 @@ export default async function Projects() {
                 </div>
               ))}
             </div>
-          ) : <Empty title="No projects yet">Projects are created from a HubSpot Closed Won deal on Home.</Empty>}
+          ) : <Empty title="No projects yet">Won deals in HubSpot arrive on Home ready to set up, or start one with New project.</Empty>}
         </Card>
       </div>
     </>

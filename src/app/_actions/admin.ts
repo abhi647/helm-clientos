@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { canManage, requireStaff } from '@/lib/session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { lookupHubSpotCompany, lookupHubSpotDeal, lookupProblem, lookupZohoCustomer } from '@/lib/integrations/lookup'
 import { syncZohoInvoices } from '@/lib/integrations/zoho'
 import { templateByKey } from '@/lib/templates'
 import { type ActionResult, dbFail, done, fail, formObject, uuid } from './shared'
@@ -48,6 +49,81 @@ export async function inviteCustomerUser(_prev: ActionResult | null, form: FormD
 
 const addDays = (start: Date, d: number) => new Date(start.getTime() + d * 86_400_000).toISOString().slice(0, 10)
 
+type Db = Awaited<ReturnType<typeof createClient>>
+
+/**
+ * Creates a project with its plan: the template's phases, tasks and estimates, or one empty "Delivery" phase when no
+ * template is chosen. Used by "New project" and by setting up a HubSpot Closed Won deal.
+ */
+async function buildProject(supabase: Db, meId: string, p: {
+  customerId: string; name: string; templateKey: string | null; startDate: string; endDate?: string | null; pmId: string; hubspotDealId?: string | null
+}): Promise<{ id: string } | ActionResult> {
+  const template = templateByKey(p.templateKey)
+  const start = new Date(`${p.startDate}T00:00:00Z`)
+  const { data: project, error: pErr } = await supabase.from('projects').insert({
+    customer_id: p.customerId, name: p.name, template_key: template?.key ?? null, start_date: p.startDate,
+    end_date: p.endDate || (template ? addDays(start, template.weeks * 7) : null), pm_id: p.pmId, hubspot_deal_id: p.hubspotDealId || null,
+  }).select('id').single()
+  if (pErr || !project) return dbFail(pErr, pErr?.code === '23505' ? 'That HubSpot deal is already linked to another project.' : undefined)
+
+  const phases = template?.phases ?? [{ name: 'Delivery', tasks: [] }]
+  for (const [i, phase] of phases.entries()) {
+    const { data: ph, error } = await supabase.from('phases').insert({ project_id: project.id, customer_id: p.customerId, name: phase.name, position: i }).select('id').single()
+    if (error || !ph) return dbFail(error)
+    if (!phase.tasks.length) continue
+    const { data: tasks, error: tErr } = await supabase.from('tasks').insert(phase.tasks.map((t, j) => ({
+      project_id: project.id, phase_id: ph.id, customer_id: p.customerId, title: t.title, position: i * 100 + j,
+      start_date: addDays(start, t.start), due_date: addDays(start, t.start + t.days), spotlight: !!t.spotlight,
+      visibility: t.internal ? 'internal' as const : 'shared' as const, owner_side: t.customer ? 'customer' as const : 'seven_billion' as const,
+      assignee_id: t.customer ? null : p.pmId, created_by: meId,
+    }))).select('id, title')
+    if (tErr || !tasks) return dbFail(tErr)
+    const estimates = phase.tasks.map((t, j) => ({ task_id: tasks[j]!.id, customer_id: p.customerId, estimate: t.estimate ?? null, unit: 'day' }))
+      .filter((e): e is { task_id: string; customer_id: string; estimate: number; unit: string } => e.estimate != null)
+    if (estimates.length) await supabase.from('task_estimates').insert(estimates)
+  }
+  return { id: project.id }
+}
+
+const blankToNull = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? null : v)
+const projectSchema = z.object({
+  customer_id: uuid,
+  name: z.preprocess(blankToNull, z.string().trim().min(2, 'Enter the project name.').max(160).nullable()),
+  template_key: z.preprocess(blankToNull, z.string().max(40).nullable()),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Choose a start date.'),
+  end_date: z.preprocess(blankToNull, z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable()),
+  pm_id: uuid,
+  hubspot_deal_id: z.preprocess(blankToNull, z.string().trim().max(40).nullable()),
+})
+
+/** A project started by hand (not from a HubSpot deal). Optionally linked to a HubSpot deal, checked against HubSpot. */
+export async function createProject(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!canManage(me)) return fail('Only a PM, the CEO or an admin can start projects.')
+  const parsed = projectSchema.safeParse(formObject(form))
+  if (!parsed.success) return fail(parsed.error.issues[0]!.message)
+  const d = parsed.data
+  if (d.template_key && !templateByKey(d.template_key)) return fail('Unknown template.')
+  if (d.end_date && d.end_date < d.start_date) return fail('The end date is before the start date.')
+  let name = d.name
+  if (d.hubspot_deal_id) {
+    const deal = await lookupHubSpotDeal(d.hubspot_deal_id)
+    const problem = lookupProblem('HubSpot deal', d.hubspot_deal_id, deal)
+    if (problem) return fail(problem)
+    if (!name && deal.found) name = deal.name
+  }
+  if (!name) return fail('Enter the project name.')
+  const supabase = await createClient()
+  const built = await buildProject(supabase, me.id, {
+    customerId: d.customer_id, name, templateKey: d.template_key, startDate: d.start_date, endDate: d.end_date, pmId: d.pm_id, hubspotDealId: d.hubspot_deal_id,
+  })
+  if ('ok' in built) return built
+  // a Closed Won deal waiting on Home is now set up
+  if (d.hubspot_deal_id) await supabase.from('engagement_setups').update({ status: 'created', project_id: built.id }).eq('hubspot_deal_id', d.hubspot_deal_id).eq('status', 'pending')
+  done()
+  redirect(`/projects/${built.id}?created=1`)
+}
+
 /** One click from a HubSpot Closed Won deal to a full project: customer, phases, tasks and estimates. */
 export async function createEngagement(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   const me = await requireStaff()
@@ -74,27 +150,11 @@ export async function createEngagement(_prev: ActionResult | null, form: FormDat
     customerId = id
   }
 
-  const start = new Date(`${parsed.data.start_date}T00:00:00Z`)
-  const { data: project, error: pErr } = await supabase.from('projects').insert({
-    customer_id: customerId, name: setup.deal_name, template_key: template.key, start_date: parsed.data.start_date,
-    end_date: addDays(start, template.weeks * 7), pm_id: parsed.data.pm_id, hubspot_deal_id: setup.hubspot_deal_id,
-  }).select('id').single()
-  if (pErr || !project) return dbFail(pErr)
-
-  for (const [i, phase] of template.phases.entries()) {
-    const { data: ph, error } = await supabase.from('phases').insert({ project_id: project.id, customer_id: customerId, name: phase.name, position: i }).select('id').single()
-    if (error || !ph) return dbFail(error)
-    const { data: tasks, error: tErr } = await supabase.from('tasks').insert(phase.tasks.map((t, j) => ({
-      project_id: project.id, phase_id: ph.id, customer_id: customerId!, title: t.title, position: i * 100 + j,
-      start_date: addDays(start, t.start), due_date: addDays(start, t.start + t.days), spotlight: !!t.spotlight,
-      visibility: t.internal ? 'internal' as const : 'shared' as const, owner_side: t.customer ? 'customer' as const : 'seven_billion' as const,
-      assignee_id: t.customer ? null : parsed.data.pm_id, created_by: me.id,
-    }))).select('id, title')
-    if (tErr || !tasks) return dbFail(tErr)
-    const estimates = phase.tasks.map((t, j) => ({ task_id: tasks[j]!.id, customer_id: customerId!, estimate: t.estimate ?? null, unit: 'day' }))
-      .filter((e): e is { task_id: string; customer_id: string; estimate: number; unit: string } => e.estimate != null)
-    if (estimates.length) await supabase.from('task_estimates').insert(estimates)
-  }
+  const built = await buildProject(supabase, me.id, {
+    customerId, name: setup.deal_name, templateKey: template.key, startDate: parsed.data.start_date, pmId: parsed.data.pm_id, hubspotDealId: setup.hubspot_deal_id,
+  })
+  if ('ok' in built) return built
+  const project = built
   await supabase.from('engagement_setups').update({ status: 'created', project_id: project.id }).eq('id', setup.id)
   done()
   redirect(`/projects/${project.id}?created=1`)
@@ -163,7 +223,7 @@ export async function setStaffRole(userId: string, role: (typeof ROLES)[number] 
 }
 
 const customerSchema = z.object({
-  name: z.string().trim().min(2, 'Enter the customer name.').max(160),
+  name: z.preprocess((v) => (v === '' ? null : v), z.string().trim().min(2, 'Enter the customer name.').max(160).nullable()),
   account_owner_id: z.preprocess((v) => (v === '' ? null : v), uuid.nullable()),
   hubspot_company_id: z.preprocess((v) => (v === '' ? null : v), z.string().trim().max(40).nullable()),
   zoho_customer_id: z.preprocess((v) => (v === '' ? null : v), z.string().trim().max(40).nullable()),
@@ -174,12 +234,45 @@ export async function createCustomer(_prev: ActionResult | null, form: FormData)
   if (!canManage(me)) return fail('Only a PM, the CEO or an admin can add customers.')
   const parsed = customerSchema.safeParse(formObject(form))
   if (!parsed.success) return fail(parsed.error.issues[0]!.message)
+  const checked = await checkCustomerIds(parsed.data.hubspot_company_id, parsed.data.zoho_customer_id)
+  if ('ok' in checked) return checked
+  const name = parsed.data.name ?? checked.name
+  if (!name) return fail('Enter the customer name, or a HubSpot or Zoho id to fill it in.')
   const supabase = await createClient()
   const id = crypto.randomUUID()
-  const { error } = await supabase.from('customers').insert({ id, ...parsed.data, org_id: me.org_id! })
+  const { error } = await supabase.from('customers').insert({ id, ...parsed.data, name, org_id: me.org_id! })
   if (error) return dbFail(error, error.code === '23505' ? 'A customer with that HubSpot or Zoho id already exists.' : undefined)
   done()
   redirect(`/customers/${id}`)
+}
+
+/** Checks HubSpot and Zoho ids against the real records; returns the name found there (HubSpot first). */
+async function checkCustomerIds(hubspot: string | null, zoho: string | null): Promise<{ name: string | null } | ActionResult> {
+  const [h, z] = await Promise.all([hubspot ? lookupHubSpotCompany(hubspot) : null, zoho ? lookupZohoCustomer(zoho) : null])
+  const problem = (hubspot && h && lookupProblem('HubSpot company', hubspot, h)) || (zoho && z && lookupProblem('Zoho customer', zoho, z))
+  if (problem) return fail(problem)
+  return { name: (h?.found ? h.name : null) ?? (z?.found ? z.name : null) }
+}
+
+const linksSchema = z.object({
+  customer_id: uuid,
+  hubspot_company_id: z.preprocess((v) => (v === '' ? null : v), z.string().trim().max(40).nullable()),
+  zoho_customer_id: z.preprocess((v) => (v === '' ? null : v), z.string().trim().max(40).nullable()),
+})
+
+/** Links an existing customer to its HubSpot company and Zoho Books customer (or unlinks, when left blank). */
+export async function setCustomerLinks(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!canManage(me)) return fail('Only a PM, the CEO or an admin can change the links.')
+  const parsed = linksSchema.safeParse(formObject(form))
+  if (!parsed.success) return fail(parsed.error.issues[0]!.message)
+  const { customer_id, ...ids } = parsed.data
+  const checked = await checkCustomerIds(ids.hubspot_company_id, ids.zoho_customer_id)
+  if ('ok' in checked) return checked
+  const supabase = await createClient()
+  const { error } = await supabase.from('customers').update(ids).eq('id', customer_id)
+  if (error) return dbFail(error, error.code === '23505' ? 'Another customer is already linked to that HubSpot or Zoho id.' : undefined)
+  return done(checked.name ? `Linked. Found "${checked.name}".` : 'Saved.')
 }
 
 export async function setAccountOwner(customerId: string, ownerId: string): Promise<ActionResult> {

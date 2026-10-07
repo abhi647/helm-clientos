@@ -23,11 +23,11 @@ export default async function Customers() {
             <summary className="btn btn-primary list-none">+ Add customer</summary>
             <div className="card absolute right-0 z-20 mt-1 w-[300px] p-3 shadow-[0_4px_16px_rgba(15,42,48,.12)]">
               <ActionForm action={createCustomer} submit="Add customer">
-                <input name="name" required aria-label="Customer name" placeholder="Company name" className="input" />
+                <input name="name" aria-label="Customer name" placeholder="Company name" className="input" />
                 <input type="hidden" name="account_owner_id" value={me.id} />
                 <input name="hubspot_company_id" aria-label="HubSpot company id" placeholder="HubSpot company id (optional)" className="input" />
                 <input name="zoho_customer_id" aria-label="Zoho customer id" placeholder="Zoho customer id (optional)" className="input" />
-                <p className="m-0 text-xs text-muted">You become the account owner. Change it in Admin.</p>
+                <p className="m-0 text-xs text-muted">The ids are checked against HubSpot and Zoho. Leave the name empty to use the name found there. You become the account owner.</p>
               </ActionForm>
             </div>
           </details>
