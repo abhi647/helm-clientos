@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { composeEmail, voice, type EmailContext } from '@/lib/email-copy'
+import { composeEmail, look, voice, type EmailContext } from '@/lib/email-copy'
 
 const omar: EmailContext = { first: 'Omar', customerSide: true, workspace: 'Nesma Group' }
 const rahul: EmailContext = { first: 'Rahul', customerSide: false, workspace: 'Seven Billion', customer: 'Nesma Group' }
@@ -45,5 +45,22 @@ describe('notification emails', () => {
     expect(subject).toBe('Hello')
     expect(html).not.toContain('>Project<')
     expect(html).toContain('Oct 3')
+  })
+
+  it('each kind has its own colour, icon, P.S. and sign-off', () => {
+    expect(look('project.at_risk', rahul).badge).toBe('wind-terra')
+    expect(look('request.status', { ...omar, stage: 'delivered' }).badge).toBe('anchor-turq')
+    const { html, text } = composeEmail({ ...base, kind: 'approval.requested', title: 'x', c: omar })
+    expect(html).toContain('https://helm.sevenbillion.co/email/compass-inky.png')
+    expect(html).toContain('/email/wave.png')
+    expect(html).toContain('Fair winds,<br>the Seven Billion crew')
+    expect(text).toContain('P.S. Not sure yet?')
+  })
+
+  it('a customer comment reads as a quote, and the stage is not repeated under the progress bar', () => {
+    expect(composeEmail({ ...base, kind: 'approval.changes_requested', title: 'x', body: 'Split it in two', c: rahul }).html).toMatch(/font-style:italic[^>]*><p[^>]*>Split it in two/)
+    const { html } = composeEmail({ ...base, kind: 'request.status', title: 'x', c: { ...omar, stage: 'uat', details: [['Stage', 'UAT'], ['Priority', 'High']] } })
+    expect(html).not.toContain('>Stage<')
+    expect(html).toContain('next up: Delivered')
   })
 })

@@ -58,47 +58,145 @@ export function voice(kind: string, title: string, c: EmailContext): Voice {
   }
 }
 
-/** The progress tracker: nine stages, the ones reached filled in. Plain tables, so every email client shows it. */
+// ---------------------------------------------------------------- the look
+
+type Mood = 'inky' | 'peacock' | 'turq' | 'terra' | 'berry'
+// banner colour, eyebrow pill, eyebrow text, intro text. Solid colours only: Outlook ignores transparency.
+const MOODS: Record<Mood, { bg: string; pill: string; pillText: string; soft: string }> = {
+  inky: { bg: '#13343b', pill: '#24505a', pillText: '#8fe3ee', soft: '#cfe3e6' },
+  peacock: { bg: '#2e575d', pill: '#42707a', pillText: '#c9f1f5', soft: '#d9eaec' },
+  turq: { bg: '#208090', pill: '#3b98a6', pillText: '#ffffff', soft: '#e2f4f6' },
+  terra: { bg: '#a94b31', pill: '#bf6449', pillText: '#fed2a5', soft: '#f8e3da' },
+  berry: { bg: '#954455', pill: '#a95e6e', pillText: '#fed2a5', soft: '#f6e1e5' },
+}
+
+type Look = { mood: Mood; badge: string; ps?: string; signoff: string }
+
+/** Colour, icon, a P.S. and a sign-off for each kind. Badge files come from scripts/email-art.mjs. */
+export function look(kind: string, c: EmailContext): Look {
+  switch (kind) {
+    case 'approval.requested':
+      return { mood: 'inky', badge: 'compass-inky', signoff: 'Fair winds', ps: 'Not sure yet? Ask a question on the approval. Nothing moves until you decide.' }
+    case 'approval.resubmitted':
+      return { mood: 'inky', badge: 'compass-inky', signoff: 'Fair winds', ps: 'Still not right? Send it back with a note. There is no limit on rounds.' }
+    case 'approval.approved':
+      return { mood: 'turq', badge: 'flag-turq', signoff: 'Full steam ahead', ps: 'The decision, and who made it, is saved on the approval.' }
+    case 'approval.changes_requested':
+      return { mood: 'peacock', badge: 'reply-peacock', signoff: 'Back at it', ps: 'When the revision is ready, resubmit it from the approval page.' }
+    case 'action.assigned':
+      return { mood: 'inky', badge: 'hand-inky', signoff: 'Thanks for steering', ps: 'Done it already? Mark it complete in Helm so the team knows.' }
+    case 'task.assigned':
+      return { mood: 'peacock', badge: 'wheel-peacock', signoff: 'Steady as she goes', ps: 'Log your days against it from My Work as you go.' }
+    case 'request.submitted':
+      return { mood: 'peacock', badge: 'bottle-peacock', signoff: 'Hands on deck', ps: 'A quick reply today, even "on it", goes a long way.' }
+    case 'request.logged':
+      return { mood: 'peacock', badge: 'pencil-peacock', signoff: 'Noted and on board', ps: 'Did we get something wrong? Reply on the request and we will fix it.' }
+    case 'request.status':
+      return c.stage === 'delivered'
+        ? { mood: 'turq', badge: 'anchor-turq', signoff: 'Anchors down', ps: 'Tell us how we did. One rating, ten seconds.' }
+        : { mood: 'peacock', badge: 'sailboat-peacock', signoff: 'Onwards', ps: 'Every step, with dates, is on the request page.' }
+    case 'request.critical':
+      return { mood: 'terra', badge: 'siren-terra', signoff: 'All hands', ps: 'Say who is on it in the request thread, so the customer sees it is moving.' }
+    case 'project.at_risk':
+      return { mood: 'terra', badge: 'wind-terra', signoff: 'Hold the course', ps: 'Add the reason and the next step to the project, so the weekly update tells the same story.' }
+    case 'update.published':
+      return { mood: 'turq', badge: 'telescope-turq', signoff: 'Until next week', ps: 'Questions about the update? Reply on it in Helm and the team will see it.' }
+    case 'comment.mention':
+      return { mood: 'inky', badge: 'at-inky', signoff: 'Over and out', ps: 'Replying in Helm keeps the whole thread in one place.' }
+    case 'csat.request': case 'csat.pulse':
+      return { mood: 'berry', badge: 'star-berry', signoff: 'With thanks', ps: 'Comments are optional, but we read every one.' }
+    case 'billing':
+      return { mood: 'peacock', badge: 'receipt-peacock', signoff: 'Steady hands on the wheel' }
+    default:
+      return { mood: 'inky', badge: 'wheel-inky', signoff: 'Steady hands on the wheel' }
+  }
+}
+
+const SERIF = "Newsreader,Georgia,'Times New Roman',serif"
+const SANS = "'IBM Plex Sans',Arial,Helvetica,sans-serif"
+// the record's identity goes on one line at the top of the ticket; everything else becomes a big fact
+const REF_KEYS = ['Request', 'Project']
+
+/** The progress bar: nine stages, the ones reached filled in, the current one picked out. Plain tables, so every client shows it. */
 function tracker(stage: string) {
   const at = STAGES.indexOf(stage)
   if (at < 0) return ''
-  const cells = STAGES.map((s, i) => `<td title="${esc(stageLabel(s))}" style="height:6px;background:${i <= at ? '#208090' : '#dbe4e6'};border-radius:3px"></td>`).join('<td style="width:3px"></td>')
-  return `<tr><td style="padding:2px 24px 14px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${cells}</tr></table>
-<div style="font-size:12px;color:#5b6b70;margin-top:6px">Step ${at + 1} of ${STAGES.length}: <b style="color:#13343b">${esc(stageLabel(stage))}</b></div></td></tr>`
+  const cells = STAGES.map((s, i) => `<td title="${esc(stageLabel(s))}" style="height:${i === at ? 10 : 6}px;background:${i < at ? '#208090' : i === at ? '#20b8cd' : '#dbe4e6'};border-radius:5px;font-size:0;line-height:0">&nbsp;</td>`).join('<td style="width:4px;font-size:0">&nbsp;</td>')
+  const next = STAGES[at + 1]
+  return `<tr><td style="padding:4px 28px 18px">
+<div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6a8288;margin-bottom:8px">The voyage so far</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr style="vertical-align:middle">${cells}</tr></table>
+<div style="font-size:13px;color:#5b6b70;margin-top:8px">Step ${at + 1} of ${STAGES.length}: <b style="color:#13343b">${esc(stageLabel(stage))}</b>${next ? ` <span style="color:#8aa0a5">&nbsp;·&nbsp; next up: ${esc(stageLabel(next))}</span>` : ' <span style="color:#208090">&nbsp;·&nbsp; journey complete</span>'}</div></td></tr>`
 }
+
+/** The details as a ticket: the record's name across the top, then the facts in large type. */
+function ticket(rows: [string, string][], color: string) {
+  if (!rows.length) return ''
+  const ref = rows.filter(([k]) => REF_KEYS.includes(k)).map(([, v]) => esc(v)).join(' &nbsp;·&nbsp; ')
+  const facts = rows.filter(([k]) => !REF_KEYS.includes(k))
+  const per = facts.length === 4 ? 2 : Math.min(3, facts.length)
+  const lines: string[] = []
+  for (let i = 0; i < facts.length; i += per) {
+    const row = facts.slice(i, i + per)
+    lines.push(`<tr>${row.map(([k, v], j) => `<td width="${Math.floor(100 / per)}%" style="padding:12px 16px;vertical-align:top;${j ? 'border-left:1px solid #e2eaec;' : ''}">
+<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#6a8288">${esc(k)}</div>
+<div style="font-size:19px;font-weight:700;color:#13343b;margin-top:3px;line-height:1.25">${esc(v)}</div></td>`).join('')}${row.length < per ? `<td colspan="${per - row.length}" style="border-left:1px solid #e2eaec"></td>` : ''}</tr>`)
+  }
+  return `<tr><td style="padding:6px 28px 18px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #dbe6e8;border-left:5px solid ${color};border-radius:10px;background:#fbfdfd">
+${ref ? `<tr><td colspan="${per || 1}" style="padding:11px 16px;background:#f2f8f8;border-bottom:1px dashed #c4d8db;border-radius:0 10px 0 0;font-size:13px;font-weight:600;color:#2e575d">${ref}</td></tr>` : ''}
+${lines.join('<tr><td colspan="' + per + '" style="border-top:1px dashed #dbe6e8;font-size:0;line-height:0">&nbsp;</td></tr>')}
+</table></td></tr>`
+}
+
+// messages people wrote read as a quote; system summaries as plain text
+const QUOTED = ['approval.changes_requested', 'comment.mention']
 
 export function composeEmail({ kind, title, body, link, c, siteOrigin, to }: {
   kind: string; title: string; body: string; link: string; c: EmailContext; siteOrigin: string; to: string
 }) {
   const v = voice(kind, title, c)
-  const rows = (c.details ?? []).filter(([, val]) => val)
-  // these bodies only summarise the record ("Effort 3 days. Target Oct 16."); the details box already says it
+  const l = look(kind, c)
+  const m = MOODS[l.mood]
+  const rows = (c.details ?? []).filter(([k, val]) => val && !(k === 'Stage' && c.stage))
+  // these bodies only summarise the record ("Effort 3 days. Target Oct 16."); the ticket already says it
   const summaryOnly = rows.length > 0 && ['approval.requested', 'action.assigned', 'task.assigned', 'request.submitted', 'request.critical'].includes(kind)
   const shown = summaryOnly ? '' : body
   const paragraphs = shown ? shown.split(/\n+/).map((p) => `<p style="margin:0 0 10px">${esc(p)}</p>`).join('') : ''
-  const detailHtml = rows.length ? `<tr><td style="padding:4px 24px 12px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f8f8;border:1px solid #e2eaec;border-radius:6px">
-${rows.map(([k, val]) => `<tr><td style="padding:7px 12px;font-size:12px;color:#5b6b70;width:34%;vertical-align:top">${esc(k)}</td><td style="padding:7px 12px;font-size:13px;color:#13343b;font-weight:600">${esc(val)}</td></tr>`).join('')}
-</table></td></tr>` : ''
+  const bodyHtml = !paragraphs ? '' : QUOTED.includes(kind)
+    ? `<tr><td style="padding:2px 28px 16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-left:3px solid #20b8cd;padding:4px 0 4px 16px;font-family:${SERIF};font-style:italic;font-size:17px;line-height:1.55;color:#2e575d">${paragraphs}</td></tr></table></td></tr>`
+    : `<tr><td style="padding:2px 28px 12px;font-size:14px;line-height:1.6;color:#4a5b60">${paragraphs}</td></tr>`
   const space = c.customerSide ? `${c.workspace} × Seven Billion` : c.customer ? `Seven Billion · ${c.customer}` : 'Seven Billion'
-  const preheader = clip(`${v.intro} ${rows.map(([k, val]) => `${k}: ${val}`).join(' · ')}`, 140)
+  const preheader = clip(`${v.intro} ${(c.details ?? []).filter(([, val]) => val).map(([k, val]) => `${k}: ${val}`).join(' · ')}`, 140)
+  const img = (f: string) => `${siteOrigin}/email/${f}.png`
 
-  const html = `<!doctype html><html><body style="margin:0;background:#eef3f4;font-family:'IBM Plex Sans',Arial,sans-serif;color:#13343b">
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet"></head>
+<body style="margin:0;padding:0;background:#e9f0f1;font-family:${SANS};color:#13343b">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(preheader)}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:28px 12px"><tr><td align="center">
-<table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border:1px solid #dfe7e9;border-radius:8px;overflow:hidden">
-<tr><td style="background:#13343b;padding:14px 24px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-<td style="vertical-align:middle"><img src="${siteOrigin}/brand/mark-64.png" width="22" height="22" alt="" style="display:inline-block;vertical-align:middle;border:0;background:#ffffff;border-radius:4px;padding:2px"><span style="font-weight:600;font-size:14px;color:#ffffff;margin-left:8px;vertical-align:middle">Helm</span></td>
-<td align="right" style="font-size:12px;color:#9fc2c8;vertical-align:middle">${esc(space)}</td></tr></table></td></tr>
-<tr><td style="padding:20px 24px 2px;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#208090">${esc(v.eyebrow)}</td></tr>
-<tr><td style="padding:6px 24px 6px"><h1 style="margin:0;font-size:20px;line-height:1.3;color:#13343b">${esc(title)}</h1></td></tr>
-<tr><td style="padding:4px 24px 10px;font-size:14px;line-height:1.6;color:#3f565c">${esc(v.intro)}</td></tr>
-${c.stage ? tracker(c.stage) : ''}${detailHtml}
-${paragraphs ? `<tr><td style="padding:2px 24px 6px;font-size:14px;line-height:1.55;color:#4a5b60">${paragraphs}</td></tr>` : ''}
-<tr><td style="padding:8px 24px 24px"><a href="${esc(link)}" style="display:inline-block;background:#13343b;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 18px;border-radius:5px">${esc(v.cta)} &rarr;</a></td></tr>
-<tr><td style="padding:14px 24px 18px;border-top:1px solid #eef2f3;font-size:12px;line-height:1.5;color:#6a7f84">Sent to ${esc(to)} from the ${esc(c.customerSide ? `${c.workspace} workspace` : 'Seven Billion workspace')} in Helm.<br><span style="color:#8aa0a5">Steady hands on the wheel. Seven Billion</span></td></tr>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#e9f0f1"><tr><td align="center" style="padding:28px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #d9e4e6">
+<tr><td bgcolor="${m.bg}" style="background:${m.bg};padding:18px 28px 0">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+  <td style="vertical-align:middle"><img src="${siteOrigin}/brand/mark-64.png" width="24" height="24" alt="" style="display:inline-block;vertical-align:middle;border:0;background:#ffffff;border-radius:6px;padding:2px"><span style="font-weight:700;font-size:15px;color:#ffffff;margin-left:9px;vertical-align:middle;letter-spacing:.02em">Helm</span></td>
+  <td align="right" style="vertical-align:middle;font-size:12px;color:${m.soft}">${esc(space)}</td></tr></table>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:26px"><tr>
+  <td style="vertical-align:top;padding-right:16px">
+    <span style="display:inline-block;background:${m.pill};color:${m.pillText};font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:5px 10px;border-radius:999px">${esc(v.eyebrow)}</span>
+    <h1 style="margin:14px 0 10px;font-family:${SERIF};font-weight:600;font-size:27px;line-height:1.22;color:#ffffff">${esc(title)}</h1>
+    <div style="font-size:15px;line-height:1.6;color:${m.soft}">${esc(v.intro)}</div></td>
+  <td width="64" style="vertical-align:top"><img src="${img(l.badge)}" width="64" height="64" alt="" style="display:block;border:0"></td></tr></table>
+</td></tr>
+<tr><td bgcolor="${m.bg}" style="background:${m.bg};padding:18px 0 0;font-size:0;line-height:0"><img src="${img('wave')}" width="580" height="22" alt="" style="display:block;width:100%;max-width:580px;height:auto;border:0"></td></tr>
+<tr><td style="padding-top:12px;font-size:0;line-height:0">&nbsp;</td></tr>
+${c.stage ? tracker(c.stage) : ''}${ticket(rows, m.bg)}${bodyHtml}
+<tr><td style="padding:6px 28px 24px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td bgcolor="${m.bg}" style="background:${m.bg};border-radius:8px">
+<a href="${esc(link)}" style="display:inline-block;padding:13px 22px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:8px">${esc(v.cta)} &nbsp;&rarr;</a></td></tr></table></td></tr>
+${l.ps ? `<tr><td style="padding:0 28px 24px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="background:#fff7ec;border:1px solid #f6dfbf;border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.55;color:#6b4a2b"><b style="color:#a94b31">P.S.</b> ${esc(l.ps)}</td></tr></table></td></tr>` : ''}
+<tr><td bgcolor="#f4f8f8" style="background:#f4f8f8;padding:18px 28px 20px;border-top:1px solid #e6eef0">
+  <div style="font-family:${SERIF};font-style:italic;font-size:16px;color:#2e575d">${esc(l.signoff)},<br>the Seven Billion crew</div>
+  <div style="font-size:11px;line-height:1.5;color:#7d9196;margin-top:10px">Sent to ${esc(to)} from the ${esc(c.customerSide ? `${c.workspace} workspace` : 'Seven Billion workspace')} in Helm.</div></td></tr>
 </table></td></tr></table></body></html>`
-  const text = `${v.eyebrow.toUpperCase()}\n${title}\n\n${v.intro}\n${rows.map(([k, val]) => `${k}: ${val}`).join('\n')}${body ? `\n\n${body}` : ''}\n\n${v.cta}: ${link}\n\nSent to ${to} from ${space} in Helm.`
+  const text = `${v.eyebrow.toUpperCase()}\n${title}\n\n${v.intro}\n${rows.map(([k, val]) => `${k}: ${val}`).join('\n')}${body ? `\n\n${body}` : ''}\n\n${v.cta}: ${link}${l.ps ? `\n\nP.S. ${l.ps}` : ''}\n\n${l.signoff},\nthe Seven Billion crew\n\nSent to ${to} from ${space} in Helm.`
   return { subject: v.subject, html, text }
 }
