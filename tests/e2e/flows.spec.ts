@@ -364,7 +364,7 @@ test('billing (finance only): rate card approved by the customer, a statement ap
   await add.getByLabel('Role, delivery or unit').fill('Sales dashboard')
   await add.getByLabel('Rate', { exact: true }).fill('500')
   await add.getByRole('button', { name: 'Add line' }).click()
-  await expect(page.locator('input[value="Sales dashboard"]')).toBeVisible()
+  await expect(page.locator('details summary', { hasText: 'Sales dashboard' })).toBeVisible()
   await shot(page, '21-billing-rate-card')
   await page.getByRole('button', { name: 'Send to customer for approval' }).click()
   await expect(page.getByText('Waiting for customer')).toBeVisible()
@@ -568,5 +568,43 @@ test.describe('on a phone', () => {
       expect(overflow, `${path} scrolls sideways`).toBeLessThanOrEqual(1)
       await shot(page, `32-phone${path.replace(/\//g, '-')}`)
     }
+  })
+})
+
+test.describe('on a phone, billing', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  test('several deliveries and several people on one rate card; the model stays as chosen', async ({ page }) => {
+    await signIn(page, 'finance@example.com')
+    await page.goto('/customers')
+    await page.getByRole('link', { name: /Nesma Group/ }).click()
+    await page.getByRole('link', { name: 'Power BI Implementation' }).first().click()
+    await page.getByRole('link', { name: 'Billing' }).click()
+    await page.getByRole('button', { name: 'Start the rate card' }).click()
+    const add = page.locator('form', { has: page.getByRole('button', { name: 'Add line' }) })
+    const addLine = async (label: string, rate: string, n: number) => {
+      await add.getByLabel('Role, delivery or unit').fill(label)
+      await add.getByLabel('Rate', { exact: true }).fill(rate)
+      await add.getByRole('button', { name: 'Add line' }).click()
+      await expect(page.getByText(`${n} ${n === 1 ? 'line' : 'lines'} on this rate card`)).toBeVisible()
+    }
+    // three deliveries, choosing the model once
+    await add.getByLabel('Billing model').selectOption('delivery')
+    await addLine('Sales dashboard', '500', 1)
+    await expect(add.getByLabel('Billing model')).toHaveValue('delivery')
+    await expect(add.getByLabel('Unit', { exact: true })).toHaveValue('delivery')
+    await addLine('Inventory dashboard', '400', 2)
+    await addLine('Finance dashboard', '450', 3)
+    // two people on day rates
+    await add.getByLabel('Billing model').selectOption('day_rate')
+    await addLine('Data engineer', '90', 4)
+    await addLine('BI developer', '80', 5)
+    const list = page.locator('details summary')
+    await expect(list).toHaveCount(5)
+    await expect(list.filter({ hasText: 'Per delivery' })).toHaveCount(3)
+    await expect(list.filter({ hasText: 'Day rate per resource' })).toHaveCount(2)
+    await shot(page, '37-phone-rate-card-lines')
+    // a line opens for editing
+    await list.filter({ hasText: 'Inventory dashboard' }).click()
+    await expect(page.locator('details[open] input[name="label"]')).toHaveValue('Inventory dashboard')
   })
 })

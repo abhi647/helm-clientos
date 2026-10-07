@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import {
   addRateCardLine, createStatement, discardRateCard, removeRateCardLine, saveRateCard, startRateCard, submitRateCard, updateRateCardLine,
 } from '@/app/_actions/billing'
-import { KIND_UNIT, RateCardStatus, RateLines, StatementStatus, period } from '@/components/billing'
+import { KIND_LABEL, KIND_UNIT, PLANNED_LABEL, RateCardStatus, RateLines, StatementStatus, period } from '@/components/billing'
 import { ActionButton, ActionForm } from '@/components/forms'
 import { Card, Empty } from '@/components/ui'
 import { LineFields } from '@/components/rate-line-fields'
@@ -63,23 +63,39 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
                 </div>
               </ActionForm>
               <div className="flex flex-col gap-3">
-                {sortLines(open.rate_card_lines).map((l) => (
-                  <div key={l.id} className="rounded-md border border-line-soft p-2.5">
-                    <ActionForm action={updateRateCardLine} submit="Save line" resetOnSuccess={false} primary={false}>
-                      <input type="hidden" name="line_id" value={l.id} />
-                      <LineFields line={l} />
-                    </ActionForm>
-                    <div className="mt-1"><ActionButton run={removeRateCardLine.bind(null, l.id)} className="btn-ghost text-xs" confirm={`Remove "${l.label}"?`}>Remove line</ActionButton></div>
+                {open.rate_card_lines.length ? (
+                  <div className="overflow-hidden rounded-md border border-line-soft">
+                    <p className="label m-0 border-b border-line-soft bg-head px-2.5 py-1.5">{open.rate_card_lines.length} {open.rate_card_lines.length === 1 ? 'line' : 'lines'} on this rate card</p>
+                    {sortLines(open.rate_card_lines).map((l) => (
+                      <details key={l.id} className="group border-b border-line-soft last:border-b-0">
+                        <summary className="flex cursor-pointer list-none items-center gap-2 px-2.5 py-2 hover:bg-head">
+                          <span className="flex min-w-0 flex-1 flex-col">
+                            <span className="truncate text-[13px] font-semibold">{l.label}</span>
+                            <span className="truncate text-xs text-muted">{KIND_LABEL[l.kind]}{PLANNED_LABEL[l.kind] && l.planned_quantity != null ? ` · ${l.planned_quantity} ${PLANNED_LABEL[l.kind]!.toLowerCase()}` : ''}</span>
+                          </span>
+                          <span className="shrink-0 text-right font-mono text-xs">{money(l.rate, open.currency, { exact: true })}<span className="text-muted"> / {l.unit}</span></span>
+                          <span className="shrink-0 text-xs font-medium text-link group-open:hidden">Edit</span>
+                          <span className="hidden shrink-0 text-xs font-medium text-muted group-open:inline">Close</span>
+                        </summary>
+                        <div className="border-t border-line-soft bg-[#fbfcfc] p-2.5">
+                          <ActionForm action={updateRateCardLine} submit="Save line" resetOnSuccess={false} primary={false}>
+                            <input type="hidden" name="line_id" value={l.id} />
+                            <LineFields line={l} />
+                          </ActionForm>
+                          <div className="mt-1"><ActionButton run={removeRateCardLine.bind(null, l.id)} className="btn-ghost text-xs" confirm={`Remove "${l.label}"?`}>Remove line</ActionButton></div>
+                        </div>
+                      </details>
+                    ))}
                   </div>
-                ))}
+                ) : null}
                 <div className="rounded-md border border-dashed border-line p-2.5">
-                  <p className="label mt-0 mb-2">Add a line</p>
+                  <p className="label mt-0 mb-2">{open.rate_card_lines.length ? 'Add another line' : 'Add a line'}</p>
                   <ActionForm action={addRateCardLine} submit="Add line">
                     <input type="hidden" name="card_id" value={open.id} />
                     <LineFields />
                     <p className="m-0 text-xs text-muted">
-                      Day rate: planned quantity = number of resources ({KIND_UNIT.day_rate}s are filled in each period).
-                      Per unit: planned units. Per delivery and retainer: leave it empty.
+                      One line per resource, delivery or unit: add as many as the contract has. Day rate: planned quantity is the
+                      number of people ({KIND_UNIT.day_rate}s are filled in each period).
                     </p>
                   </ActionForm>
                 </div>
