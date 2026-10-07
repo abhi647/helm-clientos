@@ -1,0 +1,37 @@
+name: scheduled
+
+# Uptime check and background jobs, every 10 minutes (Vercel's free cron only runs once a day).
+# Turn on by adding two repository secrets: HELM_URL (e.g. https://helm.sevenbillion.co) and CRON_SECRET (the same
+# value as in Vercel). If the site is down the run fails and GitHub emails you: that is the uptime alert.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+concurrency: scheduled
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HELM_URL: ${{ secrets.HELM_URL }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+    steps:
+      - name: Not set up yet
+        if: env.HELM_URL == '' || env.CRON_SECRET == ''
+        run: echo "::notice::Add the HELM_URL and CRON_SECRET repository secrets to turn on uptime checks and frequent jobs."
+      - name: The site is up
+        if: env.HELM_URL != '' && env.CRON_SECRET != ''
+        run: curl -fsS --retry 2 --retry-delay 10 --max-time 20 "$HELM_URL/api/health"
+      - name: Send emails, surveys and file scans
+        if: env.HELM_URL != '' && env.CRON_SECRET != ''
+        run: curl -fsS --max-time 90 -H "Authorization: Bearer $CRON_SECRET" "$HELM_URL/api/cron/emails"
+      - name: Sync Zoho Books (once an hour)
+        if: env.HELM_URL != '' && env.CRON_SECRET != ''
+        run: |
+          if [ "$(date -u +%M)" -lt 10 ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            curl -fsS --max-time 90 -H "Authorization: Bearer $CRON_SECRET" "$HELM_URL/api/cron/zoho-sync"
+          else
+            echo "Zoho syncs at the top of the hour"
+          fi
