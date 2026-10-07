@@ -13,7 +13,7 @@ import { TEMPLATES } from '@/lib/templates'
 
 export const metadata: Metadata = { title: 'Home' }
 
-const WEEKLY_CAPACITY_HOURS = 40
+const WEEKLY_CAPACITY_DAYS = 5
 
 export default async function Home() {
   const me = await requireStaff()
@@ -23,10 +23,10 @@ export default async function Home() {
     supabase.from('engagement_setups').select('*').eq('status', 'pending').order('created_at', { ascending: false }),
     supabase.from('directory').select('id, full_name, internal_role').eq('kind', 'internal').order('full_name')
       .overrideTypes<Pick<DirectoryRow, 'id' | 'full_name' | 'internal_role'>[], { merge: false }>(),
-    supabase.from('tasks').select('assignee_id, due_date, task_estimates(estimate_hours)').neq('status', 'done').not('assignee_id', 'is', null),
+    supabase.from('tasks').select('assignee_id, due_date, task_estimates(estimate, unit)').neq('status', 'done').not('assignee_id', 'is', null),
   ])
 
-  // planned hours per person for the next four weeks (from task estimates)
+  // planned days per person for the next four weeks (from estimates in days; billed-unit estimates aren't time)
   const weekStart = new Date()
   weekStart.setUTCHours(0, 0, 0, 0)
   weekStart.setUTCDate(weekStart.getUTCDate() - ((weekStart.getUTCDay() + 6) % 7))
@@ -36,7 +36,7 @@ export default async function Home() {
   for (const t of load.data ?? []) {
     if (!t.due_date || !hours.has(t.assignee_id!)) continue
     const w = Math.floor((Date.parse(`${t.due_date}T00:00:00Z`) - weekStart.getTime()) / (7 * 86_400_000))
-    const est = Number(t.task_estimates?.estimate_hours ?? 0)
+    const est = t.task_estimates?.unit === 'day' ? Number(t.task_estimates.estimate ?? 0) : 0
     if (w >= 0 && w < 4) hours.get(t.assignee_id!)![w]! += est
   }
   const crit = exceptions.filter((e) => e.severity === 'crit').length
@@ -109,20 +109,20 @@ export default async function Home() {
           ) : <Empty title="Nothing needs attention">Every project is on track.</Empty>}
         </Card>
 
-        <Card flush className="min-w-0 flex-[1_1_340px] overflow-x-auto" title="Team workload" extra="planned hours, next 4 weeks">
+        <Card flush className="min-w-0 flex-[1_1_340px] overflow-x-auto" title="Team workload" extra="planned days, next 4 weeks">
           <div className="min-w-[330px]">
             <div className="row row-head grid-cols-[minmax(0,1fr)_repeat(4,52px)]"><span>Person</span>{weeks.map((w) => <span key={w.toISOString()} className="text-center">{shortDate(w.toISOString().slice(0, 10))}</span>)}</div>
             {people.map((p) => (
               <div key={p.id} className="row grid-cols-[minmax(0,1fr)_repeat(4,52px)]">
                 <span className="truncate">{p.full_name}</span>
                 {hours.get(p.id)!.map((h, i) => {
-                  const pct = Math.round((100 * h) / WEEKLY_CAPACITY_HOURS)
+                  const pct = Math.round((100 * h) / WEEKLY_CAPACITY_DAYS)
                   return <span key={i} className={cn('tabular rounded-sm py-0.5 text-center font-mono text-xs',
                     pct > 100 ? 'bg-crit-bg font-semibold text-crit-ink ring-1 ring-crit ring-inset' : pct < 60 ? 'bg-ground text-muted' : pct < 85 ? 'bg-[#cde2fb] text-[#184f95]' : 'bg-[#86b6ef] font-semibold text-[#0d366b]')}>{pct}%</span>
                 })}
               </div>
             ))}
-            <p className="m-0 border-t border-line-soft px-3 py-1.5 text-[11px] text-muted">Share of a {WEEKLY_CAPACITY_HOURS} h week. Over 100% in red. Resource planning arrives in phase 2.</p>
+            <p className="m-0 border-t border-line-soft px-3 py-1.5 text-[11px] text-muted">Share of a {WEEKLY_CAPACITY_DAYS}-day week. Over 100% in red. Resource planning arrives in phase 2.</p>
           </div>
         </Card>
       </div>

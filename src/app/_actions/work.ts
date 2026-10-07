@@ -1,6 +1,7 @@
 'use server'
 
 import { z } from 'zod'
+import { effort } from '@/lib/format'
 import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { type ActionResult, dbFail, done, fail, formObject, optionalDate, uuid, visibility } from './shared'
@@ -30,14 +31,15 @@ const taskSchema = z.object({
   assignee_id: z.preprocess((v) => (v === '' ? null : v), uuid.nullable()),
   due_date: optionalDate,
   visibility: visibility.default('shared'),
-  estimate_hours: z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().min(0).max(2000).nullable()),
+  estimate: z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().min(0).max(5000).nullable()),
+  unit: z.string().trim().min(1).max(40).default('day'),   // from effort_units(): the project's billing units
 })
 
 export async function createTask(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   const me = await requireStaff()
   const parsed = taskSchema.safeParse(formObject(form))
   if (!parsed.success) return fail(parsed.error.issues[0]!.message)
-  const { estimate_hours, ...t } = parsed.data
+  const { estimate, unit, ...t } = parsed.data
   const supabase = await createClient()
   const { data: project } = await supabase.from('projects').select('customer_id').eq('id', t.project_id).single()
   if (!project) return fail('Project not found.')
@@ -49,13 +51,13 @@ export async function createTask(_prev: ActionResult | null, form: FormData): Pr
   const { data: task, error } = await supabase.from('tasks')
     .insert({ ...t, customer_id: project.customer_id, owner_side, created_by: me.id, position: 999 }).select('id').single()
   if (error || !task) return dbFail(error)
-  if (estimate_hours != null) await supabase.from('task_estimates').insert({ task_id: task.id, customer_id: project.customer_id, estimate_hours })
+  if (estimate != null) await supabase.from('task_estimates').insert({ task_id: task.id, customer_id: project.customer_id, estimate, unit })
   return done('Task added.')
 }
 
 const timeSchema = z.object({
   task_id: uuid,
-  hours: z.coerce.number().positive('Enter the hours worked.').max(24),
+  days: z.coerce.number().positive('Enter the days worked.').max(3, 'Log at most 3 days at once.'),
   worked_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   billable: z.preprocess((v) => v === 'on' || v === 'true', z.boolean()),
   note: z.string().trim().max(500).optional(),
@@ -69,7 +71,7 @@ export async function logTime(_prev: ActionResult | null, form: FormData): Promi
   const { data: task } = await supabase.from('tasks').select('customer_id').eq('id', parsed.data.task_id).single()
   if (!task) return fail('Task not found.')
   const { error } = await supabase.from('time_entries').insert({ ...parsed.data, customer_id: task.customer_id, user_id: me.id, note: parsed.data.note || null })
-  return error ? dbFail(error) : done(`${parsed.data.hours} h logged.`)
+  return error ? dbFail(error) : done(`${effort(parsed.data.days)} logged.`)
 }
 
 const projectState = z.object({ health: z.enum(['on_track', 'needs_attention', 'at_risk']).optional(), status: z.enum(['active', 'on_hold', 'completed']).optional() })

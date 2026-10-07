@@ -510,6 +510,15 @@ describe('billing: rate cards and statements', () => {
     expect((await michel.rpc('add_rate_card_line', { p_card: card, ...lines[0] })).error?.message).toMatch(/not allowed/)
   })
 
+  it('effort is estimated in the rate card units: the PM gets the units, never the rates', async () => {
+    const { data, error } = await rahul.rpc('effort_units', { p_project: project })
+    expect(error).toBeNull()
+    expect(data).toEqual(['day', 'delivery', 'report'])                            // day rate and retainer are both days
+    expect((await michel.rpc('effort_units', { p_project: project })).data).toEqual(['day'])   // customers learn nothing
+    const other = (await service.from('projects').select('id').eq('name', 'Infor LN Integration').single()).data!.id
+    expect((await rahul.rpc('effort_units', { p_project: other })).data).toEqual(['day'])      // no rate card yet: days
+  })
+
   it('only billing contacts of that customer see a submitted card, and nobody can approve it by a direct update', async () => {
     expect((await finance.rpc('submit_rate_card', { p_card: card })).error).toBeNull()
     expect((await michel.from('rate_card_lines').select('rate').eq('rate_card_id', card)).data).toHaveLength(4)

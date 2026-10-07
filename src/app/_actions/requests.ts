@@ -59,7 +59,8 @@ export async function assignRequest(requestId: string, ownerId: string): Promise
 const approvalSchema = z.object({
   request_id: uuid,
   summary: z.string().trim().min(5, 'Describe the scope being approved.').max(5000),
-  effort_hours: z.coerce.number().positive('Enter the estimated effort.').max(5000),
+  effort: z.coerce.number().positive('Enter the estimated effort.').max(5000),
+  effort_unit: z.string().trim().min(1).max(40).default('day'),
   target_date: optionalDate,
   due_date: optionalDate,
   approver_id: uuid,
@@ -93,13 +94,14 @@ export async function decideApproval(_prev: ActionResult | null, form: FormData)
 export async function resubmitApproval(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   await requireStaff()
   const parsed = z.object({
-    approval_id: uuid, summary: z.string().trim().min(5).max(5000), effort_hours: z.coerce.number().positive().max(5000),
+    approval_id: uuid, summary: z.string().trim().min(5).max(5000), effort: z.coerce.number().positive().max(5000),
+    effort_unit: z.string().trim().min(1).max(40).optional(),
     target_date: optionalDate, comment: z.string().trim().max(2000).optional(),
   }).safeParse(formObject(form))
   if (!parsed.success) return fail('Fill in the revised scope and effort.')
   const supabase = await createClient()
   const { error } = await supabase.rpc('resubmit_approval', {
-    p_approval: parsed.data.approval_id, p_summary: parsed.data.summary, p_effort: parsed.data.effort_hours,
+    p_approval: parsed.data.approval_id, p_summary: parsed.data.summary, p_effort: parsed.data.effort, p_unit: parsed.data.effort_unit,
     p_target: parsed.data.target_date ?? undefined, p_comment: parsed.data.comment || undefined,
   })
   return error ? dbFail(error) : done('Revision sent for approval.')

@@ -5,7 +5,8 @@ import { ActionButton, ActionForm, StatusSelect } from '@/components/forms'
 import { Thread } from '@/components/thread'
 import { Avatar, Chip, TaskStatusChip, Visibility, cn } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
-import { TASK_STATUS, isOverdue, shortDate } from '@/lib/format'
+import { TASK_STATUS, isOverdue, shortDate, effort, effortShort } from '@/lib/format'
+import { EffortInput } from '@/components/effort-input'
 import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
@@ -21,30 +22,34 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
   const openOnly = sp.open === '1'
   const q = (sp.q ?? '').trim().toLowerCase()
   const supabase = await createClient()
-  const [{ data: project }, { data: phases }, { data: tasks }, { data: time }, { data: comments }] = await Promise.all([
+  const [{ data: project }, { data: phases }, { data: tasks }, { data: time }, { data: comments }, { data: units }] = await Promise.all([
     supabase.from('projects').select('id, customer_id, pm_id').eq('id', id).single(),
     supabase.from('phases').select('*').eq('project_id', id).order('position'),
-    supabase.from('tasks').select('*, assignee:profiles!tasks_assignee_id_fkey(id, full_name, kind), task_estimates(estimate_hours)').eq('project_id', id).order('position'),
-    supabase.from('time_entries').select('task_id, hours').in('task_id', (await supabase.from('tasks').select('id').eq('project_id', id)).data?.map((t) => t.id) ?? []),
+    supabase.from('tasks').select('*, assignee:profiles!tasks_assignee_id_fkey(id, full_name, kind), task_estimates(estimate, unit)').eq('project_id', id).order('position'),
+    supabase.from('time_entries').select('task_id, days').in('task_id', (await supabase.from('tasks').select('id').eq('project_id', id)).data?.map((t) => t.id) ?? []),
     supabase.from('comments').select('entity_id').eq('entity_type', 'task'),
+    supabase.rpc('effort_units', { p_project: id }),   // the project's billing units: effort is estimated in these
   ])
   if (!project) return null
   const people = (await supabase.from('profiles').select('id, full_name, kind').or(`kind.eq.internal,customer_id.eq.${project.customer_id}`).order('kind').order('full_name')).data ?? []
 
   const logged = new Map<string, number>()
-  for (const t of time ?? []) logged.set(t.task_id, (logged.get(t.task_id) ?? 0) + Number(t.hours))
+  for (const t of time ?? []) logged.set(t.task_id, (logged.get(t.task_id) ?? 0) + Number(t.days))
   const commentCount = new Map<string, number>()
   for (const c of comments ?? []) commentCount.set(c.entity_id, (commentCount.get(c.entity_id) ?? 0) + 1)
 
   const all = tasks ?? []
   const visible = all.filter((t) => (!preview || t.visibility === 'shared') && (!openOnly || t.status !== 'done') && (!q || t.title.toLowerCase().includes(q)))
   const counted = all.filter((t) => !preview || t.visibility === 'shared')
-  const est = (t: (typeof all)[number]) => Number(t.task_estimates?.estimate_hours ?? 0)
+  const est = (t: (typeof all)[number]) => Number(t.task_estimates?.estimate ?? 0)
+  const unitOf = (t: (typeof all)[number]) => t.task_estimates?.unit ?? 'day'
+  // days can be compared with days logged; estimates in a billed unit ("2 dashboards") are shown as they are
+  const estDays = (t: (typeof all)[number]) => (unitOf(t) === 'day' ? est(t) : 0)
   const stats = {
     total: counted.length, done: counted.filter((t) => t.status === 'done').length,
     overdue: counted.filter((t) => t.status !== 'done' && isOverdue(t.due_date)).length,
     customer: counted.filter((t) => t.owner_side === 'customer' && t.status !== 'done').length,
-    est: all.reduce((a, t) => a + est(t), 0), logged: Array.from(logged.values()).reduce((a, b) => a + b, 0),
+    est: all.reduce((a, t) => a + estDays(t), 0), logged: Array.from(logged.values()).reduce((a, b) => a + b, 0),
   }
   const sel = sp.task ? all.find((t) => t.id === sp.task && (!preview || t.visibility === 'shared')) : undefined
   const cols = preview ? 'grid-cols-[minmax(240px,1fr)_118px_140px_64px_64px_84px_24px]' : 'grid-cols-[minmax(240px,1fr)_118px_140px_64px_64px_52px_60px_84px_24px]'
@@ -71,7 +76,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
           <span><b className="font-mono text-good-ink">{stats.done}</b> done</span>
           <span><b className="font-mono text-crit-ink">{stats.overdue}</b> overdue</span>
           <span><b className="font-mono text-warn-ink">{stats.customer}</b> with customer</span>
-          {!preview ? <span><b className="font-mono text-ink">{stats.logged} / {stats.est} h</b> logged</span> : null}
+          {!preview ? <span><b className="font-mono text-ink">{+stats.logged.toFixed(2)} / {+stats.est.toFixed(2)} d</b> logged</span> : null}
         </div>
         <details className="relative ml-auto">
           <summary className="btn btn-primary list-none">+ Add task</summary>
@@ -81,7 +86,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
               <input name="title" required placeholder="Task title" aria-label="Task title" className="input" />
               <select name="phase_id" aria-label="Phase" className="input">{(phases ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
               <select name="assignee_id" aria-label="Owner" className="input"><option value="">Unassigned</option>{people.map((p) => <option key={p.id} value={p.id}>{p.full_name}{p.kind === 'customer' ? ' (customer)' : ''}</option>)}</select>
-              <div className="flex gap-2"><input type="date" name="due_date" aria-label="Due date" className="input flex-1" /><input type="number" name="estimate_hours" min={0} step={0.5} placeholder="Est. h" aria-label="Estimate in hours" className="input w-20" /></div>
+              <div className="flex flex-wrap gap-2"><input type="date" name="due_date" aria-label="Due date" className="input flex-1" /><EffortInput name="estimate" unitName="unit" units={units ?? ['day']} placeholder="Estimate" /></div>
               <select name="visibility" aria-label="Visibility" defaultValue="shared" className="input"><option value="shared">Shared with customer</option><option value="internal">Internal</option></select>
             </ActionForm>
           </div>
@@ -94,7 +99,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
           <div className="min-w-[860px]">
             <div className={cn('row row-head', cols)}>
               <span>Task</span><span>Status</span><span>Owner</span><span>Start</span><span>Due</span>
-              {!preview ? <><span className="text-right">Est h</span><span className="text-right">Logged</span></> : null}
+              {!preview ? <><span className="text-right">Estimate</span><span className="text-right">Logged</span></> : null}
               <span>Visibility</span><span aria-label="Spotlight">★</span>
             </div>
             {(phases ?? []).filter((p) => !preview || p.visibility === 'shared').map((phase) => {
@@ -129,7 +134,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                         <span className="flex min-w-0 items-center gap-1.5">{t.assignee ? <><Avatar name={t.assignee.full_name} customer={t.assignee.kind === 'customer'} /><span className="truncate">{t.assignee.full_name}</span></> : <span className="text-muted">Unassigned</span>}</span>
                         <span className="font-mono text-xs text-muted">{shortDate(t.start_date)}</span>
                         <span className={cn('font-mono text-xs', overdue && 'font-semibold text-crit-ink')}>{shortDate(t.due_date)}</span>
-                        {!preview ? <><span className="text-right font-mono text-xs">{est(t) || '–'}</span><span className={cn('text-right font-mono text-xs', est(t) && lg > est(t) && 'font-semibold text-warn-ink')}>{lg || '–'}</span></> : null}
+                        {!preview ? <><span className="truncate text-right font-mono text-xs" title={est(t) ? effort(est(t), unitOf(t)) : undefined}>{est(t) ? effortShort(est(t), unitOf(t)) : '–'}</span><span className={cn('text-right font-mono text-xs', estDays(t) && lg > estDays(t) && 'font-semibold text-warn-ink')}>{lg ? `${+lg.toFixed(2)} d` : '–'}</span></> : null}
                         <span><Visibility value={t.visibility} /></span>
                         <span aria-label={t.spotlight ? 'Spotlight' : undefined} className={t.spotlight ? 'text-ink' : 'text-[#d5dcdf]'}>★</span>
                       </div>
@@ -155,7 +160,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
               <dl className="m-0 grid grid-cols-[96px_minmax(0,1fr)] gap-y-1.5 text-[13px]">
                 <dt className="text-muted">Owner</dt><dd className="m-0">{sel.assignee?.full_name ?? 'Unassigned'} · {sel.owner_side === 'customer' ? 'Customer' : 'Seven Billion'}</dd>
                 <dt className="text-muted">Start → Due</dt><dd className="m-0 font-mono">{shortDate(sel.start_date)} → {shortDate(sel.due_date)}</dd>
-                {!preview ? <><dt className="text-muted">Effort</dt><dd className="m-0 font-mono">{logged.get(sel.id) ?? 0} of {est(sel) || '–'} h logged</dd></> : null}
+                {!preview ? <><dt className="text-muted">Effort</dt><dd className="m-0 font-mono">{effort(logged.get(sel.id) ?? 0)} logged · estimate {est(sel) ? effort(est(sel), unitOf(sel)) : '–'}</dd></> : null}
               </dl>
               {sel.description ? <p className="m-0 text-[13px] leading-relaxed">{sel.description}</p> : null}
               {!preview ? (
@@ -170,7 +175,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                   <ActionForm action={logTime} submit="Log time" className="mt-2">
                     <input type="hidden" name="task_id" value={sel.id} />
                     <div className="flex gap-2">
-                      <input type="number" name="hours" min={0.25} max={24} step={0.25} required placeholder="Hours" aria-label="Hours" className="input w-24" />
+                      <span className="flex items-center gap-1.5"><input type="number" name="days" min={0.25} max={3} step={0.25} required placeholder="Days" aria-label="Days worked" className="input w-20 font-mono" /><span className="text-xs text-muted">days</span></span>
                       <input type="date" name="worked_on" defaultValue={new Date().toISOString().slice(0, 10)} aria-label="Date" className="input flex-1" />
                     </div>
                     <label className="flex items-center gap-1.5 text-xs"><input type="checkbox" name="billable" defaultChecked /> Billable</label>

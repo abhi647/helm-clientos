@@ -88,12 +88,12 @@ async function main() {
     T('Deployment', 'Handover', 'todo', rahul, 24, 24, 4),
   ]
   const tasks = await many('tasks', plan.map((p, i) => ({ ...p.row, position: i, completed_at: p.row.status === 'done' ? new Date().toISOString() : null })))
-  await many('task_estimates', tasks.map((t, i) => ({ task_id: t.id, customer_id: nesma.id, estimate_hours: plan[i].est })).filter((e) => e.estimate_hours != null))
+  await many('task_estimates', tasks.map((t, i) => ({ task_id: t.id, customer_id: nesma.id, estimate: plan[i].est == null ? null : plan[i].est / 8, unit: 'day' })).filter((e) => e.estimate != null))   // plan estimates are in hours; stored in days
   const byTitle = Object.fromEntries(tasks.map((t) => [t.title, t]))
   // demo time is entered as if by the consultant (the API lets staff log their own time only)
   await many('time_entries', [
     ['Kickoff', 4], ['KPI workshop', 14], ['Data assessment', 26], ['SAP connection', 44], ['Data mapping', 21], ['Wireframes', 12],
-  ].map(([title, hours]) => ({ task_id: byTitle[title].id, customer_id: nesma.id, user_id: title === 'Wireframes' || title.startsWith('K') ? rahul : sahil, hours: Math.min(hours, 24), worked_on: day(-3) })))
+  ].map(([title, hours]) => ({ task_id: byTitle[title].id, customer_id: nesma.id, user_id: title === 'Wireframes' || title.startsWith('K') ? rahul : sahil, days: Math.min(hours / 8, 3), worked_on: day(-3) })))
 
   await many('comments', [
     { customer_id: nesma.id, entity_type: 'task', entity_id: byTitle['Data mapping'].id, author_id: sahil, visibility: 'internal', body: 'Source API is unstable. Keep the fallback spike ready.' },
@@ -123,7 +123,7 @@ async function main() {
     { customer_id: nesma.id, entity_type: 'request', entity_id: req.id, author_id: michel, visibility: 'shared', body: 'The 6 sales regions, please.' },
     { customer_id: nesma.id, entity_type: 'request', entity_id: req.id, author_id: sahil, visibility: 'internal', body: 'Region master is missing 3 territories. Exclude them from scope and flag it.' },
   ])
-  await one('approvals', { customer_id: nesma.id, project_id: mgmt.id, request_id: req.id, kind: 'estimate', title: `Estimate for ${req.number}: regional sales forecast`, summary: 'Region-level forecast for 6 sales regions, product drill-down, weekly refresh. Excludes region master data.', effort_hours: 42, target_date: day(9), due_date: day(1), approver_id: michel, requested_by: rahul })
+  await one('approvals', { customer_id: nesma.id, project_id: mgmt.id, request_id: req.id, kind: 'estimate', title: `Estimate for ${req.number}: regional sales forecast`, summary: 'Region-level forecast for 6 sales regions, product drill-down, weekly refresh. Excludes region master data.', effort: 5.25, effort_unit: 'day', target_date: day(9), due_date: day(1), approver_id: michel, requested_by: rahul })
 
   // ---------------------------------------------------------------- CBD and Customer X (portfolio rows)
   const cbdProj = await one('projects', { customer_id: cbd.id, name: 'Data Platform Implementation', template_key: 'data_platform', health: 'at_risk', start_date: day(-120), end_date: day(60), pm_id: rahul })

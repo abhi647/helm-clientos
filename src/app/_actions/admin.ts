@@ -89,8 +89,8 @@ export async function createEngagement(_prev: ActionResult | null, form: FormDat
       assignee_id: t.customer ? null : parsed.data.pm_id, created_by: me.id,
     }))).select('id, title')
     if (tErr || !tasks) return dbFail(tErr)
-    const estimates = phase.tasks.map((t, j) => ({ task_id: tasks[j]!.id, customer_id: customerId!, estimate_hours: t.estimate ?? null }))
-      .filter((e): e is { task_id: string; customer_id: string; estimate_hours: number } => e.estimate_hours != null)
+    const estimates = phase.tasks.map((t, j) => ({ task_id: tasks[j]!.id, customer_id: customerId!, estimate: t.estimate ?? null, unit: 'day' }))
+      .filter((e): e is { task_id: string; customer_id: string; estimate: number; unit: string } => e.estimate != null)
     if (estimates.length) await supabase.from('task_estimates').insert(estimates)
   }
   await supabase.from('engagement_setups').update({ status: 'created', project_id: project.id }).eq('id', setup.id)

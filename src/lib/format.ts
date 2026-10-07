@@ -54,3 +54,15 @@ export const HEALTH: Record<Enums<'health'>, string> = { on_track: 'On track', n
 
 /** True when the timestamp is in the future (server-side checks). */
 export const isFuture = (iso: string | null | undefined) => !!iso && Date.parse(iso) > Date.now()
+
+// ---------------------------------------------------------------- effort, in the project's billing unit
+const plural = (u: string) => (/[^aeiou]y$/.test(u) ? `${u.slice(0, -1)}ies` : /(s|x|z|ch|sh)$/.test(u) ? `${u}es` : `${u}s`)
+/** "1 day", "2.5 days", "3 dashboards". Matches private.fmt_effort in the database. */
+export function effort(qty: number | null | undefined, unit = 'day'): string {
+  if (qty == null) return '–'
+  const q = Number(qty)
+  return `${+q.toFixed(2)} ${q === 1 ? unit : plural(unit)}`
+}
+/** Short form for dense tables: "2.5 d" for days, otherwise the full unit. */
+export const effortShort = (qty: number | null | undefined, unit = 'day') =>
+  qty == null ? '' : unit === 'day' ? `${+Number(qty).toFixed(2)} d` : effort(qty, unit)

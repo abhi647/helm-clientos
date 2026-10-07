@@ -8,7 +8,8 @@ import { Thread } from '@/components/thread'
 import { UploadForm } from '@/components/upload'
 import { ApprovalStatusChip, Card, PriorityText, RequestStatusChip, Visibility, cn } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
-import { REQUEST_STATUS_ORDER, label, relativeTime, shortDate } from '@/lib/format'
+import { REQUEST_STATUS_ORDER, effort, label, relativeTime, shortDate } from '@/lib/format'
+import { EffortInput } from '@/components/effort-input'
 import type { Profile } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
@@ -21,10 +22,12 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
     .select('*, customers(name), projects(id, name), owner:profiles!requests_owner_id_fkey(full_name), requester:profiles!requests_requested_by_fkey(full_name)')
     .eq('id', id).maybeSingle()
   if (!r) notFound()
-  const [{ data: events }, { data: approvals }, { data: customerUsers }] = await Promise.all([
+  const [{ data: events }, { data: approvals }, { data: customerUsers }, { data: units }] = await Promise.all([
     supabase.from('request_events').select('id, status, note, created_at, actor:profiles!request_events_actor_id_fkey(full_name)').eq('request_id', id).order('id'),
     supabase.from('approvals').select('*, approver:profiles!approvals_approver_id_fkey(full_name), approval_events(id, action, version, comment, created_at, actor:profiles!approval_events_actor_id_fkey(full_name))').eq('request_id', id).order('created_at', { ascending: false }),
     staff ? supabase.from('profiles').select('id, full_name').eq('customer_id', r.customer_id) : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
+    // effort is estimated in the project's billing units (days, or the billed unit for delivery work)
+    staff && r.project_id ? supabase.rpc('effort_units', { p_project: r.project_id }) : Promise.resolve({ data: ['day'] }),
   ])
   const current = REQUEST_STATUS_ORDER.indexOf(r.status as Enums<'request_status'>)
   const reached = new Map((events ?? []).map((e) => [e.status, e.created_at]))
@@ -88,7 +91,7 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
               <div className="flex items-center gap-2"><span className="label">Approval · {approval.kind}</span><span className="ml-auto"><ApprovalStatusChip status={approval.status} /></span></div>
               <div className="text-[14px] font-semibold">{approval.title}</div>
               <dl className="m-0 grid grid-cols-[96px_minmax(0,1fr)] gap-y-1 text-[13px]">
-                <dt className="text-muted">Effort</dt><dd className="m-0 font-mono">{approval.effort_hours ?? '–'} h</dd>
+                <dt className="text-muted">Effort</dt><dd className="m-0 font-mono">{effort(approval.effort, approval.effort_unit)}</dd>
                 <dt className="text-muted">Target</dt><dd className="m-0 font-mono">{shortDate(approval.target_date)}</dd>
                 <dt className="text-muted">Version</dt><dd className="m-0 font-mono">v{approval.version}</dd>
                 <dt className="text-muted">Approver</dt><dd className="m-0">{approval.approver?.full_name}</dd>
@@ -102,7 +105,7 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
                   <ActionForm action={resubmitApproval} submit="Resubmit" className="mt-2">
                     <input type="hidden" name="approval_id" value={approval.id} />
                     <textarea name="summary" rows={3} defaultValue={approval.summary} aria-label="Revised scope" className="textarea" />
-                    <div className="flex gap-2"><input type="number" name="effort_hours" step={0.5} min={0.5} defaultValue={approval.effort_hours ?? ''} aria-label="Effort hours" className="input w-24" required /><input type="date" name="target_date" defaultValue={approval.target_date ?? ''} aria-label="Target date" className="input flex-1" /></div>
+                    <div className="flex flex-wrap gap-2"><EffortInput name="effort" unitName="effort_unit" units={units ?? ['day']} defaultValue={approval.effort} defaultUnit={approval.effort_unit} required /><input type="date" name="target_date" defaultValue={approval.target_date ?? ''} aria-label="Target date" className="input flex-1" /></div>
                     <input name="comment" placeholder="What changed (shown in history)" aria-label="What changed" className="input" />
                   </ActionForm>
                 </details>
@@ -124,7 +127,7 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
               <ActionForm action={requestApproval} submit="Request approval">
                 <input type="hidden" name="request_id" value={r.id} />
                 <textarea name="summary" rows={3} required placeholder="Scope: what is included and excluded" aria-label="Scope" className="textarea" />
-                <div className="flex gap-2"><input type="number" name="effort_hours" step={0.5} min={0.5} required placeholder="Effort h" aria-label="Effort in hours" className="input w-24" /><input type="date" name="target_date" aria-label="Target delivery" className="input flex-1" /></div>
+                <div className="flex flex-wrap gap-2"><EffortInput name="effort" unitName="effort_unit" units={units ?? ['day']} required /><input type="date" name="target_date" aria-label="Target delivery" className="input flex-1" /></div>
                 <label className="flex flex-col gap-1 text-xs"><span className="label">Approver</span>
                   <select name="approver_id" required className="input">{(customerUsers ?? []).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}</select></label>
                 <label className="flex flex-col gap-1 text-xs"><span className="label">Decision needed by</span><input type="date" name="due_date" className="input" /></label>

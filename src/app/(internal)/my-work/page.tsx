@@ -4,7 +4,7 @@ import { setTaskStatus } from '@/app/_actions/work'
 import { StatusSelect } from '@/components/forms'
 import { Card, Empty, PageHeader, Stat, TaskStatusChip, Visibility, cn } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
-import { TASK_STATUS, daysFromToday, shortDate } from '@/lib/format'
+import { TASK_STATUS, daysFromToday, shortDate, effortShort } from '@/lib/format'
 import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
@@ -15,7 +15,7 @@ export default async function MyWork() {
   const me = await requireStaff()
   const supabase = await createClient()
   const { data } = await supabase.from('tasks')
-    .select('id, title, status, due_date, visibility, project_id, projects(name, customers(name)), task_estimates(estimate_hours)')
+    .select('id, title, status, due_date, visibility, project_id, projects(name, customers(name)), task_estimates(estimate, unit)')
     .eq('assignee_id', me.id).neq('status', 'done').order('due_date', { ascending: true, nullsFirst: false })
   const tasks = data ?? []
   const bucket = (t: (typeof tasks)[number]) => {
@@ -49,7 +49,7 @@ export default async function MyWork() {
                   <Link href={`/projects/${t.project_id}?task=${t.id}`} className="truncate font-medium text-ink no-underline hover:underline">{t.title}</Link>
                   <span className="truncate text-xs text-muted">{t.projects?.customers?.name} · {t.projects?.name}</span>
                   <span className={cn('font-mono text-xs', g.key === 'overdue' && 'font-semibold text-crit-ink')}>{shortDate(t.due_date)}</span>
-                  <span className="text-right font-mono text-xs text-muted">{t.task_estimates?.estimate_hours ? `${t.task_estimates.estimate_hours} h` : ''}</span>
+                  <span className="text-right font-mono text-xs text-muted">{t.task_estimates?.estimate ? effortShort(t.task_estimates.estimate, t.task_estimates.unit) : ''}</span>
                   <StatusSelect label={`Status of ${t.title}`} value={t.status} options={statusOptions} onChange={setTaskStatus.bind(null, t.id)} />
                   <span><Visibility value={t.visibility} /></span>
                 </div>

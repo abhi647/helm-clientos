@@ -21,16 +21,16 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
     .select('*, rate_cards(currency, po_number, version), statement_lines(*), decider:profiles!billing_statements_decided_by_fkey(full_name)')
     .eq('id', sid).eq('project_id', id).maybeSingle()
   if (!st) notFound()
-  // hours the team logged on this project's tasks in the period: the evidence for day-rate quantities
+  // days the team logged on this project's tasks in the period: the evidence for day-rate quantities
   const { data: time } = await supabase.from('time_entries')
-    .select('hours, billable, user:profiles!time_entries_user_id_fkey(full_name), tasks!inner(project_id)')
+    .select('days, billable, user:profiles!time_entries_user_id_fkey(full_name), tasks!inner(project_id)')
     .eq('tasks.project_id', id).gte('worked_on', st.period_start).lte('worked_on', st.period_end)
-  const byPerson = new Map<string, { hours: number; billable: number }>()
+  const byPerson = new Map<string, { days: number; billable: number }>()
   for (const t of time ?? []) {
     const name = t.user?.full_name ?? 'Unknown'
-    const row = byPerson.get(name) ?? { hours: 0, billable: 0 }
-    row.hours += Number(t.hours)
-    if (t.billable) row.billable += Number(t.hours)
+    const row = byPerson.get(name) ?? { days: 0, billable: 0 }
+    row.days += Number(t.days)
+    if (t.billable) row.billable += Number(t.days)
     byPerson.set(name, row)
   }
   const currency = st.rate_cards?.currency ?? 'INR'
@@ -93,15 +93,15 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
           </div>
         )}
       </Card>
-      <Card flush title="Hours logged in this period" extra="From the team's time entries on this project">
+      <Card flush title="Days logged in this period" extra="From the team's time entries on this project">
         {byPerson.size ? (
           <div>
-            <div className="row row-head grid-cols-[minmax(0,1fr)_120px_120px]"><span>Person</span><span className="text-right">Hours</span><span className="text-right">Billable</span></div>
-            {[...byPerson.entries()].sort((a, b) => b[1].hours - a[1].hours).map(([name, h]) => (
+            <div className="row row-head grid-cols-[minmax(0,1fr)_120px_120px]"><span>Person</span><span className="text-right">Days</span><span className="text-right">Billable</span></div>
+            {[...byPerson.entries()].sort((a, b) => b[1].days - a[1].days).map(([name, h]) => (
               <div key={name} className="row grid-cols-[minmax(0,1fr)_120px_120px]">
                 <span>{name}</span>
-                <span className="text-right font-mono text-xs">{h.hours.toFixed(1)}</span>
-                <span className="text-right font-mono text-xs">{h.billable.toFixed(1)}</span>
+                <span className="text-right font-mono text-xs">{+h.days.toFixed(2)}</span>
+                <span className="text-right font-mono text-xs">{+h.billable.toFixed(2)}</span>
               </div>
             ))}
           </div>

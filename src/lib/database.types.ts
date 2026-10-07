@@ -3,7 +3,25 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 
 export type Database = {
   
-  "public": {
+  "graphql_public": {
+          Tables: {
+            [_ in never]: never
+          }
+          Views: {
+            [_ in never]: never
+          }
+          Functions: {
+            "graphql":
+{ Args: { "extensions"?: Json,"operationName"?: string,"query"?: string,"variables"?: Json }; Returns: Json
+                           }
+          }
+          Enums: {
+            [_ in never]: never
+          }
+          CompositeTypes: {
+            [_ in never]: never
+          }
+        },"public": {
           Tables: {
             "action_items": {
                   Row: {
@@ -166,13 +184,13 @@ isOneToOne: false
                   ]
                 },"approvals": {
                   Row: {
-                    "approver_id": string,"created_at": string,"customer_id": string,"due_date": string | null,"effort_hours": number | null,"id": string,"kind": string,"project_id": string | null,"request_id": string | null,"requested_by": string | null,"status": Database["public"]['Enums']["approval_status"],"summary": string,"target_date": string | null,"task_id": string | null,"title": string,"version": number
+                    "approver_id": string,"created_at": string,"customer_id": string,"due_date": string | null,"effort": number | null,"effort_unit": string,"id": string,"kind": string,"project_id": string | null,"request_id": string | null,"requested_by": string | null,"status": Database["public"]['Enums']["approval_status"],"summary": string,"target_date": string | null,"task_id": string | null,"title": string,"version": number
                   }
                   Insert: {
-                    "approver_id": string,"created_at"?: string,"customer_id": string,"due_date"?: string | null,"effort_hours"?: number | null,"id"?: string,"kind"?: string,"project_id"?: string | null,"request_id"?: string | null,"requested_by"?: string | null,"status"?: Database["public"]['Enums']["approval_status"],"summary"?: string,"target_date"?: string | null,"task_id"?: string | null,"title": string,"version"?: number
+                    "approver_id": string,"created_at"?: string,"customer_id": string,"due_date"?: string | null,"effort"?: number | null,"effort_unit"?: string,"id"?: string,"kind"?: string,"project_id"?: string | null,"request_id"?: string | null,"requested_by"?: string | null,"status"?: Database["public"]['Enums']["approval_status"],"summary"?: string,"target_date"?: string | null,"task_id"?: string | null,"title": string,"version"?: number
                   }
                   Update: {
-                    "approver_id"?: string,"created_at"?: string,"customer_id"?: string,"due_date"?: string | null,"effort_hours"?: number | null,"id"?: string,"kind"?: string,"project_id"?: string | null,"request_id"?: string | null,"requested_by"?: string | null,"status"?: Database["public"]['Enums']["approval_status"],"summary"?: string,"target_date"?: string | null,"task_id"?: string | null,"title"?: string,"version"?: number
+                    "approver_id"?: string,"created_at"?: string,"customer_id"?: string,"due_date"?: string | null,"effort"?: number | null,"effort_unit"?: string,"id"?: string,"kind"?: string,"project_id"?: string | null,"request_id"?: string | null,"requested_by"?: string | null,"status"?: Database["public"]['Enums']["approval_status"],"summary"?: string,"target_date"?: string | null,"task_id"?: string | null,"title"?: string,"version"?: number
                   }
                   Relationships: [
                     {
@@ -1439,13 +1457,13 @@ isOneToOne: false
                   ]
                 },"task_estimates": {
                   Row: {
-                    "customer_id": string,"estimate_hours": number,"task_id": string
+                    "customer_id": string,"estimate": number,"task_id": string,"unit": string
                   }
                   Insert: {
-                    "customer_id": string,"estimate_hours": number,"task_id": string
+                    "customer_id": string,"estimate": number,"task_id": string,"unit"?: string
                   }
                   Update: {
-                    "customer_id"?: string,"estimate_hours"?: number,"task_id"?: string
+                    "customer_id"?: string,"estimate"?: number,"task_id"?: string,"unit"?: string
                   }
                   Relationships: [
                     {
@@ -1537,13 +1555,13 @@ isOneToOne: false
                   ]
                 },"time_entries": {
                   Row: {
-                    "billable": boolean,"created_at": string,"customer_id": string,"hours": number,"id": string,"note": string | null,"task_id": string,"user_id": string,"worked_on": string
+                    "billable": boolean,"created_at": string,"customer_id": string,"days": number,"id": string,"note": string | null,"task_id": string,"user_id": string,"worked_on": string
                   }
                   Insert: {
-                    "billable"?: boolean,"created_at"?: string,"customer_id": string,"hours": number,"id"?: string,"note"?: string | null,"task_id": string,"user_id": string,"worked_on"?: string
+                    "billable"?: boolean,"created_at"?: string,"customer_id": string,"days": number,"id"?: string,"note"?: string | null,"task_id": string,"user_id": string,"worked_on"?: string
                   }
                   Update: {
-                    "billable"?: boolean,"created_at"?: string,"customer_id"?: string,"hours"?: number,"id"?: string,"note"?: string | null,"task_id"?: string,"user_id"?: string,"worked_on"?: string
+                    "billable"?: boolean,"created_at"?: string,"customer_id"?: string,"days"?: number,"id"?: string,"note"?: string | null,"task_id"?: string,"user_id"?: string,"worked_on"?: string
                   }
                   Relationships: [
                     {
@@ -1769,6 +1787,9 @@ isOneToOne: false
 "decide_statement":
 { Args: { "p_approve": boolean,"p_note"?: string,"p_statement": string }; Returns: undefined
                            },
+"effort_units":
+{ Args: { "p_project": string }; Returns: (string)[]
+                           },
 "get_my_profile":
 { Args: Record<PropertyKey, never>; Returns: {
               "access_revoked_at": string | null,
@@ -1793,7 +1814,7 @@ isOneToOne: false
 { Args: { "p_update": string }; Returns: undefined
                            },
 "resubmit_approval":
-{ Args: { "p_approval": string,"p_comment"?: string,"p_effort": number,"p_summary": string,"p_target"?: string }; Returns: undefined
+{ Args: { "p_approval": string,"p_comment"?: string,"p_effort": number,"p_summary": string,"p_target"?: string,"p_unit"?: string }; Returns: undefined
                            },
 "send_csat_pulses":
 { Args: Record<PropertyKey, never>; Returns: number
@@ -1929,7 +1950,11 @@ export type CompositeTypes<
   : never
 
 export const Constants = {
-  "public": {
+  "graphql_public": {
+          Enums: {
+            
+          }
+        },"public": {
           Enums: {
             "action_status": ["open", "completed", "cancelled"],"action_type": ["approval", "form", "task", "clarification", "uat", "upload", "decision", "invoice", "meeting_action"],"approval_action": ["requested", "approved", "changes_requested", "resubmitted", "cancelled"],"approval_status": ["pending", "approved", "changes_requested", "cancelled"],"billing_kind": ["day_rate", "delivery", "unit", "retainer"],"csat_kind": ["request", "pulse", "closure"],"customer_role": ["customer_exec", "customer_member"],"feedback_kind": ["praise", "suggestion", "issue", "other"],"feedback_status": ["new", "acknowledged", "actioned", "closed"],"health": ["on_track", "needs_attention", "at_risk"],"internal_role": ["admin", "ceo", "pm", "consultant", "finance"],"owner_side": ["seven_billion", "customer"],"priority": ["low", "normal", "high", "critical"],"project_status": ["active", "on_hold", "completed"],"rate_card_status": ["draft", "pending", "approved", "changes_requested", "superseded"],"request_status": ["submitted", "under_review", "clarification", "estimated", "approved", "scheduled", "in_development", "uat", "delivered", "cancelled"],"request_type": ["requirement", "enhancement", "change_request", "bug", "new_report", "data_request", "access_request", "support", "other"],"setup_status": ["pending", "created", "dismissed"],"statement_status": ["draft", "pending", "approved", "changes_requested", "invoiced"],"task_status": ["todo", "in_progress", "in_review", "waiting_customer", "blocked", "done"],"update_status": ["draft", "published"],"user_kind": ["internal", "customer"],"visibility": ["internal", "shared"]
           }
