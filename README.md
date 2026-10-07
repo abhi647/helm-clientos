@@ -71,7 +71,7 @@ npm run dev
 |---|---|
 | `npm run typecheck` / `npm run lint` | TypeScript and ESLint |
 | `npm run test:db` | 79 row, field, two-step, lock-out, file, playbook and CSAT tests against the local database |
-| `npm run test:e2e` | 11 Playwright flows (staff complete two-step sign-in; set `CLAMAV_HOST` to run the virus-scan flow) (needs `npm run build && npm start` first). Set `PW_CHROMIUM_PATH` to use a pre-installed Chromium. |
+| `npm run test:e2e` | 18 Playwright flows, including phone-width checks (staff complete two-step sign-in; set `CLAMAV_HOST` to run the virus-scan flow) (needs `npm run build && npm start` first). Set `PW_CHROMIUM_PATH` to use a pre-installed Chromium. |
 
 CI (`.github/workflows/ci.yml`) runs lint, types, the database tests and the flows on every push to `main` and on every pull request. It uses a throwaway local Supabase and a ClamAV service.
 | `npm run db:types` | Regenerate `src/lib/database.types.ts` after a migration |
@@ -93,6 +93,7 @@ CI (`.github/workflows/ci.yml`) runs lint, types, the database tests and the flo
 5. In **Authentication → Emails**, paste `supabase/templates/magic_link.html` and `invite.html` into the Magic Link and Invite user templates. They use `token_hash` links, which work across devices. Set the subjects to "Your sign-in link for Helm" and "You are invited to Helm by Seven Billion".
    - Opening a link shows a "Continue" button; the link is only used when it is pressed. This stops email security scanners (Microsoft Safe Links and similar), which open every link first, from using it up.
    - Under **Authentication → Sign In / Providers → Email**, set "Email OTP Expiration" to `86400` (24 hours) so a late-arriving invite still works.
+   - The sign-in email also carries a 6-digit code (`{{ .Token }}`). People using the installed app on a phone type the code instead of opening the link, because on iPhone a link opens in Safari, which doesn't share sign-in with the home-screen app.
 6. In **Authentication → Emails → SMTP Settings**, send auth emails through Resend. Supabase's built-in sender is rate-limited and is for testing only.
 
    | Field | Value |
@@ -108,6 +109,14 @@ CI (`.github/workflows/ci.yml`) runs lint, types, the database tests and the flo
    - Set `NEXT_PUBLIC_GOOGLE_SIGNIN=true`.
 
    Sign-ups stay off, so only people you have invited can sign in with Google.
+
+### Staying signed in, and the phone app
+
+- **Sessions last 30 days and renew while in use.** The sign-in cookie lives 30 days (`src/lib/supabase/session-cookie.ts`), and each visit refreshes it. Someone who opens Helm at least once a month never signs in again on that device; after 30 days away they sign in once more. Removing someone in Admin still cuts them off at once, because every request checks their access in the database.
+- Leave **Authentication → Sessions** at its defaults (JWT expiry 3600 s; refresh tokens don't expire). On a paid plan you can set "Inactivity timeout" to 30 days as a server-side backstop.
+- Staff still enter their authenticator code at each new sign-in, not on every visit.
+- **Install it as an app.** iPhone: open Helm in Safari → Share → *Add to Home Screen*. Android/Chrome/Edge: menu → *Install app*. It opens full-screen with the Helm icon (`src/app/manifest.ts`). The service worker (`public/sw.js`) only caches the app's static files and shows an offline page when there is no signal; it never stores pages or customer data on the device.
+- On phones, the staff sidebar becomes a menu button, the portal tabs scroll sideways, and wide tables scroll inside their cards.
 
 ### 2. Resend
 

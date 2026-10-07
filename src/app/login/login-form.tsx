@@ -4,15 +4,31 @@ import { useActionState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { sendMagicLink, type LoginState } from './actions'
 
-export function LoginForm({ next }: { next: string }) {
-  const [state, action, pending] = useActionState<LoginState, FormData>(sendMagicLink, { status: 'idle' })
-  if (state.status === 'sent') {
-    return (
+/** After the email is sent: open the link, or type the code from the same email (needed in the installed app). */
+function CodeForm({ email, next, error }: { email: string; next: string; error?: boolean }) {
+  return (
+    <div className="flex flex-col gap-3">
       <div role="status" className="rounded-md border border-line bg-head p-3 text-[13px] leading-relaxed">
-        <b>Check your inbox.</b> If <span className="font-medium">{state.email}</span> has access, a sign-in link is on its way. It works once and expires in an hour.
+        <b>Check your inbox.</b> If <span className="font-medium">{email}</span> has access, an email with a sign-in link and a code is on its way.
       </div>
-    )
-  }
+      <form action="/auth/code" method="post" className="flex flex-col gap-2.5">
+        <input type="hidden" name="email" value={email} />
+        <input type="hidden" name="next" value={next} />
+        <label htmlFor="code" className="label">Or enter the code from the email</label>
+        <input id="code" name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,12}" maxLength={12} autoFocus
+          placeholder="123456" className="input h-11 text-center font-mono text-lg tracking-[.3em]" />
+        {error ? <p role="alert" className="m-0 text-xs text-crit-ink">That code is wrong or has expired. Check the latest email, or send a new one.</p> : null}
+        <button type="submit" className="btn btn-primary h-10 text-sm">Sign in</button>
+        <a href={`/login?next=${encodeURIComponent(next)}`} className="text-center text-xs text-muted">Use a different email or send a new code</a>
+      </form>
+    </div>
+  )
+}
+
+export function LoginForm({ next, codeFor, codeError }: { next: string; codeFor?: string; codeError?: boolean }) {
+  const [state, action, pending] = useActionState<LoginState, FormData>(sendMagicLink, { status: 'idle' })
+  if (codeFor) return <CodeForm email={codeFor} next={next} error={codeError} />
+  if (state.status === 'sent') return <CodeForm email={state.email!} next={next} />
   return (
     <form action={action} className="flex flex-col gap-2.5">
       <input type="hidden" name="next" value={next} />

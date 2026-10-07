@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f2a30">
+  <title>Offline · Helm</title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body { display: flex; align-items: center; justify-content: center; background: #f4f6f7; color: #13343b;
+      font: 14px/1.5 "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; padding: 24px; box-sizing: border-box; }
+    .card { max-width: 360px; background: #fff; border: 1px solid #e2e7e9; border-radius: 8px; padding: 28px 24px; text-align: center;
+      box-shadow: 0 1px 2px rgb(15 42 48 / .05); }
+    img { width: 56px; height: 56px; border-radius: 12px; }
+    h1 { font-size: 18px; margin: 14px 0 6px; }
+    p { margin: 0 0 18px; color: #5b6b70; }
+    button { height: 34px; padding: 0 16px; border-radius: 6px; border: 1px solid #13343b; background: #13343b; color: #fff;
+      font: inherit; font-weight: 600; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img src="/brand/icon-192.png" alt="Helm">
+    <h1>You're offline</h1>
+    <p>Helm needs a connection to show your projects. Check your connection and try again.</p>
+    <button onclick="location.reload()">Try again</button>
+  </div>
+</body>
+</html>

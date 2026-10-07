@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { SESSION_COOKIE } from '@/lib/supabase/session-cookie'
 
 const PUBLIC_PATHS = ['/login', '/auth', '/api/webhooks', '/api/cron']
 
@@ -7,6 +8,7 @@ const PUBLIC_PATHS = ['/login', '/auth', '/api/webhooks', '/api/cron']
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
   const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
+    cookieOptions: SESSION_COOKIE,
     cookies: {
       getAll() {
         return request.cookies.getAll()
@@ -44,5 +46,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|greeting/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  // static files and the app shell (manifest, service worker, offline page) are public
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|greeting/|brand/|sw\\.js|offline\\.html|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)'],
 }

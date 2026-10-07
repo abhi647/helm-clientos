@@ -10,8 +10,9 @@ const ERRORS: Record<string, string> = {
   'link-expired': 'That sign-in link has expired or was already used. Request a new one below.',
 }
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
-  const { next, error } = await searchParams
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string; email?: string }> }) {
+  const { next, error, email } = await searchParams
+  const badCode = error === 'bad-code' && !!email
   return (
     <main className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <div className="flex items-center justify-center bg-white px-4 py-10">
@@ -21,8 +22,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           </div>
           <h1 className="m-0 mb-1 text-xl font-semibold">Sign in</h1>
           <p className="mt-0 mb-5 text-[13px] text-muted">Projects, requests, approvals and updates, in one place.</p>
-          {error && ERRORS[error] ? <p role="alert" className="mb-4 rounded-md bg-warn-bg p-2.5 text-xs text-warn-ink">{ERRORS[error]}</p> : null}
-          <LoginForm next={next ?? '/'} />
+          {error && ERRORS[error] && !badCode ? <p role="alert" className="mb-4 rounded-md bg-warn-bg p-2.5 text-xs text-warn-ink">{ERRORS[error]}</p> : null}
+          <LoginForm next={next ?? '/'} codeFor={badCode ? email : undefined} codeError={badCode} />
         </div>
       </div>
       <div className="relative hidden lg:block">

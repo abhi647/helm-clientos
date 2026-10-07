@@ -52,27 +52,27 @@ export default async function Finance() {
             </div>
           ) : <Empty title="No invoices yet">They appear after the first Zoho Books sync.</Empty>}
         </Card>
-        <Card flush title="Billing statements" extra="Not yet in Zoho">
-          {statements?.length ? statements.map((st) => (
+        <Card flush title="Billing statements" extra="Not yet in Zoho" className="overflow-x-auto">
+          {statements?.length ? <div className="min-w-[640px]">{statements.map((st) => (
             <Link key={st.id} href={`/projects/${st.project_id}/billing/${st.id}`} className="row grid-cols-[minmax(0,1fr)_200px_170px_minmax(0,1fr)] text-ink no-underline hover:bg-head">
               <span className="truncate">{st.projects?.customers?.name} · {st.projects?.name}</span>
               <span className="text-xs">{period(st.period_start, st.period_end)}</span>
               <span><StatementStatus status={st.status} /></span>
               <span className="truncate text-xs text-crit-ink">{st.invoice_error ?? ''}</span>
             </Link>
-          )) : <Empty title="Nothing waiting">Statements appear here from the project Billing tabs until they become Zoho invoices.</Empty>}
+          ))}</div> : <Empty title="Nothing waiting">Statements appear here from the project Billing tabs until they become Zoho invoices.</Empty>}
         </Card>
         <PaymentsCard staff />
         {commercials ? (
-          <Card flush title="Commercials" extra="Internal · CEO, finance and admin">
-            {commercials.length ? commercials.map((c) => (
+          <Card flush title="Commercials" extra="Internal · CEO, finance and admin" className="overflow-x-auto">
+            {commercials.length ? <div className="min-w-[640px]">{commercials.map((c) => (
               <div key={c.project_id} className="row grid-cols-[minmax(0,1fr)_220px_140px_120px]">
                 <span className="truncate">{c.projects?.customers?.name} · {c.projects?.name}</span>
                 <span className="truncate text-xs">{c.billing_model ?? '–'}</span>
                 <span className="text-right font-mono text-xs">{money(c.contract_value, c.currency)}</span>
                 <span className="font-mono text-xs text-muted">{c.po_number ?? 'No PO'}</span>
               </div>
-            )) : <Empty title="No commercials recorded" />}
+            ))}</div> : <Empty title="No commercials recorded" />}
           </Card>
         ) : null}
       </div>

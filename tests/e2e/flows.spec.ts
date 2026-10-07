@@ -26,6 +26,21 @@ async function latestLink(email: string, after: number): Promise<string> {
   throw new Error(`No sign-in email for ${email}`)
 }
 
+async function latestCode(email: string, after: number): Promise<string> {
+  for (let i = 0; i < 30; i++) {
+    const res = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${email}"`)}`)
+    const json = (await res.json()) as { messages: { ID: string; Created: string }[] }
+    const msg = json.messages.find((m) => Date.parse(m.Created) >= after - 2000)
+    if (msg) {
+      const full = (await (await fetch(`${MAILPIT}/api/v1/message/${msg.ID}`)).json()) as { Text: string; HTML: string }
+      const code = (full.Text || full.HTML.replace(/<[^>]+>/g, ' ')).match(/\b(\d{6,10})\b/)?.[1]
+      if (code) return code
+    }
+    await new Promise((r) => setTimeout(r, 500))
+  }
+  throw new Error(`No sign-in code for ${email}`)
+}
+
 // authenticator secrets of staff who set up two-step sign-in during this run
 const totp = new Map<string, string>()
 
@@ -380,4 +395,76 @@ test('the sidebar shows names, collapses to icons and remembers the choice', asy
   await expect(nav.getByRole('tooltip', { name: 'Customers' })).toBeVisible()
   await shot(page, '28-nav-collapsed')
   await nav.getByRole('button', { name: 'Expand navigation' }).click()
+})
+
+test('the installed app: manifest, worker and offline page load without signing in', async ({ request }) => {
+  const manifest = await request.get('/manifest.webmanifest')
+  expect(manifest.ok()).toBe(true)
+  expect(await manifest.json()).toMatchObject({ display: 'standalone', start_url: '/' })
+  const sw = await request.get('/sw.js')
+  expect(sw.ok()).toBe(true)
+  expect(sw.headers()['cache-control']).toContain('no-cache')
+  expect((await request.get('/offline.html')).ok()).toBe(true)
+  expect((await request.get('/brand/icon-192.png')).ok()).toBe(true)
+})
+
+test('sign in with the code from the email, and the session lasts 30 days', async ({ page }) => {
+  const email = 'omar@nesma.example.com'
+  await page.context().clearCookies()
+  await page.goto('/login')
+  const started = Date.now()
+  await page.getByLabel('Work email').fill(email)
+  await page.getByRole('button', { name: 'Email me a sign-in link' }).click()
+  await expect(page.getByLabel('Or enter the code from the email')).toBeVisible()
+  await shot(page, '29-login-code')
+  // a wrong code keeps the email and says so
+  await page.getByLabel('Or enter the code from the email').fill('000000')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByRole('alert')).toContainText('wrong or has expired')
+  const code = await latestCode(email, started)
+  await page.getByLabel('Or enter the code from the email').fill(code)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page).toHaveURL(/\/portal$/)
+  const auth = (await page.context().cookies()).filter((c) => c.name.startsWith('sb-') && c.name.includes('auth-token'))
+  expect(auth.length).toBeGreaterThan(0)
+  for (const c of auth) expect(c.expires * 1000 - Date.now()).toBeGreaterThan(29 * 24 * 3600 * 1000)
+})
+
+test.describe('on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+
+  test('the menu opens as a drawer and pages fit the screen', async ({ page }) => {
+    await signIn(page, 'abhijit@example.com')
+    await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden()
+    await page.getByRole('button', { name: 'Open menu' }).click()
+    const menu = page.getByRole('dialog', { name: 'Menu' })
+    await expect(menu.getByRole('link', { name: 'Projects' })).toBeVisible()
+    expect((await menu.locator('> div').last().boundingBox())!.height).toBeGreaterThan(800)   // the whole screen, not clipped to the top bar
+    await shot(page, '30-phone-menu')
+    await menu.getByRole('link', { name: 'Projects' }).click()
+    await expect(page).toHaveURL(/\/projects$/)
+    await expect(menu).toBeHidden()
+    await page.goto('/projects')
+    const project = (await page.locator('main a[href^="/projects/"]').first().getAttribute('href'))!
+    await page.goto('/customers')
+    const customer = (await page.locator('main a[href^="/customers/"]').first().getAttribute('href'))!
+    for (const path of ['/home', '/my-work', '/requests', '/customers', customer, '/projects', project, `${project}/requests`, `${project}/documents`, `${project}/updates`, `${project}/billing`,
+      `${project}/meetings`, `${project}/decisions`, '/feedback', '/finance', '/admin']) {
+      await page.goto(path)
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - 390)
+      if (overflow > 1) console.log(await page.evaluate(() => [...document.querySelectorAll('main *')].filter((e) => e.getBoundingClientRect().right > 392 && !e.closest('.overflow-x-auto')).slice(0, 6).map((e) => `${e.tagName}.${e.className} ${Math.round(e.getBoundingClientRect().right)}`).join('\n')))
+      expect(overflow, `${path} scrolls sideways`).toBeLessThanOrEqual(1)
+      await shot(page, `31-phone${path.replace(/\//g, '-').slice(0, 60)}`)
+    }
+  })
+
+  test('the customer portal fits the screen', async ({ page }) => {
+    await signIn(page, 'omar@nesma.example.com')
+    for (const path of ['/portal', '/portal/requests', '/portal/requests/new', '/portal/meetings', '/portal/decisions', '/portal/documents', '/portal/feedback', '/portal/billing']) {
+      await page.goto(path)
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - 390)
+      expect(overflow, `${path} scrolls sideways`).toBeLessThanOrEqual(1)
+      await shot(page, `32-phone${path.replace(/\//g, '-')}`)
+    }
+  })
 })

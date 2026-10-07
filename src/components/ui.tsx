@@ -126,14 +126,15 @@ export function Empty({ title, children }: { title: string; children?: React.Rea
 
 export function Card({ title, extra, children, className, flush }: { title?: React.ReactNode; extra?: React.ReactNode; children: React.ReactNode; className?: string; flush?: boolean }) {
   return (
-    <section className={cn('card', className)}>
+    <section className={cn('card min-w-0', className)}>
       {title ? (
         <div className="card-head">
           <h2 className="m-0 text-[13px] font-semibold">{title}</h2>
           {extra ? <div className="ml-auto flex items-center gap-2 text-xs text-muted">{extra}</div> : null}
         </div>
       ) : null}
-      <div className={flush ? '' : 'p-3'}>{children}</div>
+      {/* phones: wide tables scroll inside the card instead of widening the page */}
+      <div className={cn(flush ? '' : 'p-3', 'max-sm:overflow-x-auto')}>{children}</div>
     </section>
   )
 }
