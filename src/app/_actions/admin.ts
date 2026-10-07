@@ -5,6 +5,8 @@ import { z } from 'zod'
 import { canManage, requireStaff } from '@/lib/session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { deleteCustomer } from '@/lib/customer-data'
+import { logError } from '@/lib/system-log'
 import { lookupHubSpotCompany, lookupHubSpotDeal, lookupProblem, lookupZohoCustomer } from '@/lib/integrations/lookup'
 import { syncZohoInvoices } from '@/lib/integrations/zoho'
 import { templateByKey } from '@/lib/templates'
@@ -261,6 +263,30 @@ const linksSchema = z.object({
 })
 
 /** Links an existing customer to its HubSpot company and Zoho Books customer (or unlinks, when left blank). */
+/**
+ * Admin or CEO: removes a customer and everything Helm holds about them (projects, requests, files, billing, their
+ * people's sign-ins). The name must be typed to confirm. Cannot be undone; export first.
+ */
+export async function deleteCustomerData(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!['admin', 'ceo'].includes(me.internal_role ?? '')) return fail('Only an admin or the CEO can delete a customer.')
+  const id = uuid.safeParse(form.get('customer_id'))
+  if (!id.success) return fail('Unknown customer.')
+  const supabase = await createClient()
+  const { data: c } = await supabase.from('customers').select('name').eq('id', id.data).maybeSingle()
+  if (!c) return fail('Unknown customer.')
+  if (String(form.get('confirm_name') ?? '').trim() !== c.name) return fail(`Type the customer's name exactly ("${c.name}") to confirm.`)
+  try {
+    const removed = await deleteCustomer(id.data)
+    await logError('data-delete', `${me.full_name} deleted ${c.name} and all its data (${removed.people} sign-ins, ${removed.files} files)`, { customer: id.data }, 'info')
+  } catch (e) {
+    await logError('data-delete', e, { customer: id.data })
+    return fail('The delete did not finish. See Admin → System health, then try again.')
+  }
+  done()
+  redirect('/customers')
+}
+
 export async function setCustomerLinks(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   const me = await requireStaff()
   if (!canManage(me)) return fail('Only a PM, the CEO or an admin can change the links.')

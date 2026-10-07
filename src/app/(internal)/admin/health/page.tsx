@@ -61,7 +61,7 @@ export default async function SystemHealth() {
             </div>
           </Card>
         </div>
-        <Card flush title="Recent problems" extra="Last 50, kept for 90 days">
+        <Card flush title="Recent problems and admin actions" extra="Last 50, kept for 90 days">
           {log?.length ? (
             <div className="overflow-x-auto">
               <div className="min-w-[640px]">
@@ -69,7 +69,7 @@ export default async function SystemHealth() {
                 {log.map((l) => (
                   <div key={l.id} className="row grid-cols-[110px_80px_110px_minmax(0,1fr)] text-xs">
                     <span className="text-muted">{relativeTime(l.at)}</span>
-                    <span><Chip tone={l.level === 'error' ? 'crit' : 'warn'}>{l.level}</Chip></span>
+                    <span><Chip tone={l.level === 'error' ? 'crit' : l.level === 'warn' ? 'warn' : 'neutral'}>{l.level}</Chip></span>
                     <span className="font-mono">{l.source}</span>
                     <span className="min-w-0 break-words">{l.message}{(l.detail as { path?: string })?.path ? <span className="text-muted"> · {(l.detail as { path?: string }).path}</span> : null}</span>
                   </div>

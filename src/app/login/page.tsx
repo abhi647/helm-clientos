@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
+import Link from 'next/link'
 import { LoginForm } from './login-form'
 import { BrandLockup } from '@/components/brand'
 
@@ -24,6 +25,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <p className="mt-0 mb-5 text-[13px] text-muted">Projects, requests, approvals and updates, in one place.</p>
           {error && ERRORS[error] && !badCode ? <p role="alert" className="mb-4 rounded-md bg-warn-bg p-2.5 text-xs text-warn-ink">{ERRORS[error]}</p> : null}
           <LoginForm next={next ?? '/'} codeFor={badCode ? email : undefined} codeError={badCode} />
+          <p className="mt-8 mb-0 text-xs text-muted"><Link href="/privacy" className="text-muted">Privacy</Link> · <Link href="/terms" className="text-muted">Terms of use</Link></p>
         </div>
       </div>
       <div className="relative hidden lg:block">

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { dismissContact, inviteCustomerUser, setCustomerAccess, setCustomerLinks } from '@/app/_actions/admin'
+import { deleteCustomerData, dismissContact, inviteCustomerUser, setCustomerAccess, setCustomerLinks } from '@/app/_actions/admin'
 import { ActionButton, ActionForm } from '@/components/forms'
 import { ActivityList, DocumentsPanel } from '@/components/project-parts'
 import { Avatar, Card, Chip, Empty, Health, PageHeader, Progress } from '@/components/ui'
@@ -115,6 +115,22 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
         </div>
         <DocumentsPanel me={me} customerId={c.id} projects={(projects ?? []).map((p) => ({ id: p.id, name: p.name }))} />
         <Card flush title="Activity"><ActivityList customerId={c.id} limit={30} /></Card>
+        {['admin', 'ceo'].includes(me.internal_role ?? '') ? (
+          <Card title="Customer data" extra="Admin and CEO">
+            <div className="flex flex-col gap-3">
+              <p className="m-0 text-xs text-muted">For a data request, or before an account is closed: everything Helm holds about {c.name}, as one JSON file.</p>
+              <div><a href={`/api/customers/${c.id}/export`} className="btn" download>Export all data</a></div>
+              <details className="rounded-md border border-crit-bg p-2.5">
+                <summary className="cursor-pointer text-xs font-semibold text-crit-ink">Delete {c.name} and all its data</summary>
+                <ActionForm action={deleteCustomerData} submit="Delete for good" className="mt-2" resetOnSuccess={false}>
+                  <input type="hidden" name="customer_id" value={c.id} />
+                  <p className="m-0 text-xs text-muted">Removes every project, request, file, invoice, billing record and comment, and the sign-ins of their people. This cannot be undone: export first.</p>
+                  <input name="confirm_name" required autoComplete="off" aria-label="Type the customer's name to confirm" placeholder={`Type ${c.name} to confirm`} className="input" />
+                </ActionForm>
+              </details>
+            </div>
+          </Card>
+        ) : null}
       </div>
     </>
   )

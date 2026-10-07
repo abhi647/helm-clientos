@@ -354,6 +354,44 @@ test('system health: the uptime check answers, a background job is recorded, and
   await shot(page, '39-system-health')
 })
 
+test('privacy and terms are public; the CEO exports a customer\'s data, then deletes the customer', async ({ page }) => {
+  await page.context().clearCookies()
+  await page.goto('/privacy')
+  await expect(page.getByRole('heading', { name: 'Privacy' })).toBeVisible()
+  await page.getByRole('link', { name: 'Terms of use' }).click()
+  await expect(page.getByRole('heading', { name: 'Terms of use' })).toBeVisible()
+  await page.goto('/login')
+  await expect(page.getByRole('link', { name: 'Privacy' })).toBeVisible()
+
+  await signIn(page, 'abhijit@example.com')
+  await page.goto('/customers')
+  await page.getByRole('link', { name: /CBD Group/ }).click()
+  const exportLink = page.getByRole('link', { name: 'Export all data' })
+  const res = await page.request.get((await exportLink.getAttribute('href'))!)
+  expect(res.status()).toBe(200)
+  expect(res.headers()['content-disposition']).toMatch(/attachment; filename="helm-cbd-group-/)
+  const data = await res.json()
+  expect(data.customer.name).toBe('CBD Group')
+  expect(data.tables.projects.length).toBeGreaterThan(0)
+  expect(data.people.length).toBeGreaterThan(0)
+
+  await page.getByText('Delete CBD Group and all its data').click()
+  await page.getByLabel("Type the customer's name to confirm").fill('CBD')
+  await page.getByRole('button', { name: 'Delete for good' }).click()
+  await expect(page.getByText('Type the customer\'s name exactly ("CBD Group") to confirm.')).toBeVisible()
+  await page.getByLabel("Type the customer's name to confirm").fill('CBD Group')
+  await page.getByRole('button', { name: 'Delete for good' }).click()
+  await expect(page).toHaveURL(/\/customers$/)
+  await expect(page.getByRole('link', { name: /CBD Group/ })).toHaveCount(0)
+
+  // the delete is on record for the admins
+  await page.goto('/admin/health')
+  await expect(page.getByText(/deleted CBD Group and all its data/)).toBeVisible()
+  // and nobody else can export
+  await signIn(page, 'rahul@example.com')
+  expect((await page.request.get(`/api/customers/${data.customer.id}/export`)).status()).toBe(403)
+})
+
 test('billing (finance only): rate card approved by the customer, a statement approved, then sent to Zoho', async ({ page }) => {
   page.on('dialog', (d) => d.accept())
   const openBilling = async () => {

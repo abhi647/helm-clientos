@@ -29,7 +29,9 @@ export default async function PortalLayout({ children }: { children: React.React
           <UserMenu profile={me} base="/portal" />
         </div>
       </header>
-      <main className="mx-auto max-w-[1360px] px-4 pt-4 pb-[max(2rem,env(safe-area-inset-bottom))] text-[14px] sm:px-5">{children}</main>
+      <main className="mx-auto max-w-[1360px] px-4 pt-4 pb-[max(2rem,env(safe-area-inset-bottom))] text-[14px] sm:px-5">{children}
+        <p className="mt-10 mb-0 text-center text-xs text-muted"><Link href="/privacy" className="text-muted">Privacy</Link> · <Link href="/terms" className="text-muted">Terms of use</Link></p>
+      </main>
     </div>
   )
 }

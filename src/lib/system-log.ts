@@ -5,8 +5,9 @@ import type { Json } from '@/lib/database.types'
 const text = (err: unknown) => (err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err)).slice(0, 2000)
 
 /** Records a server problem for Admin → System health. Never throws: logging must not break the request. */
-export async function logError(source: string, err: unknown, detail: Record<string, Json | undefined> = {}, level: 'error' | 'warn' = 'error') {
-  console.error(`[${source}]`, err)
+export async function logError(source: string, err: unknown, detail: Record<string, Json | undefined> = {}, level: 'error' | 'warn' | 'info' = 'error') {
+  if (level === 'info') console.info(`[${source}]`, text(err))
+  else console.error(`[${source}]`, err)
   try {
     await createAdminClient().from('system_log').insert({ source, level, message: text(err), detail: detail as { [key: string]: Json } })
   } catch {
