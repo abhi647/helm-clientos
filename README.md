@@ -188,6 +188,8 @@ A one-off backfill, which is also safe to re-run later. Admin and CEO only.
 
 Running the import again links what already exists and only adds new deals, projects, invoices and contacts.
 
+**Start again:** `node --env-file=.env.production.local scripts/reset-imported.mjs` lists what the import created (its projects, the HubSpot/Zoho customers with no other projects, their invoices and contacts) and every customer login. Nothing is deleted until you add `--yes`. Staff logins, settings and anything made by hand stay.
+
 ### Billing: rate cards, statements and Zoho drafts
 
 Every customer can be billed differently, and a project can mix models:
