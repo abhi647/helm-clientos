@@ -757,3 +757,21 @@ describe('approving for the customer', () => {
     expect((await service.from('action_items').select('id').eq('approval_id', ap!.id).eq('status', 'open')).data).toHaveLength(0)
   })
 })
+
+describe('system health', () => {
+  it('only admins and the CEO read the system log and job runs; nobody but the server writes them', async () => {
+    await service.from('system_log').insert({ source: 'test', message: 'probe' })
+    await service.from('job_runs').upsert({ job: 'test-job', last_ok_at: new Date().toISOString() })
+    const ceo = await as('abhijit@example.com')
+    expect((await ceo.from('system_log').select('id').eq('source', 'test')).data).toHaveLength(1)
+    expect((await ceo.from('job_runs').select('job').eq('job', 'test-job')).data).toHaveLength(1)
+    expect((await ceo.rpc('outbox_health')).data).toHaveLength(1)
+    for (const c of [rahul, sahil, finance, michel]) {
+      expect((await c.from('system_log').select('id')).data ?? []).toHaveLength(0)
+      expect((await c.from('job_runs').select('job')).data ?? []).toHaveLength(0)
+      expect((await c.rpc('outbox_health')).data ?? []).toHaveLength(0)
+    }
+    expect((await ceo.from('system_log').insert({ source: 'x', message: 'y' })).error).not.toBeNull()
+    expect((await ceo.from('system_log').delete().eq('source', 'test').select('id')).data ?? []).toHaveLength(0)
+  })
+})

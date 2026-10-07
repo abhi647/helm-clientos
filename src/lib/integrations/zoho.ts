@@ -1,6 +1,7 @@
 import 'server-only'
 import { env } from '@/lib/env'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { logError } from '@/lib/system-log'
 import { currencyProblem } from '@/lib/currencies'
 import { lookupZohoCustomer } from '@/lib/integrations/lookup'
 
@@ -131,6 +132,7 @@ export async function createZohoDraftInvoice(statementId: string): Promise<Draft
   const db = createAdminClient()
   const fail = async (error: string): Promise<DraftResult> => {
     await db.from('billing_statements').update({ invoice_error: error, zoho_claimed_at: null }).eq('id', statementId)
+    await logError('zoho', error, { statement: statementId }, 'warn')
     return { ok: false, error }
   }
   // claim it: approved, not invoiced, and nobody else working on it (a claim older than 5 minutes is abandoned)

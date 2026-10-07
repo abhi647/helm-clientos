@@ -60,7 +60,8 @@ export default async function Admin() {
 
   return (
     <>
-      <PageHeader title="Admin" meta={<span className="text-xs text-muted">Seven Billion organisation settings</span>} />
+      <PageHeader title="Admin" meta={<span className="text-xs text-muted">Seven Billion organisation settings</span>}
+        actions={<Link href="/admin/health" className="btn">System health</Link>} />
       <div className="flex flex-wrap items-start gap-3 p-4">
         <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-3">
           <Card flush className="overflow-x-auto" title="Team" extra={`${staff?.length ?? 0} people`}>

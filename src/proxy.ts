@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { SESSION_COOKIE } from '@/lib/supabase/session-cookie'
 
-const PUBLIC_PATHS = ['/login', '/auth', '/api/webhooks', '/api/cron']
+const PUBLIC_PATHS = ['/login', '/auth', '/api/webhooks', '/api/cron', '/api/health']
 
 /** Refreshes the Supabase session on every request and sends signed-out visitors to the login page. */
 export async function proxy(request: NextRequest) {

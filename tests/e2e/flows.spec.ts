@@ -1,6 +1,7 @@
 // The core loops from the PRD, driven through the real UI with real magic-link sign-in (emails caught by Mailpit).
 // Run: supabase start && npm run seed && npm run build && npm start, then npm run test:e2e
 import { execSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import * as OTPAuth from 'otpauth'
 
@@ -333,6 +334,24 @@ test('CEO adds a customer, links it to HubSpot and Zoho, and starts projects by 
   await signIn(page, 'sahil@example.com')
   await page.goto('/projects')
   await expect(page.getByRole('link', { name: '+ New project' })).toHaveCount(0)
+})
+
+test('system health: the uptime check answers, a background job is recorded, and the CEO sees both', async ({ page, request }) => {
+  const health = await request.get('/api/health')
+  expect(health.status()).toBe(200)
+  expect(await health.json()).toMatchObject({ ok: true, db: 'ok' })
+  const secret = readFileSync('.env.local', 'utf8').match(/^CRON_SECRET=(.*)$/m)![1]!.trim()
+  expect((await request.get('/api/cron/emails')).status()).toBe(401)
+  expect((await request.get('/api/cron/emails', { headers: { Authorization: `Bearer ${secret}` } })).status()).toBe(200)
+
+  await signIn(page, 'abhijit@example.com')
+  await page.goto('/admin')
+  await page.getByRole('link', { name: 'System health' }).click()
+  await expect(page.getByRole('heading', { name: 'System health' })).toBeVisible()
+  const emailsJob = page.locator('div', { hasText: /^Emails, surveys and file scans/ }).first()
+  await expect(emailsJob.getByText('OK', { exact: true })).toBeVisible()
+  await expect(page.getByText('Sent in the last 24 hours')).toBeVisible()
+  await shot(page, '39-system-health')
 })
 
 test('billing (finance only): rate card approved by the customer, a statement approved, then sent to Zoho', async ({ page }) => {

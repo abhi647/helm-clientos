@@ -133,6 +133,22 @@ CI (`.github/workflows/ci.yml`) runs lint, types, the database tests and the flo
    - `CRON_SECRET` is any random string of 32 or more characters.
 3. Deploy. `vercel.json` sets the region to `bom1` and adds two daily crons: email retry and Zoho sync. On the Pro plan you can make them more frequent, for example `*/10 * * * *`.
 
+### Backups
+
+The `backup` GitHub workflow runs every night (03:00 India time) and keeps 30 days of encrypted backups as workflow artifacts. Turn it on with the repository secrets `SUPABASE_DB_URL` (Supabase → Connect → Session pooler string, with the database password) and `BACKUP_PASSPHRASE` (a long random phrase kept in your password manager). Add `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SECRET_KEY` as secrets too to include uploaded files. Run it once by hand (Actions → backup → Run workflow) to check it.
+
+To restore into a new Supabase project:
+
+```bash
+gpg -d helm-backup-YYYY-MM-DD.tgz.gpg | tar xz            # asks for BACKUP_PASSPHRASE
+psql "$NEW_DB_URL" -f roles.sql
+psql "$NEW_DB_URL" -f schema.sql
+psql "$NEW_DB_URL" -c "set session_replication_role = replica" -f data.sql
+# files/<bucket>/... : upload back to the same buckets (Supabase dashboard or the storage API)
+```
+
+Supabase's paid plans also offer point-in-time recovery, which restores to any minute; the nightly backup is the copy you hold yourself.
+
 ### 4. First admin
 
 Run this once from your computer. It creates the organisation and emails you an invitation:
@@ -207,6 +223,8 @@ Every customer can be billed differently, and a project can mix models:
 4. **Zoho**: on approval, Helm creates a **draft** invoice in Zoho Books, with one line per item at rate × quantity and the PO number as the reference. Finance reviews it, Zoho adds tax and numbering, and Finance sends it from Zoho. The next sync shows it on the Finance page and to the customer. If Zoho isn't connected, or the customer has no Zoho id, the statement shows the reason and a **Retry Zoho** button.
 
 **Assigning work.** A task's owner is chosen when it is created and can be changed from the task panel on the plan. The new owner is notified (a template's tasks produce one notification per batch). A customer owner gets it on their home page; the to-do follows the task if it moves to a colleague, and closes if the task comes back to Seven Billion.
+
+**System health.** Admin → System health shows whether emails are going out (sent today, waiting, failed), when each background job last ran, and the last 50 server problems (errors in pages and actions, failed emails, Zoho failures), kept for 90 days. `/api/health` answers 200 when the app and database are up. The `scheduled` GitHub workflow calls it every 10 minutes and runs the email job (and Zoho sync hourly); add the repository secrets `HELM_URL` and `CRON_SECRET` to turn it on. If the site is down the run fails and GitHub emails you.
 
 **Approve for the customer.** When something was already agreed (the signed contract, a call, an email), Seven Billion can approve it from its side instead of waiting on the portal: rate cards and statements (admin, CEO or finance; a statement's Zoho draft invoice follows straight away) and estimates (the PM, CEO or an admin). It is a deliberate step with an optional note on how the customer agreed; the record says it was approved by that person for the customer, and the customer is told by email for their records, with nothing left on their to-do list. The customer can still approve in the portal themselves. "Send" and "Approve" also stop if a line is still typed in "Add a line" but not added.
 

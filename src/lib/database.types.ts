@@ -846,6 +846,19 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"job_runs": {
+                  Row: {
+                    "job": string,"last_error": string | null,"last_finished_at": string | null,"last_ok_at": string | null,"last_result": NonNullable<Json>,"last_started_at": string | null
+                  }
+                  Insert: {
+                    "job": string,"last_error"?: string | null,"last_finished_at"?: string | null,"last_ok_at"?: string | null,"last_result"?: NonNullable<Json>,"last_started_at"?: string | null
+                  }
+                  Update: {
+                    "job"?: string,"last_error"?: string | null,"last_finished_at"?: string | null,"last_ok_at"?: string | null,"last_result"?: NonNullable<Json>,"last_started_at"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"meeting_actions": {
                   Row: {
                     "assignee_id": string | null,"created_at": string,"customer_id": string,"due_date": string | null,"id": string,"meeting_id": string,"owner_side": Database["public"]['Enums']["owner_side"],"position": number,"task_id": string | null,"text": string
@@ -1449,6 +1462,19 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"system_log": {
+                  Row: {
+                    "at": string,"detail": NonNullable<Json>,"id": number,"level": string,"message": string,"source": string
+                  }
+                  Insert: {
+                    "at"?: string,"detail"?: NonNullable<Json>,"id"?: never,"level"?: string,"message": string,"source": string
+                  }
+                  Update: {
+                    "at"?: string,"detail"?: NonNullable<Json>,"id"?: never,"level"?: string,"message"?: string,"source"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"task_estimates": {
                   Row: {
                     "customer_id": string,"estimate": number,"task_id": string,"unit": string
@@ -1819,6 +1845,11 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"outbox_health":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "failed_7d": number,"oldest_queued": string,"queued": number,"sent_24h": number
+            }[]
+                           },
 "publish_update":
 { Args: { "p_update": string }; Returns: undefined
                            },

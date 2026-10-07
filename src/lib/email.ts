@@ -1,4 +1,5 @@
 import 'server-only'
+import { logError } from '@/lib/system-log'
 import { Resend } from 'resend'
 import { env } from '@/lib/env'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -107,6 +108,7 @@ export async function flushOutbox(limit = 25): Promise<{ sent: number; skipped: 
     )
     if (sendError) {
       await db.from('email_outbox').update({ last_error: sendError.message, status: row.attempts + 1 >= 5 ? 'failed' : 'queued' }).eq('id', row.id)
+      await logError('email', sendError.message, { to: row.to_email, kind: n.kind, attempt: row.attempts + 1 }, row.attempts + 1 >= 5 ? 'error' : 'warn')
       result.failed++
     } else {
       await db.from('email_outbox').update({ status: 'sent', sent_at: new Date().toISOString(), provider_id: data?.id ?? null }).eq('id', row.id)
