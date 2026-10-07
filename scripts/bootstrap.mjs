@@ -23,7 +23,10 @@ if (!values.email || !values.name) throw new Error('Usage: --email you@company.c
 if (!['admin', 'ceo'].includes(values.role)) throw new Error('--role must be admin or ceo')
 const email = values.email.trim().toLowerCase()
 
-const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+const db = createClient(url, key, {
+  auth: { persistSession: false, autoRefreshToken: false },
+  realtime: { transport: class NoRealtime {} },   // never used here; lets the script run on Node 20, which has no built-in WebSocket
+})
 const ok = (res, what) => {
   if (res.error) throw new Error(`${what}: ${res.error.message}`)
   return res.data

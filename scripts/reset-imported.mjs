@@ -19,7 +19,10 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const key = process.env.SUPABASE_SECRET_KEY
 if (!url || !key) throw new Error('Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (see .env.example).')
 
-const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+const db = createClient(url, key, {
+  auth: { persistSession: false, autoRefreshToken: false },
+  realtime: { transport: class NoRealtime {} },   // never used here; lets the script run on Node 20, which has no built-in WebSocket
+})
 const ok = (res, what) => {
   if (res.error) throw new Error(`${what}: ${res.error.message}`)
   return res.data

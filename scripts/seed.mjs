@@ -10,7 +10,10 @@ if (!/127\.0\.0\.1|localhost/.test(url) && !process.argv.includes('--allow-remot
   throw new Error(`Refusing to seed ${url}. Pass --allow-remote to seed a non-local project.`)
 }
 const PASSWORD = process.env.SEED_PASSWORD || 'local-dev-only-password'
-const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+const db = createClient(url, key, {
+  auth: { persistSession: false, autoRefreshToken: false },
+  realtime: { transport: class NoRealtime {} },   // never used here; lets the script run on Node 20, which has no built-in WebSocket
+})
 
 const day = (offset) => {
   const d = new Date()
