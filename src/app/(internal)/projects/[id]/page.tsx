@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { deletePhase, deleteTask } from '@/app/_actions/delete'
 import { createTask, logTime, setSpotlight, setTaskStatus, setTaskOwner } from '@/app/_actions/work'
 import { ActionButton, ActionForm, StatusSelect } from '@/components/forms'
 import { Thread } from '@/components/thread'
@@ -7,7 +8,7 @@ import { Avatar, Chip, TaskStatusChip, Visibility, cn } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
 import { TASK_STATUS, isOverdue, shortDate, effort, effortShort } from '@/lib/format'
 import { EffortInput } from '@/components/effort-input'
-import { requireStaff } from '@/lib/session'
+import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { title: 'Project plan' }
@@ -144,6 +145,21 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
               )
             })}
           </div>
+          {!preview && canManage(me) && phases?.length ? (
+            <details className="border-t border-line-soft">
+              <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-link">Delete a phase…</summary>
+              {phases.map((ph) => {
+                const count = all.filter((t) => t.phase_id === ph.id).length
+                return (
+                  <div key={ph.id} className="row grid-cols-[minmax(0,1fr)_auto] text-xs">
+                    <span className="truncate">{ph.name} <span className="text-muted">· {count} {count === 1 ? 'task' : 'tasks'}</span></span>
+                    <ActionButton run={deletePhase.bind(null, ph.id)} className="btn-ghost h-6 px-2 text-xs text-crit-ink"
+                      confirm={`Delete the phase "${ph.name}"${count ? ` and its ${count} ${count === 1 ? 'task' : 'tasks'}` : ''}? This cannot be undone.`}>Delete</ActionButton>
+                  </div>
+                )
+              })}
+            </details>
+          ) : null}
         </div>
 
         {sel ? (
@@ -170,6 +186,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                   <StatusSelect key={`owner-${sel.id}-${sel.assignee_id ?? ''}`} label="Task owner" value={sel.assignee_id ?? ''} onChange={setTaskOwner.bind(null, sel.id)}
                     options={[{ value: '', label: 'Unassigned' }, ...people.map((p) => ({ value: p.id, label: `${p.full_name}${p.kind === 'customer' ? ' (customer)' : ''}` }))]} />
                   <ActionButton run={setSpotlight.bind(null, sel.id, !sel.spotlight)}>{sel.spotlight ? 'Remove spotlight' : '★ Spotlight for customer'}</ActionButton>
+                  {canManage(me) ? <ActionButton run={deleteTask.bind(null, sel.id, id)} className="btn-ghost text-crit-ink" confirm={`Delete the task "${sel.title}"? Its comments and unapproved time go with it. This cannot be undone.`}>Delete task</ActionButton> : null}
                 </div>
               ) : null}
               {!preview && sel.owner_side !== 'customer' ? (

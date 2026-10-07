@@ -7,7 +7,8 @@ import { ActionLines, DecisionRows } from '@/components/meeting-parts'
 import { Thread } from '@/components/thread'
 import { Card, PageHeader, Visibility } from '@/components/ui'
 import { shortDate } from '@/lib/format'
-import { requireStaff } from '@/lib/session'
+import { canManage, requireStaff } from '@/lib/session'
+import { deleteMeeting } from '@/app/_actions/delete'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { title: 'Meeting' }
@@ -94,6 +95,12 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
             <textarea id="n-sum" name="summary" rows={12} defaultValue={m.summary} className="textarea" />
             {m.visibility === 'shared' ? <p className="m-0 text-xs text-muted">The customer sees these notes.</p> : null}
           </ActionForm>
+          {canManage(me) && project ? (
+            <div className="mt-3 border-t border-line-soft pt-3">
+              <ActionButton run={deleteMeeting.bind(null, m.id, project.id)} className="btn-ghost text-crit-ink"
+                confirm={`Delete the meeting "${m.title}" and its notes and action lines? Tasks made from it and its decisions stay. This cannot be undone.`}>Delete meeting</ActionButton>
+            </div>
+          ) : null}
         </Card>
       </div>
     </>

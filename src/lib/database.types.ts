@@ -1886,6 +1886,33 @@ isOneToOne: false
 "decide_statement":
 { Args: { "p_approve": boolean,"p_note"?: string,"p_statement": string }; Returns: undefined
                            },
+"delete_comment":
+{ Args: { "p_comment": string }; Returns: undefined
+                           },
+"delete_decision":
+{ Args: { "p_decision": string }; Returns: undefined
+                           },
+"delete_document":
+{ Args: { "p_document": string }; Returns: undefined
+                           },
+"delete_meeting":
+{ Args: { "p_meeting": string }; Returns: undefined
+                           },
+"delete_phase":
+{ Args: { "p_phase": string }; Returns: number
+                           },
+"delete_project":
+{ Args: { "p_confirm": string,"p_project": string }; Returns: (string)[]
+                           },
+"delete_request":
+{ Args: { "p_request": string }; Returns: undefined
+                           },
+"delete_task":
+{ Args: { "p_task": string }; Returns: undefined
+                           },
+"delete_update":
+{ Args: { "p_update": string }; Returns: undefined
+                           },
 "effort_units":
 { Args: { "p_project": string }; Returns: (string)[]
                            },

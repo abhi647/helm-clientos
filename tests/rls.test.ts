@@ -894,3 +894,119 @@ describe('time to billing', () => {
     await service.from('rate_cards').delete().eq('id', v2 as string)
   })
 })
+
+describe('deleting', () => {
+  let project: string, phase: string, task: string, busyTask: string
+  const id = async (email: string) => (await service.from('profiles').select('id').eq('email', email).single()).data!.id
+
+  beforeAll(async () => {
+    project = (await service.from('projects').insert({ customer_id: nesma, name: 'Scratch project' }).select('id').single()).data!.id
+    phase = (await service.from('phases').insert({ project_id: project, customer_id: nesma, name: 'Scratch phase', position: 0 }).select('id').single()).data!.id
+    const [a, b] = (await service.from('tasks').insert([
+      { project_id: project, phase_id: phase, customer_id: nesma, title: 'Throwaway task', position: 0 },
+      { project_id: project, phase_id: phase, customer_id: nesma, title: 'Worked task', position: 1 },
+    ]).select('id, title')).data!.sort((x, y) => x.title.localeCompare(y.title))
+    task = a!.id
+    busyTask = b!.id
+  })
+
+  it('nothing is deleted directly through the API, even by the CEO', async () => {
+    const ceo = await asCeo()
+    for (const [t, c] of [['tasks', ceo], ['phases', ceo], ['projects', ceo], ['tasks', rahul], ['requests', rahul]] as const) {
+      expect((await c.from(t).delete().eq('customer_id', nesma).select('id')).data ?? []).toHaveLength(0)
+    }
+    expect((await service.from('tasks').select('id').eq('id', task)).data).toHaveLength(1)
+  })
+
+  it('the PM deletes a task; a consultant and the customer cannot; a task with approved days is kept', async () => {
+    expect((await sahil.rpc('delete_task', { p_task: task })).error?.message).toMatch(/not allowed/)
+    expect((await michel.rpc('delete_task', { p_task: task })).error?.message).toMatch(/not allowed/)
+    expect((await rahul.rpc('delete_task', { p_task: task })).error).toBeNull()
+    expect((await service.from('tasks').select('id').eq('id', task)).data).toHaveLength(0)
+    const { data: te } = await service.from('time_entries').insert({ task_id: busyTask, customer_id: nesma, user_id: await id('sahil@example.com'), days: 1, worked_on: '2026-12-01', approved_at: new Date().toISOString() }).select('id').single()
+    expect((await rahul.rpc('delete_task', { p_task: busyTask })).error?.message).toMatch(/approved or billed days are logged on this task \(1 days\)/)
+    expect((await rahul.rpc('delete_phase', { p_phase: phase })).error?.message).toMatch(/approved or billed days are logged in this phase/)
+    await service.from('time_entries').delete().eq('id', te!.id)
+    expect((await rahul.rpc('delete_phase', { p_phase: phase })).data).toBe(1)
+    expect((await service.from('phases').select('id').eq('id', phase)).data).toHaveLength(0)
+    const { data: log } = await service.from('activity').select('summary, visibility').eq('project_id', project).like('summary', 'deleted%')
+    expect(log!.map((l) => l.summary).sort()).toEqual(['deleted the phase Scratch phase and its 1 tasks', 'deleted the task Throwaway task'])
+    expect(log!.every((l) => l.visibility === 'internal')).toBe(true)
+  })
+
+  it('requests, meetings, decisions and updates: the PM deletes them, the customer cannot; a draft by its author', async () => {
+    const michelId = await id('michel@nesma.example.com')
+    const { data: req } = await service.from('requests').insert({ customer_id: nesma, project_id: project, title: 'Throwaway ask', requested_by: michelId }).select('id').single()
+    expect((await michel.rpc('delete_request', { p_request: req!.id })).error?.message).toMatch(/not allowed/)
+    expect((await sahil.rpc('delete_request', { p_request: req!.id })).error?.message).toMatch(/not allowed/)
+    expect((await rahul.rpc('delete_request', { p_request: req!.id })).error).toBeNull()
+    expect((await michel.from('requests').select('id').eq('id', req!.id)).data).toHaveLength(0)
+
+    const { data: m } = await service.from('meetings').insert({ customer_id: nesma, project_id: project, title: 'Throwaway sync', held_on: '2026-10-01' }).select('id').single()
+    const { data: dec } = await service.from('decisions').insert({ customer_id: nesma, project_id: project, meeting_id: m!.id, decision: 'Keep it', decided_on: '2026-10-01' }).select('id').single()
+    expect((await rahul.rpc('delete_meeting', { p_meeting: m!.id })).error).toBeNull()
+    expect((await service.from('decisions').select('meeting_id').eq('id', dec!.id).single()).data!.meeting_id).toBeNull()   // decisions stay
+    expect((await sahil.rpc('delete_decision', { p_decision: dec!.id })).error?.message).toMatch(/not allowed/)
+    expect((await rahul.rpc('delete_decision', { p_decision: dec!.id })).error).toBeNull()
+
+    const sahilId = await id('sahil@example.com')
+    const { data: ups } = await service.from('updates').insert([
+      { customer_id: nesma, project_id: project, week_of: '2026-10-05', health: 'on_track', author_id: sahilId, status: 'draft', published_at: null },
+      { customer_id: nesma, project_id: project, week_of: '2026-09-28', health: 'on_track', author_id: sahilId, status: 'published', published_at: new Date().toISOString() },
+    ]).select('id, status')
+    const draft = ups!.find((u) => u.status === 'draft')!.id, published = ups!.find((u) => u.status === 'published')!.id
+    expect((await sahil.rpc('delete_update', { p_update: published })).error?.message).toMatch(/not allowed/)   // only managers, once published
+    expect((await michel.rpc('delete_update', { p_update: published })).error?.message).toMatch(/not allowed/)
+    expect((await sahil.rpc('delete_update', { p_update: draft })).error).toBeNull()
+    expect((await rahul.rpc('delete_update', { p_update: published })).error).toBeNull()
+  })
+
+  it('a file is archived before it is deleted; its uploader or the PM may delete it', async () => {
+    const michelId = await id('michel@nesma.example.com')
+    const { data: doc } = await service.from('documents').insert({ customer_id: nesma, project_id: project, name: 'old.pdf', visibility: 'shared', uploaded_by: michelId }).select('id').single()
+    expect((await michel.rpc('delete_document', { p_document: doc!.id })).error?.message).toMatch(/archive the file first/)
+    await service.from('documents').update({ archived_at: new Date().toISOString() }).eq('id', doc!.id)
+    expect((await omar.rpc('delete_document', { p_document: doc!.id })).error?.message).toMatch(/not allowed/)
+    expect((await sahil.rpc('delete_document', { p_document: doc!.id })).error?.message).toMatch(/not allowed/)
+    expect((await michel.rpc('delete_document', { p_document: doc!.id })).error).toBeNull()
+    expect((await service.from('documents').select('id').eq('id', doc!.id)).data).toHaveLength(0)
+  })
+
+  it('comments: your own for 15 minutes; the PM any; the customer never someone else\'s', async () => {
+    const { data: t } = await service.from('tasks').insert({ project_id: project, customer_id: nesma, title: 'Discussed', visibility: 'shared', position: 0 }).select('id').single()
+    const omarId = await id('omar@nesma.example.com'), michelId = await id('michel@nesma.example.com')
+    const { data: cs } = await service.from('comments').insert([
+      { customer_id: nesma, entity_type: 'task', entity_id: t!.id, author_id: omarId, visibility: 'shared', body: 'mine', created_at: new Date().toISOString() },
+      { customer_id: nesma, entity_type: 'task', entity_id: t!.id, author_id: michelId, visibility: 'shared', body: 'old', created_at: '2026-01-01T00:00:00Z' },
+    ]).select('id, body')
+    const mine = cs!.find((c) => c.body === 'mine')!.id, old = cs!.find((c) => c.body === 'old')!.id
+    expect((await michel.rpc('delete_comment', { p_comment: mine })).error?.message).toMatch(/not allowed/)
+    expect((await michel.rpc('delete_comment', { p_comment: old })).error?.message).toMatch(/not allowed/)   // too late
+    expect((await omar.rpc('delete_comment', { p_comment: mine })).error).toBeNull()
+    expect((await sahil.rpc('delete_comment', { p_comment: old })).error?.message).toMatch(/not allowed/)
+    expect((await rahul.rpc('delete_comment', { p_comment: old })).error).toBeNull()
+  })
+
+  it('a project: only admins and the CEO, after typing its name; kept once it has billing history', async () => {
+    const ceo = await asCeo()
+    const { data: doc } = await service.from('documents').insert({ customer_id: nesma, project_id: project, name: 'spec.pdf' }).select('id').single()
+    await service.from('requests').insert({ customer_id: nesma, project_id: project, title: 'Ask on the scratch project' })
+    expect((await rahul.rpc('delete_project', { p_project: project, p_confirm: 'Scratch project' })).error?.message).toMatch(/not allowed/)
+    expect((await finance.rpc('delete_project', { p_project: project, p_confirm: 'Scratch project' })).error?.message).toMatch(/not allowed/)
+    expect((await ceo.rpc('delete_project', { p_project: project, p_confirm: 'scratch' })).error?.message).toMatch(/type the project name exactly/)
+    const { data: docs, error } = await ceo.rpc('delete_project', { p_project: project, p_confirm: 'Scratch project' })
+    expect(error).toBeNull()
+    expect(docs).toEqual([doc!.id])     // for the app to remove the files
+    for (const t of ['projects', 'tasks', 'documents', 'requests', 'updates'] as const) {
+      expect((await service.from(t).select('id').eq(t === 'projects' ? 'id' : 'project_id', project)).data).toHaveLength(0)
+    }
+    expect((await service.from('requests').select('id').eq('title', 'Ask on the scratch project')).data).toHaveLength(0)
+    expect((await service.from('activity').select('summary').eq('customer_id', nesma).eq('summary', 'deleted the project Scratch project')).data).toHaveLength(1)
+    // billing history (here a Zoho invoice) keeps a project
+    const billed = (await service.from('projects').insert({ customer_id: nesma, name: 'Billed project' }).select('id').single()).data!.id
+    await service.from('invoices').insert({ customer_id: nesma, project_id: billed, number: 'INV-TEST-1', status: 'sent', issued_on: '2026-10-01' })
+    expect((await ceo.rpc('delete_project', { p_project: billed, p_confirm: 'Billed project' })).error?.message).toMatch(/billing history/)
+    await service.from('projects').delete().eq('id', billed)
+    await service.from('invoices').delete().eq('number', 'INV-TEST-1')
+  })
+})

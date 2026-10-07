@@ -50,6 +50,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
           { href: `${base}/activity`, label: 'Activity' },
           ...(canSeeFinance(me) ? [{ href: `${base}/billing`, label: 'Billing' }] : []),
           ...(canSeeCommercials(me) ? [{ href: `${base}/commercials`, label: <>Commercials <Chip className="ml-1 h-4 border border-dashed border-internal-line bg-internal-bg px-1.5 text-internal-ink">Internal</Chip></> }] : []),
+          ...(['admin', 'ceo'].includes(me.internal_role ?? '') ? [{ href: `${base}/settings`, label: 'Settings' }] : []),
         ]} />
       </header>
       {children}

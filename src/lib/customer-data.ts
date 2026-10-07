@@ -60,3 +60,18 @@ export async function deleteCustomer(customerId: string) {
   if (error) throw new Error(`customer: ${error.message}`)
   return { files, people: people?.length ?? 0 }
 }
+
+/** Removes the stored files (every version) of documents already deleted from the database. */
+export async function removeDocumentFiles(customerId: string, documentIds: string[]) {
+  const db = createAdminClient()
+  let files = 0
+  for (const doc of documentIds) {
+    const { data: items } = await db.storage.from('documents').list(`${customerId}/${doc}`, { limit: 1000 })
+    const paths = (items ?? []).map((i) => `${customerId}/${doc}/${i.name}`)
+    if (!paths.length) continue
+    const { error } = await db.storage.from('documents').remove(paths)
+    if (error) throw new Error(`files: ${error.message}`)
+    files += paths.length
+  }
+  return files
+}

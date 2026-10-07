@@ -1,9 +1,10 @@
 import { addComment } from '@/app/_actions/collab'
-import { CommentBox } from '@/components/forms'
+import { deleteComment } from '@/app/_actions/delete'
+import { ActionButton, CommentBox } from '@/components/forms'
 import { MentionText, type Person } from '@/components/mention-textarea'
 import { Visibility, cn } from '@/components/ui'
 import { relativeTime } from '@/lib/format'
-import type { Profile } from '@/lib/session'
+import { canManage, type Profile } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
 /** Discussion attached to one object. The query runs under RLS, so customers only ever receive shared comments. */
@@ -16,7 +17,7 @@ export async function Thread({ entityType, entityId, customerId, me, defaultShar
   const supabase = await createClient()
   const [{ data: comments }, { data: profiles }] = await Promise.all([
     supabase.from('comments')
-      .select('id, body, visibility, created_at, mentions, author:profiles!comments_author_id_fkey(full_name, kind)')
+      .select('id, body, visibility, created_at, mentions, author_id, author:profiles!comments_author_id_fkey(full_name, kind)')
       .eq('entity_type', entityType).eq('entity_id', entityId).order('created_at'),
     // RLS limits this to people the viewer may see: their own team and the other side of this engagement
     supabase.from('profiles').select('id, full_name, kind, customer_id').or(`kind.eq.internal,customer_id.eq.${customerId}`).order('full_name'),
@@ -25,6 +26,10 @@ export async function Thread({ entityType, entityId, customerId, me, defaultShar
     .map((p) => ({ id: p.id, name: p.full_name, customer: p.kind === 'customer' }))
   const nameOf = new Map((profiles ?? []).map((p) => [p.id, p.full_name]))
   const staff = me.kind === 'internal' && !asCustomer
+  // your own comment for 15 minutes; the PM, an admin or the CEO any comment
+  const recent = new Date().getTime() - 15 * 60_000
+  const canDelete = (c: { author_id: string; created_at: string }) =>
+    !asCustomer && ((staff && canManage(me)) || (c.author_id === me.id && Date.parse(c.created_at) > recent))
   const shown = asCustomer ? (comments ?? []).filter((c) => c.visibility === 'shared') : (comments ?? [])
   return (
     <div className="flex flex-col gap-2">
@@ -36,6 +41,7 @@ export async function Thread({ entityType, entityId, customerId, me, defaultShar
             {c.author?.kind === 'customer' && staff ? <span className="text-muted">(customer)</span> : null}
             <span className="text-muted">{relativeTime(c.created_at)}</span>
             {staff ? <span className="ml-auto"><Visibility value={c.visibility} /></span> : null}
+            {canDelete(c) ? <span className={staff ? '' : 'ml-auto'}><ActionButton run={deleteComment.bind(null, c.id)} className="btn-ghost h-5 px-1.5 text-[11px] text-muted" confirm="Delete this comment?">Delete</ActionButton></span> : null}
           </div>
           <p className="m-0 text-[13px] leading-relaxed whitespace-pre-wrap"><MentionText body={c.body} names={c.mentions.map((id) => nameOf.get(id)).filter((n): n is string => !!n)} /></p>
         </div>

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { approveForCustomer, decideApproval, requestApproval, requestToTask, resubmitApproval, setRequestStatus } from '@/app/_actions/requests'
-import { ActionForm, ApproveForCustomer, DecisionForm } from '@/components/forms'
+import { ActionButton, ActionForm, ApproveForCustomer, DecisionForm } from '@/components/forms'
 import { FileRows } from '@/components/file-rows'
 import { FOLDERS } from '@/components/project-parts'
 import { Thread } from '@/components/thread'
@@ -11,6 +11,7 @@ import type { Enums } from '@/lib/database.types'
 import { REQUEST_STATUS_ORDER, effort, label, relativeTime, shortDate } from '@/lib/format'
 import { EffortInput } from '@/components/effort-input'
 import { canManage, type Profile } from '@/lib/session'
+import { deleteRequest } from '@/app/_actions/delete'
 import { createClient } from '@/lib/supabase/server'
 
 /** Request detail for staff and customers. What each sees is decided by RLS; staff also get the controls. */
@@ -192,6 +193,14 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
                 <input name="note" placeholder="Note for the timeline (shared with the customer)" aria-label="Note" className="input" />
               </ActionForm>
             </Card>
+          ) : null}
+
+          {staff && canManage(me) ? (
+            <details className="rounded-md border border-crit-bg bg-white p-2.5">
+              <summary className="cursor-pointer text-xs font-semibold text-crit-ink">Delete this request</summary>
+              <p className="mt-2 mb-2 text-xs text-muted">Removes it for the customer too, with its timeline, comments, estimates and to-dos. Tasks made from it stay on the plan. To close it but keep the record, move it to Cancelled instead.</p>
+              <ActionButton run={deleteRequest.bind(null, r.id)} className="text-crit-ink" confirm={`Delete ${r.number} for good? This cannot be undone.`}>Delete for good</ActionButton>
+            </details>
           ) : null}
 
           <Card title="Timeline">

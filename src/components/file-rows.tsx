@@ -1,5 +1,6 @@
 import { Download, Eye } from 'lucide-react'
 import { archiveDocument } from '@/app/_actions/collab'
+import { deleteDocument } from '@/app/_actions/delete'
 import { ActionButton } from '@/components/forms'
 import { NewVersionButton } from '@/components/upload'
 import { Chip, Visibility } from '@/components/ui'
@@ -68,8 +69,12 @@ export function ArchiveControls({ docs, archived }: { docs: FileRow[]; archived:
       {docs.map((d) => (
         <div key={d.id} className="row grid-cols-[minmax(0,1fr)_auto] text-xs">
           <span className="truncate text-muted">{d.name}{archived && d.archived_at ? ` · archived ${relativeTime(d.archived_at)}` : ''}</span>
-          <ActionButton run={archiveDocument.bind(null, d.id, !archived)} className="h-6 px-2 text-xs"
-            confirm={archived ? undefined : `Archive ${d.name}? The customer will no longer see it.`}>{archived ? 'Restore' : 'Archive'}</ActionButton>
+          <span className="flex items-center gap-1">
+            <ActionButton run={archiveDocument.bind(null, d.id, !archived)} className="h-6 px-2 text-xs"
+              confirm={archived ? undefined : `Archive ${d.name}? The customer will no longer see it.`}>{archived ? 'Restore' : 'Archive'}</ActionButton>
+            {archived ? <ActionButton run={deleteDocument.bind(null, d.id)} className="btn-ghost h-6 px-2 text-xs text-crit-ink"
+              confirm={`Delete ${d.name} and all its versions for good? This cannot be undone.`}>Delete</ActionButton> : null}
+          </span>
         </div>
       ))}
     </>

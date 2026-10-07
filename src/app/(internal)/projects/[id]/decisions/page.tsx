@@ -1,24 +1,27 @@
 import { addDecision } from '@/app/_actions/meetings'
-import { ActionForm } from '@/components/forms'
+import { deleteDecision } from '@/app/_actions/delete'
+import { ActionButton, ActionForm } from '@/components/forms'
 import { Card, Empty, Visibility } from '@/components/ui'
 import { shortDate } from '@/lib/format'
-import { requireStaff } from '@/lib/session'
+import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function Decisions({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  await requireStaff()
+  const me = await requireStaff()
+  const manage = canManage(me)
   const supabase = await createClient()
   const { data } = await supabase.from('decisions').select('id, number, decision, decided_on, decided_by, visibility, meetings(title, held_on)').eq('project_id', id).order('decided_on', { ascending: false })
   return (
     <div className="flex flex-wrap items-start gap-3 p-4">
       <Card flush className="min-w-0 flex-[999_1_620px]" title="Decision log" extra="Recorded once, referenced forever">
         {data?.length ? data.map((d) => (
-          <div key={d.id} className="row grid-cols-[72px_minmax(0,1fr)_160px_84px] py-1.5">
+          <div key={d.id} className={`row py-1.5 ${manage ? 'grid-cols-[72px_minmax(0,1fr)_120px_84px_64px]' : 'grid-cols-[72px_minmax(0,1fr)_160px_84px]'}`}>
             <span className="font-mono text-xs text-muted">{d.number}</span>
             <span className="leading-snug">{d.decision}<span className="block text-xs text-muted">{d.decided_by}{d.meetings ? ` · from ${d.meetings.title}` : ''}</span></span>
             <span className="font-mono text-xs text-muted">{shortDate(d.decided_on)}</span>
             <span><Visibility value={d.visibility} /></span>
+            {manage ? <ActionButton run={deleteDecision.bind(null, d.id)} className="btn-ghost h-6 px-2 text-xs text-crit-ink" confirm={`Delete decision ${d.number}? This cannot be undone.`}>Delete</ActionButton> : null}
           </div>
         )) : <Empty title="No decisions recorded" />}
       </Card>

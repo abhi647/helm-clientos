@@ -231,6 +231,19 @@ Every customer can be billed differently, and a project can mix models:
 5. **Billed once**: when the statement is approved (by the customer or for them), those days are marked billed on it and never fill another statement. A statement that would bill more days than are approved and unbilled (another statement billed some since it was filled) cannot be sent or approved until it is filled again. Lowering a quantity writes the rest of those days off.
 6. **Unbilled work** on the project's Billing page and on Finance: approved billable days not billed yet, per person, at the agreed day rate, flagging anyone not on a day-rate line.
 
+**Deleting.** Each delete is a deliberate step with a confirmation, is written to the customer's activity (internal), and is checked in the database (direct deletes through the API are refused):
+
+| What | Who | Where | Kept when |
+|---|---|---|---|
+| Project, with everything in it | admin, CEO | project → **Settings**, after typing its name | it has billing history (statements sent or approved, Zoho invoices): mark it Completed instead |
+| Phase (with its tasks), task | PM, admin, CEO | plan → *Delete a phase…*; task panel → **Delete task** | approved or billed days are logged on it: mark it Done instead |
+| Request | PM, admin, CEO | the request → *Delete this request* | – (to keep the record, move it to Cancelled); tasks made from it stay |
+| Meeting, decision, update | PM, admin, CEO (a draft update also its author) | the meeting's notes; the decision log; the updates tab | – (a meeting's decisions and tasks stay) |
+| File, with all its versions | PM, admin, CEO, or whoever uploaded it | Documents → *Archived* → **Delete** | not archived yet: archive first, so the customer stops seeing it before it is gone |
+| Comment | its author for 15 minutes; PM, admin, CEO any time | **Delete** on the comment | – |
+
+Customers (with all their data) are deleted on the customer's page, as described under *Privacy, terms and customer data*.
+
 **Assigning work.** A task's owner is chosen when it is created and can be changed from the task panel on the plan. The new owner is notified (a template's tasks produce one notification per batch). A customer owner gets it on their home page; the to-do follows the task if it moves to a colleague, and closes if the task comes back to Seven Billion.
 
 **Privacy, terms and customer data.** `/privacy` and `/terms` are public pages, linked from the sign-in page and the portal; they describe what Helm actually does and defer to the customer contract (have them reviewed before relying on them). On a customer's page, admins and the CEO can **Export all data** (one JSON file with every record Helm holds about that customer) and **Delete** the customer for good (their files, their people's sign-ins and every record, after typing the name to confirm). Both are recorded on Admin → System health.

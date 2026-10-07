@@ -354,6 +354,41 @@ test('system health: the uptime check answers, a background job is recorded, and
   await shot(page, '39-system-health')
 })
 
+test('deleting: a task and a phase from the plan, then the whole project after typing its name', async ({ page }) => {
+  page.on('dialog', (d) => d.accept())
+  await signIn(page, 'abhijit@example.com')
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Orbit dashboards' }).click()
+  const tasks = page.locator('a[href*="?task="]')
+  await expect(tasks.first()).toBeVisible()
+  const before = await tasks.count()
+  await tasks.first().click()
+  await page.getByRole('button', { name: 'Delete task' }).click()
+  await expect(page).not.toHaveURL(/task=/)
+  await expect(tasks).toHaveCount(before - 1)
+  await page.locator('summary', { hasText: 'Delete a phase…' }).click()
+  await page.locator('details[open]', { hasText: 'Delete a phase…' }).getByRole('button', { name: 'Delete' }).first().click()
+  await expect(page.getByText(/^Phase deleted/)).toBeVisible()
+
+  await page.getByRole('link', { name: 'Settings' }).click()
+  await page.getByText('Delete Orbit dashboards and everything in it').click()
+  await shot(page, '43-delete-project')
+  await page.getByLabel('Type the project name to confirm').fill('orbit')
+  await page.getByRole('button', { name: 'Delete for good' }).click()
+  await expect(page.getByText('Type the project name exactly to confirm.')).toBeVisible()
+  await page.getByLabel('Type the project name to confirm').fill('Orbit dashboards')
+  await page.getByRole('button', { name: 'Delete for good' }).click()
+  await expect(page).toHaveURL(/\/customers\/[0-9a-f-]{36}$/)
+  await expect(page.getByRole('link', { name: 'Orbit pilot' }).first()).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Orbit dashboards' })).toHaveCount(0)
+
+  // a PM can delete tasks but not projects
+  await signIn(page, 'rahul@example.com')
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Orbit pilot' }).click()
+  await expect(page.getByRole('link', { name: 'Settings' })).toHaveCount(0)
+})
+
 test('privacy and terms are public; the CEO exports a customer\'s data, then deletes the customer', async ({ page }) => {
   await page.context().clearCookies()
   await page.goto('/privacy')
