@@ -10,6 +10,10 @@ function CodeForm({ email, next, error }: { email: string; next: string; error?:
     <div className="flex flex-col gap-3">
       <div role="status" className="rounded-md border border-line bg-head p-3 text-[13px] leading-relaxed">
         <b>Check your inbox.</b> If <span className="font-medium">{email}</span> has access, an email with a sign-in link and a code is on its way.
+        <span className="mt-1.5 block text-xs text-muted">
+          Nothing after a few minutes? Check Junk. If you have not been invited yet, no email is sent: Helm is invite-only, so ask
+          your Seven Billion contact (or your admin, if you work at Seven Billion) to invite you.
+        </span>
       </div>
       <form action="/auth/code" method="post" className="flex flex-col gap-2.5">
         <input type="hidden" name="email" value={email} />
@@ -36,7 +40,10 @@ export function LoginForm({ next, codeFor, codeError }: { next: string; codeFor?
       <input id="email" name="email" type="email" required autoComplete="email" autoFocus placeholder="you@company.com" className="input h-10 text-sm" />
       {state.status === 'error' ? <p role="alert" className="m-0 text-xs text-crit-ink">{state.message}</p> : null}
       <button type="submit" disabled={pending} className="btn btn-primary h-10 text-sm">{pending ? 'Sending…' : 'Email me a sign-in link'}</button>
-      <p className="m-0 text-xs text-muted">No password needed. Access is by invitation from Seven Billion.</p>
+      <p className="m-0 text-xs leading-relaxed text-muted">
+        No password needed. <b className="font-medium text-ink">Helm is invite-only:</b> you can sign in once someone at Seven Billion has
+        invited you. Accounts can&apos;t be created here, so if you don&apos;t have one yet, ask your Seven Billion contact.
+      </p>
       {process.env.NEXT_PUBLIC_GOOGLE_SIGNIN === 'true' ? (
         <>
           <div className="my-1 flex items-center gap-2 text-[11px] text-muted"><span className="h-px flex-1 bg-line" />Seven Billion team<span className="h-px flex-1 bg-line" /></div>

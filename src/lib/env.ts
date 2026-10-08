@@ -8,7 +8,7 @@ const schema = z.object({
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(20),
   SUPABASE_SECRET_KEY: z.string().min(20),
   RESEND_API_KEY: z.string().optional().default(''),
-  EMAIL_FROM: z.string().default('Seven Billion <updates@example.com>'),
+  EMAIL_FROM: z.string().default('Helm <team@helm.sevenbillion.co>'),
   // where replies go (a mailbox someone reads); empty: replies go to the From address
   EMAIL_REPLY_TO: z.string().optional().default(''),
   CRON_SECRET: z.string().min(16),

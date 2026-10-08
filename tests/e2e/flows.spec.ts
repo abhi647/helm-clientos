@@ -83,6 +83,7 @@ test('unknown emails get the same answer and no link', async ({ page }) => {
   await page.getByLabel('Work email').fill('stranger@nowhere.example.com')
   await page.getByRole('button', { name: 'Email me a sign-in link' }).click()
   await expect(page.getByText('Check your inbox')).toBeVisible()
+  await expect(page.getByText(/Helm is invite-only, so ask/)).toBeVisible()
   await shot(page, '01-login')
 })
 
