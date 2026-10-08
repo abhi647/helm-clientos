@@ -297,6 +297,7 @@ test('CEO adds a customer, links it to HubSpot and Zoho, and starts projects by 
   await expect(page.getByText('HubSpot 9100001 · Not linked to Zoho')).toBeVisible()
 
   // link the Zoho customer afterwards (no integrations in tests, so the ids are saved as typed)
+  await page.getByText('Change links').click()
   await page.getByLabel('Zoho Books customer id').fill('7700001')
   await page.getByRole('button', { name: 'Save links' }).click()
   await expect(page.getByRole('status').getByText('Saved.')).toBeVisible()
@@ -606,14 +607,28 @@ test('time to billing: logged, returned and approved, then billed once on the st
   await page.getByRole('link', { name: 'Management Reporting' }).first().click()
   await page.getByRole('link', { name: 'Billing' }).click()
   await page.getByRole('button', { name: 'Start the rate card' }).click()
+  // the currency saves itself: no "Save details" needed
+  await page.getByLabel('Currency').selectOption('EUR')
+  await expect(page.getByText('Saved.')).toBeVisible()
   const add = page.locator('form', { has: page.getByRole('button', { name: 'Add line' }) })
+  await expect(add.getByText('Rate (EUR)')).toBeVisible()
   await add.getByLabel('Role, delivery or unit').fill('Engineer')
   await add.getByLabel('Rate', { exact: true }).fill('100')
   await add.getByRole('button', { name: 'Add line' }).click()
   await expect(page.getByText('1 line on this rate card')).toBeVisible()
+  // a PO number typed but not saved stops the approval, so it is never lost
+  await page.getByLabel('PO number').fill('PO-77')
+  let warning = ''
+  page.on('dialog', (d) => { warning = d.message() })   // accepted by the handler at the top of this test
   await page.getByText('✓ Approve the rates for the customer').click()
   await page.getByRole('button', { name: 'Approve the rates for the customer' }).click()
+  await expect.poll(() => warning).toContain('not saved')
+  await page.getByRole('button', { name: 'Save details' }).click()
+  // saved once the page shows PO-77 as the stored value
+  await expect.poll(() => page.getByLabel('PO number').evaluate((el) => (el as HTMLInputElement).defaultValue)).toBe('PO-77')
+  await page.getByRole('button', { name: 'Approve the rates for the customer' }).click()
   await expect(page.getByRole('heading', { name: /Approved rates v1/ })).toBeVisible()
+  await expect(page.getByText(/EUR · PO PO-77/)).toBeVisible()
   const people = page.locator('details', { hasText: 'Choose people' })
   await people.locator('summary').click()
   await people.getByLabel('Sahil').check()

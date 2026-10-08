@@ -15,18 +15,30 @@ function Message({ state }: { state: ActionResult | null }) {
     : <p role="alert" className="m-0 text-xs text-crit-ink">{state.error}</p>
 }
 
-/** Fields matching `selector` that still hold typed text: a guard against sending before "Add line" was pressed. */
-export type UnsavedGuard = { selector: string; message: string }
-function stoppedBy(guard?: UnsavedGuard) {
-  if (!guard) return false
-  const typed = Array.from(document.querySelectorAll<HTMLInputElement>(guard.selector)).some((el) => el.value.trim() !== '')
-  if (typed) window.alert(guard.message)
-  return typed
+/**
+ * A guard against acting on unsaved input. 'typed' (default): fields matching `selector` still hold text, e.g. a line
+ * typed into "Add a line" but not added. 'changed': fields differ from what was last saved, e.g. a new currency picked
+ * but "Save details" not pressed.
+ */
+export type UnsavedGuard = { selector: string; message: string; mode?: 'typed' | 'changed' }
+const changed = (el: Element) => el instanceof HTMLSelectElement
+  ? Array.from(el.options).some((o) => o.selected !== o.defaultSelected)
+  : (el as HTMLInputElement).value !== (el as HTMLInputElement).defaultValue
+function stoppedBy(guards?: UnsavedGuard | UnsavedGuard[]) {
+  for (const guard of [guards ?? []].flat()) {
+    const els = Array.from(document.querySelectorAll<HTMLInputElement>(guard.selector))
+    const unsaved = guard.mode === 'changed' ? els.some(changed) : els.some((el) => el.value.trim() !== '')
+    if (unsaved) {
+      window.alert(guard.message)
+      return true
+    }
+  }
+  return false
 }
 
 /** A form bound to a server action, with pending state and an inline result message. */
 export function ActionForm({ action, children, submit, className, resetOnSuccess = true, primary = true, guard }: {
-  action: FormAction; children?: React.ReactNode; submit: string; className?: string; resetOnSuccess?: boolean; primary?: boolean; guard?: UnsavedGuard
+  action: FormAction; children?: React.ReactNode; submit: string; className?: string; resetOnSuccess?: boolean; primary?: boolean; guard?: UnsavedGuard | UnsavedGuard[]
 }) {
   const ref = useRef<HTMLFormElement>(null)
   const [state, run, pending] = useActionState<ActionResult | null, FormData>(async (prev, form) => {
@@ -95,7 +107,7 @@ export function CommentBox({ action, entityType, entityId, customerId, staff, de
 
 /** Runs a server action from a button (no form fields), showing a pending state and the result. */
 export function ActionButton({ run, children, primary, className, confirm, guard }: {
-  run: () => Promise<ActionResult>; children: React.ReactNode; primary?: boolean; className?: string; confirm?: string; guard?: UnsavedGuard
+  run: () => Promise<ActionResult>; children: React.ReactNode; primary?: boolean; className?: string; confirm?: string; guard?: UnsavedGuard | UnsavedGuard[]
 }) {
   const [pending, start] = useTransition()
   const [state, setState] = useState<ActionResult | null>(null)
@@ -156,7 +168,7 @@ export function DecisionForm({ action, approvalId, idName = 'approval_id' }: { a
  * an email). Folded away so it is a deliberate step; the note is kept on the record and sent to the customer.
  */
 export function ApproveForCustomer({ action, idName, id, label = 'Approve for the customer', hint, guard }: {
-  action: FormAction; idName: string; id: string; label?: string; hint?: string; guard?: UnsavedGuard
+  action: FormAction; idName: string; id: string; label?: string; hint?: string; guard?: UnsavedGuard | UnsavedGuard[]
 }) {
   return (
     <details className="rounded-md border border-line-soft bg-head/40 p-2.5">
@@ -168,4 +180,9 @@ export function ApproveForCustomer({ action, idName, id, label = 'Approve for th
       </ActionForm>
     </details>
   )
+}
+
+/** A select that saves its form as soon as it changes (e.g. a rate card's currency), so the choice is never lost. */
+export function AutoSaveSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select {...props} onChange={(e) => e.currentTarget.form?.requestSubmit()} />
 }

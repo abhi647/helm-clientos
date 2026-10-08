@@ -6,7 +6,7 @@ import {
   updateRateCardLine,
 } from '@/app/_actions/billing'
 import { KIND_LABEL, KIND_UNIT, PLANNED_LABEL, RateCardStatus, RateLines, StatementStatus, period } from '@/components/billing'
-import { ActionButton, ActionForm, ApproveForCustomer } from '@/components/forms'
+import { ActionButton, ActionForm, ApproveForCustomer, AutoSaveSelect } from '@/components/forms'
 import { Card, Empty } from '@/components/ui'
 import { LineFields } from '@/components/rate-line-fields'
 import { LinePeople, UnbilledTime } from '@/components/time-billing'
@@ -19,6 +19,9 @@ export const metadata: Metadata = { title: 'Billing' }
 
 // a line typed into "Add a line" but not added yet
 const UNSAVED_LINE = { selector: '[data-add-line] input[name="label"], [data-add-line] input[name="rate"]', message: 'There is a line in "Add a line" that has not been added yet. Press Add line first, or clear it.' }
+// the PO number or notes changed but "Save details" not pressed (the currency saves itself)
+const UNSAVED_DETAILS = { selector: '[data-card-details] input, [data-card-details] select', mode: 'changed' as const, message: 'The PO number or notes have changes that are not saved. Press Save details first.' }
+const GUARDS = [UNSAVED_LINE, UNSAVED_DETAILS]
 
 
 /**
@@ -70,11 +73,11 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
             <div className="flex flex-col gap-4">
               <ActionForm action={saveRateCard} submit="Save details" resetOnSuccess={false} primary={false}>
                 <input type="hidden" name="card_id" value={open.id} />
-                <div className="grid grid-cols-2 gap-2 md:grid-cols-[110px_200px_minmax(0,1fr)]">
-                  <select name="currency" aria-label="Currency" defaultValue={open.currency} className="input font-mono">
+                <div data-card-details className="grid grid-cols-2 gap-2 md:grid-cols-[110px_200px_minmax(0,1fr)]">
+                  <AutoSaveSelect key={open.currency} name="currency" aria-label="Currency" defaultValue={open.currency} className="input font-mono">
                     {CURRENCIES.map(([code, name]) => <option key={code} value={code}>{code} · {name}</option>)}
                     {CURRENCY_CODES.includes(open.currency) ? null : <option value={open.currency}>{open.currency}</option>}
-                  </select>
+                  </AutoSaveSelect>
                   <input name="po_number" aria-label="PO number" defaultValue={open.po_number ?? ''} placeholder="Customer PO number" className="input font-mono" />
                   <input name="notes" aria-label="Notes for the customer" defaultValue={open.notes} placeholder="Notes for the customer (payment terms, what is included)" className="input col-span-2 md:col-span-1" />
                 </div>
@@ -120,14 +123,14 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
               <div className="-mx-3"><LinePeople lines={open.rate_card_lines} people={staff ?? []} covered={covered} /></div>
               <div className="flex flex-col gap-2 border-t border-line-soft pt-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <ActionButton run={submitRateCard.bind(null, open.id)} primary guard={UNSAVED_LINE}
+                  <ActionButton run={submitRateCard.bind(null, open.id)} primary guard={GUARDS}
                     confirm="Send these rates to the customer for approval? They can't be edited while the customer reviews them.">
                     Send to customer for approval
                   </ActionButton>
                   {open.status === 'draft' ? <ActionButton run={discardRateCard.bind(null, open.id)} className="btn-ghost" confirm="Discard this draft rate card?">Discard draft</ActionButton> : null}
                 </div>
                 {canSeeFinance(me) && open.rate_card_lines.length ? (
-                  <ApproveForCustomer action={approveRateCardForCustomer} idName="card_id" id={open.id} label="Approve the rates for the customer" guard={UNSAVED_LINE}
+                  <ApproveForCustomer action={approveRateCardForCustomer} idName="card_id" id={open.id} label="Approve the rates for the customer" guard={GUARDS}
                     hint="For rates already agreed in the contract or on a call. They become the approved rates now, and the customer's billing contacts are told by email." />
                 ) : null}
               </div>

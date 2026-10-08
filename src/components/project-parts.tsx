@@ -49,7 +49,7 @@ export async function DocumentsPanel({ me, customerId, projectId, projects }: { 
   return (
     <div className="flex flex-wrap items-start gap-3">
       <Card flush className="min-w-0 flex-[999_1_560px] overflow-x-auto" title="Documents" extra={`${docs.length} files`}>
-        <div className="min-w-[600px]">
+        <div className="min-w-[480px]">
           {grouped.length ? grouped.map((g) => (
             <div key={g.f}>
               <div className="row row-head grid-cols-1"><span>{FOLDERS[g.f]}</span></div>

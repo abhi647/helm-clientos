@@ -31,12 +31,13 @@ export function FileRows({ docs, versions, staff, customerId }: { docs: FileRow[
         const previewable = openable && PREVIEWABLE.has(fileType(d.storage_path!)?.mime ?? '')
         const history = versions.filter((v) => v.document_id === d.id)
         return (
-          <div key={d.id} className="row grid-cols-[minmax(0,1fr)_92px_100px_76px_84px_64px] hover:bg-head">
+          <div key={d.id} className="row grid-cols-[minmax(0,1fr)_92px_84px_56px] hover:bg-head">
             <span className="flex min-w-0 flex-col py-1">
               <span className="flex min-w-0 items-center gap-1.5">
                 <span className="truncate font-medium">{d.name}</span><span className="font-mono text-xs text-muted">v{d.version}</span>
                 <Status status={d.scan_status} staff={staff} />
               </span>
+              <span className="truncate text-xs text-muted">{d.uploader?.full_name ? `${d.uploader.full_name} · ` : ''}{relativeTime(d.created_at)}</span>
               {history.length ? (
                 <details className="text-xs text-muted">
                   <summary className="cursor-pointer">Earlier versions</summary>
@@ -47,8 +48,6 @@ export function FileRows({ docs, versions, staff, customerId }: { docs: FileRow[
               ) : null}
             </span>
             <span>{d.storage_path && !d.archived_at && (staff || d.visibility === 'shared') ? <NewVersionButton documentId={d.id} customerId={customerId} /> : null}</span>
-            <span className="truncate text-xs text-muted">{d.uploader?.full_name}</span>
-            <span className="text-xs text-muted">{relativeTime(d.created_at)}</span>
             <span>{staff ? <Visibility value={d.visibility} /> : null}</span>
             <span className="flex items-center justify-end gap-2">
               {previewable ? <a href={`/api/documents/${d.id}?preview=1`} target="_blank" rel="noopener noreferrer" aria-label={`Preview ${d.name}`} title="Preview" className="text-link"><Eye className="size-4" aria-hidden /></a> : null}
