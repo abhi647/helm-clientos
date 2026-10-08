@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { PREVIEWABLE, fileType } from '@/lib/files'
+import { scanDocument } from '@/lib/scan'
 import { createClient } from '@/lib/supabase/server'
 
 const page = (status: number, title: string, body: string) =>
@@ -9,18 +10,21 @@ const page = (status: number, title: string, body: string) =>
 /**
  * Short-lived signed link for the current file, or an earlier version with ?v=N. ?preview=1 opens PDFs and images
  * in the browser (served from the storage domain, never the app's). Both the row and the storage object are
- * checked under the user's RLS, and nothing is served until the security check has passed.
+ * checked under the user's RLS, and nothing is served until the security check has passed. A file still waiting for
+ * its check (the scanner was down, or the upload was interrupted) is checked again here rather than waiting for the cron.
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const v = Number(request.nextUrl.searchParams.get('v'))
   const preview = request.nextUrl.searchParams.get('preview') === '1'
   const supabase = await createClient()
-  const { data: doc } = Number.isInteger(v) && v > 0
+  const version = Number.isInteger(v) && v > 0
+  const { data: doc } = version
     ? await supabase.from('document_versions').select('storage_path, name, scan_status').eq('document_id', id).eq('version', v).maybeSingle()
     : await supabase.from('documents').select('storage_path, name, scan_status').eq('id', id).maybeSingle()
   if (!doc?.storage_path) return page(404, 'File not found', 'It may have been archived, or you do not have access.')
-  if (doc.scan_status === 'pending') return page(409, 'Still checking this file', 'Every file is security-checked before it can be opened. Try again in a minute.')
+  if (doc.scan_status === 'pending' && !version) doc.scan_status = await scanDocument(id).catch(() => 'pending' as const)
+  if (doc.scan_status === 'pending') return page(409, 'Still checking this file', 'Every file is security-checked before it can be opened, and this one has not passed yet. Try again in a few minutes; if it stays like this, an admin can see why under Admin → System health.')
   if (doc.scan_status === 'infected' || doc.scan_status === 'rejected') return page(410, 'This file was blocked', 'It failed the security check and was deleted.')
   const inline = preview && PREVIEWABLE.has(fileType(doc.storage_path)?.mime ?? '')
   const { data, error } = await supabase.storage.from('documents').createSignedUrl(doc.storage_path, 60, inline ? undefined : { download: doc.name })

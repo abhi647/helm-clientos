@@ -34,8 +34,9 @@ export async function exportCustomer(customerId: string) {
 }
 
 /**
- * Removes a customer for good: their files, their people's sign-ins, then the customer and (by cascade) every row
- * that belongs to them. Returns what was removed.
+ * Removes a customer for good: their files, then the customer and (by cascade) every row that belongs to them,
+ * including their people's profiles, then those people's sign-ins. Sign-ins go last: while a person's requests,
+ * comments or approvals exist, the database refuses to remove the person. Returns what was removed.
  */
 export async function deleteCustomer(customerId: string) {
   const db = createAdminClient()
@@ -52,13 +53,15 @@ export async function deleteCustomer(customerId: string) {
     }
   }
   const { data: people } = await db.from('profiles').select('id').eq('customer_id', customerId)
-  for (const p of people ?? []) {
-    const { error } = await db.auth.admin.deleteUser(p.id)
-    if (error && !/not found/i.test(error.message)) throw new Error(`sign-in for ${p.id}: ${error.message}`)
-  }
   const { error } = await db.from('customers').delete().eq('id', customerId)
   if (error) throw new Error(`customer: ${error.message}`)
-  return { files, people: people?.length ?? 0 }
+  // their profiles are gone with the customer, so nothing points at these sign-ins any more
+  const leftover: string[] = []
+  for (const p of people ?? []) {
+    const { error: e } = await db.auth.admin.deleteUser(p.id)
+    if (e && !/not found/i.test(e.message)) leftover.push(`${p.id}: ${e.message}`)
+  }
+  return { files, people: people?.length ?? 0, leftover }
 }
 
 /** Removes the stored files (every version) of documents already deleted from the database. */

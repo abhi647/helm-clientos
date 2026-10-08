@@ -279,6 +279,8 @@ export async function deleteCustomerData(_prev: ActionResult | null, form: FormD
   try {
     const removed = await deleteCustomer(id.data)
     await logError('data-delete', `${me.full_name} deleted ${c.name} and all its data (${removed.people} sign-ins, ${removed.files} files)`, { customer: id.data }, 'info')
+    // the customer and all its data are gone; a sign-in that could not be removed has no profile left, so it opens nothing
+    if (removed.leftover.length) await logError('data-delete', `sign-ins left after deleting ${c.name}: ${removed.leftover.join('; ')}`, { customer: id.data }, 'warn')
   } catch (e) {
     await logError('data-delete', e, { customer: id.data })
     return fail('The delete did not finish. See Admin → System health, then try again.')
@@ -444,6 +446,21 @@ export async function setConsultantsSeeOwnCustomers(on: boolean): Promise<Action
   const supabase = await createClient()
   const { error } = await supabase.rpc('set_consultants_see_own_customers', { p_on: on })
   return error ? dbFail(error) : done(on ? 'Consultants now see only their own customers.' : 'Consultants see every customer again.')
+}
+
+/** Admin and CEO: check every file still waiting for its security check, now. */
+export async function recheckFiles(): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!['admin', 'ceo'].includes(me.internal_role ?? '')) return fail('Only an admin or the CEO can do this.')
+  const { scanPending } = await import('@/lib/scan')
+  try {
+    const checked = await scanPending(100, 0)
+    const { count } = await createAdminClient().from('documents').select('id', { count: 'exact', head: true }).eq('scan_status', 'pending').not('storage_path', 'is', null)
+    return done(checked ? `Checked ${checked} ${checked === 1 ? 'file' : 'files'}${count ? `; ${count} still waiting, see the problems list below` : ', all done'}.` : 'No files were waiting.')
+  } catch (err) {
+    await logError('scan', err)
+    return fail(err instanceof Error ? err.message : 'The check did not run.')
+  }
 }
 
 /** Admin → System health: sends one email straight away (not through the outbox) to check delivery to an address. */

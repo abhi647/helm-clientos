@@ -1,11 +1,13 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { sendTestEmail } from '@/app/_actions/admin'
-import { ActionForm } from '@/components/forms'
+import { recheckFiles, sendTestEmail } from '@/app/_actions/admin'
+import { ActionButton, ActionForm } from '@/components/forms'
 import { Card, Chip, Empty, PageHeader } from '@/components/ui'
 import { mailTransport } from '@/lib/mail-transport'
 import { relativeTime } from '@/lib/format'
+import { scannerStatus } from '@/lib/scan'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
@@ -22,11 +24,16 @@ export default async function SystemHealth() {
   const transport = mailTransport()
   if (!['admin', 'ceo'].includes(me.internal_role ?? '')) notFound()
   const supabase = await createClient()
-  const [{ data: jobs }, { data: outbox }, { data: log }] = await Promise.all([
+  const [{ data: jobs }, { data: outbox }, { data: log }, waiting, scanner, serverKey] = await Promise.all([
     supabase.from('job_runs').select('*'),
     supabase.rpc('outbox_health').maybeSingle(),
     supabase.from('system_log').select('id, at, level, source, message, detail').order('at', { ascending: false }).limit(50),
+    supabase.from('documents').select('created_at', { count: 'exact' }).eq('scan_status', 'pending').not('storage_path', 'is', null).order('created_at').limit(1),
+    scannerStatus(),
+    // background jobs, file checks, deleting and error logging all use the server key
+    createAdminClient().from('job_runs').select('job', { count: 'exact', head: true }).then(({ error }) => error?.message ?? null, (e: Error) => e.message),
   ])
+  const filesWaiting = waiting.count ?? 0
   const byJob = new Map((jobs ?? []).map((j) => [j.job, j]))
   const now = new Date().getTime()
   const oldestQueuedMin = outbox?.oldest_queued ? Math.round((now - new Date(outbox.oldest_queued).getTime()) / 60_000) : 0
@@ -36,7 +43,21 @@ export default async function SystemHealth() {
     <>
       <PageHeader title="System health" meta={<Link href="/admin" className="text-xs text-muted no-underline hover:text-ink">← Admin</Link>} />
       <div className="flex max-w-[1100px] flex-col gap-3 p-4">
+        {serverKey ? (
+          <p role="alert" className="card m-0 p-3 text-[13px] text-crit-ink">
+            <b>Supabase refuses the server key ({serverKey}).</b> File checks, deleting, background jobs and this page&apos;s problem log cannot work.
+            In Supabase → Project Settings → API keys, copy a current secret key, paste it into Vercel as <code>SUPABASE_SECRET_KEY</code>, then redeploy.
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-start gap-3">
+          <Card className="min-w-0 flex-[1_1_320px]" title="Files">
+            <dl className="m-0 grid grid-cols-[1fr_auto] gap-y-1.5 text-[13px]">
+              <dt className="text-muted">Waiting for the security check</dt>
+              <dd className={`m-0 font-mono ${filesWaiting ? 'text-warn-ink' : ''}`}>{filesWaiting}{waiting.data?.[0] ? <span className="text-muted"> · oldest {relativeTime(waiting.data[0].created_at)}</span> : null}</dd>
+            </dl>
+            <p className={`mt-2 mb-2 text-xs ${scanner.ok ? 'text-muted' : 'text-crit-ink'}`} role={scanner.ok ? undefined : 'alert'}>{scanner.ok ? <>Checked by <b className="text-ink">{scanner.text}</b></> : scanner.text}</p>
+            {filesWaiting ? <ActionButton run={recheckFiles} className="btn h-8 text-xs">Check waiting files now</ActionButton> : null}
+          </Card>
           <Card className="min-w-0 flex-[1_1_320px]" title="Emails">
             <dl className="m-0 grid grid-cols-[1fr_auto] gap-y-1.5 text-[13px]">
               <dt className="text-muted">Sent in the last 24 hours</dt><dd className="m-0 font-mono">{outbox?.sent_24h ?? 0}</dd>

@@ -3,6 +3,7 @@ import net from 'node:net'
 import { env } from '@/lib/env'
 import { fileType } from '@/lib/files'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { logError } from '@/lib/system-log'
 
 /**
  * File checks, run on the server right after upload (and by the daily cron for anything left pending):
@@ -63,7 +64,10 @@ export async function scanDocument(id: string): Promise<Result> {
   if (!d?.storage_path || d.scan_status !== 'pending') return (d?.scan_status as Result) ?? 'pending'
   const path = d.storage_path
   const { data: blob, error } = await db.storage.from('documents').download(path)
-  if (error || !blob) return 'pending'                       // retried by the cron
+  if (error || !blob) {                                      // retried when someone opens it, and by the cron
+    await logError('scan', `could not read ${d.name} to check it: ${error?.message ?? 'no file'}`, { document: d.id }, 'warn')
+    return 'pending'
+  }
   const bytes = Buffer.from(await blob.arrayBuffer())
   const type = fileType(path)
 
@@ -73,7 +77,7 @@ export async function scanDocument(id: string): Promise<Result> {
     try {
       status = await clamScan(bytes)
     } catch (e) {
-      console.error('[scan] scanner unavailable', e)
+      await logError('scan', `virus scanner not reachable, ${d.name} waits: ${e instanceof Error ? e.message : String(e)}`, { document: d.id }, 'warn')
       return 'pending'                                       // never mark clean without a scan
     }
   } else status = env().REQUIRE_VIRUS_SCAN ? 'pending' : 'not_scanned'
@@ -93,11 +97,32 @@ export async function scanDocument(id: string): Promise<Result> {
   return status
 }
 
-/** Safety net for the daily cron: anything still pending after a few minutes. */
-export async function scanPending(limit = 25): Promise<number> {
+/** Safety net for the cron (and the admin's "Check waiting files now"): anything still pending after a few minutes. */
+export async function scanPending(limit = 25, olderThanMin = 2): Promise<number> {
   const db = createAdminClient()
   const { data } = await db.from('documents').select('id').eq('scan_status', 'pending').not('storage_path', 'is', null)
-    .lt('created_at', new Date(Date.now() - 2 * 60_000).toISOString()).limit(limit)
+    .lt('created_at', new Date(Date.now() - olderThanMin * 60_000).toISOString()).limit(limit)
   for (const d of data ?? []) await scanDocument(d.id)
   return data?.length ?? 0
+}
+
+/** For System health: how files are checked, and whether that can work right now. */
+export async function scannerStatus(): Promise<{ ok: boolean; text: string }> {
+  const { CLAMAV_HOST, CLAMAV_PORT, REQUIRE_VIRUS_SCAN } = env()
+  if (!CLAMAV_HOST) {
+    return REQUIRE_VIRUS_SCAN
+      ? { ok: false, text: 'REQUIRE_VIRUS_SCAN is on but no scanner is set (CLAMAV_HOST), so new files can never be opened. Set CLAMAV_HOST, or turn REQUIRE_VIRUS_SCAN off.' }
+      : { ok: true, text: 'File type check only (no virus scanner set up)' }
+  }
+  const reply = await new Promise<string>((resolve) => {
+    const socket = net.createConnection({ host: CLAMAV_HOST, port: CLAMAV_PORT }, () => socket.write('zPING\0'))
+    let r = ''
+    socket.setTimeout(3000, () => { socket.destroy(); resolve('timed out') })
+    socket.on('data', (b) => (r += b.toString()))
+    socket.on('error', (e) => resolve(e.message))
+    socket.on('end', () => resolve(r.replace(/\0/g, '').trim()))
+  })
+  return reply === 'PONG'
+    ? { ok: true, text: `Virus scan by ClamAV (${CLAMAV_HOST})` }
+    : { ok: false, text: `The virus scanner at ${CLAMAV_HOST}:${CLAMAV_PORT} is not answering (${reply || 'no reply'}), so new files wait. Check the ClamAV server, or clear CLAMAV_HOST in Vercel.` }
 }

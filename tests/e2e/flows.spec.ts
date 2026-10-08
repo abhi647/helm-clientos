@@ -3,6 +3,7 @@
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
+import { createClient } from '@supabase/supabase-js'
 import * as OTPAuth from 'otpauth'
 
 const MAILPIT = process.env.MAILPIT_URL ?? 'http://127.0.0.1:54324'
@@ -273,6 +274,38 @@ test('uploads are type-checked and virus-scanned before anyone can open them', a
   await expect(page.getByText('Blocked: the file content does not match its type, so it was deleted.')).toBeVisible()
   await page.reload()
   await shot(page, '20-documents-security')
+})
+
+test('a file left waiting for its check (scanner was down) is checked when opened, and System health clears the rest', async ({ page }) => {
+  const env = Object.fromEntries(readFileSync('.env.local', 'utf8').split('\n').filter((l) => /^[A-Z_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim()]))
+  const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL!, env.SUPABASE_SECRET_KEY!, { auth: { persistSession: false } })
+  const { data: project } = await db.from('projects').select('id, customer_id').eq('name', 'Power BI Implementation').single()
+  // two uploads whose check never ran: the file is in storage, the record still says "Checking"
+  const stuck = async (name: string) => {
+    const id = crypto.randomUUID()
+    const path = `${project!.customer_id}/${id}/${name}`
+    await db.storage.from('documents').upload(path, Buffer.from('%PDF-1.4\n%%EOF'), { contentType: 'application/pdf' })
+    await db.from('documents').insert({ id, customer_id: project!.customer_id, project_id: project!.id, name, storage_path: path, visibility: 'internal', created_at: new Date(Date.now() - 10 * 60_000).toISOString() })
+    return id
+  }
+  const opened = await stuck('Stuck one.pdf')
+  await stuck('Stuck two.pdf')
+
+  await signIn(page, 'abhijit@example.com')
+  await page.goto('/admin/health')
+  const files = page.locator('.card', { has: page.getByRole('heading', { name: 'Files' }) })
+  await expect(files.getByText('Waiting for the security check')).toBeVisible()
+  await expect(files.getByText(/Checked by|File type check only|not answering/)).toBeVisible()
+
+  // opening the file checks it there and then, instead of "Still checking" until the nightly job
+  const res = await page.request.get(`/api/documents/${opened}`, { maxRedirects: 0 })
+  expect(res.status()).toBe(307)
+  expect((await db.from('documents').select('scan_status').eq('id', opened).single()).data!.scan_status).not.toBe('pending')
+
+  await page.reload()
+  await files.getByRole('button', { name: 'Check waiting files now' }).click()
+  await expect(files.getByText(/Checked 1 file, all done/)).toBeVisible()
+  await shot(page, '40-system-health-files')
 })
 
 test('CEO sees the portfolio and finance', async ({ page }) => {
