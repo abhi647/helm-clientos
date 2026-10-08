@@ -126,16 +126,10 @@ CI (`.github/workflows/ci.yml`) runs lint, types, the database tests and the flo
 
 ### Email delivery: fast, and into the inbox
 
-Helm sends each email the moment something happens; a background job retries anything that did not go out. Three things decide whether it lands quickly in the inbox:
+Helm sends every email through Resend the moment something happens; a background job retries anything that did not go out. Admin → System health shows the sender and has **Send test email** to check any address. Two things decide how quickly mail lands:
 
-1. **Send from Microsoft 365 (recommended when you use Outlook).** Outlook, yours and your clients', trusts mail sent from a Microsoft 365 mailbox far more than mail from a new sending service, so it is not held back or filed as junk, and your clients' admins never need to allow anything. Set these four in Vercel and Helm sends through that mailbox (Resend stays the fallback when they are empty):
-   - In Microsoft 365, create a **shared mailbox** (free, no licence), e.g. `helm@sevenbillion.co`.
-   - In Microsoft Entra admin centre → App registrations → **New registration** ("Helm mail"). Under API permissions add **Microsoft Graph → Application → Mail.Send** and **Grant admin consent**. Under Certificates & secrets create a **client secret**.
-   - Limit the app to that one mailbox (Exchange Online PowerShell): `New-ApplicationAccessPolicy -AppId <client id> -PolicyScopeGroupId helm@sevenbillion.co -AccessRight RestrictAccess -Description "Helm sends only as helm@"`.
-   - Vercel: `MS_TENANT_ID` (Directory id), `MS_CLIENT_ID` (Application id), `MS_CLIENT_SECRET`, `MS_SENDER=helm@sevenbillion.co`. Keep `EMAIL_FROM` for the display name, e.g. `Helm · Seven Billion <helm@sevenbillion.co>`.
-   - Admin → System health shows which service is sending; **Send test email** checks any address straight away.
-2. **Sign-in and invitation emails** are sent by Supabase, not Helm. Point them at the same provider (Supabase → Authentication → Emails → SMTP Settings): Resend (`smtp.resend.com`, port 465, user `resend`, password the API key) or Microsoft 365 (`smtp.office365.com`, port 587, the mailbox and its password, with SMTP AUTH allowed for that mailbox). Supabase's built-in sender is slow and only meant for testing.
-3. **Retries every 10 minutes**: add the GitHub secrets `HELM_URL` and `CRON_SECRET` (see System health). Without them, an email that missed its instant send waits for the daily job.
+1. **Sign-in and invitation emails** are sent by Supabase, not Helm. Point them at Resend too (Supabase → Authentication → Emails → SMTP Settings: `smtp.resend.com`, port 465, user `resend`, password the API key). Supabase's built-in sender is slow and only meant for testing.
+2. **Retries every 10 minutes**: add the GitHub secrets `HELM_URL` and `CRON_SECRET` (see System health). Without them, an email that missed its instant send waits for the daily job.
 
 ### 3. Vercel
 

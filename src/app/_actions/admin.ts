@@ -452,18 +452,18 @@ export async function sendTestEmail(_prev: ActionResult | null, form: FormData):
   if (!['admin', 'ceo'].includes(me.internal_role ?? '')) return fail('Only an admin or the CEO can send a test email.')
   const to = z.string().trim().toLowerCase().email('Enter a valid email.').safeParse(form.get('to'))
   if (!to.success) return fail(to.error.issues[0]!.message)
-  const { sendMail, mailTransport } = await import('@/lib/mail-transport')
+  const { sendMail } = await import('@/lib/mail-transport')
   const sentAt = new Date().toISOString()
   try {
     await sendMail({
       to: to.data, subject: `Helm test email · ${sentAt.slice(0, 16).replace('T', ' ')} UTC`, tag: 'test',
-      html: `<p>Hi,</p><p>This is a test from Helm, sent by ${me.full_name} at ${sentAt.slice(11, 16)} UTC through ${mailTransport().kind === 'microsoft' ? 'Microsoft 365' : 'Resend'}.</p><p>If it arrived in Junk or late, compare the time above with when you received it.</p>`,
+      html: `<p>Hi,</p><p>This is a test from Helm, sent by ${me.full_name} at ${sentAt.slice(11, 16)} UTC through Resend.</p><p>If it arrived in Junk or late, compare the time above with when you received it.</p>`,
       text: `This is a test from Helm, sent by ${me.full_name} at ${sentAt.slice(11, 16)} UTC.`,
     })
   } catch (err) {
     await logError('email', err, { to: to.data, test: true })
     return fail(err instanceof Error ? err.message : 'Sending failed.')
   }
-  await logError('email', `test email sent to ${to.data}`, { via: (await import('@/lib/mail-transport')).mailTransport().kind }, 'info')
+  await logError('email', `test email sent to ${to.data}`, {}, 'info')
   return ok(`Sent to ${to.data} at ${sentAt.slice(11, 16)} UTC. Check the inbox and the Junk folder.`)
 }

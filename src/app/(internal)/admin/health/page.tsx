@@ -46,7 +46,7 @@ export default async function SystemHealth() {
             </dl>
             {emailsStuck ? <p role="alert" className="mt-2 mb-0 text-xs text-crit-ink">Emails have been waiting over 30 minutes. Check the email job below and the Resend dashboard.</p> : null}
             <p className="mt-3 mb-2 text-xs text-muted">
-              Sent through <b className="text-ink">{transport.kind === 'microsoft' ? `Microsoft 365 (${transport.from})` : transport.kind === 'resend' ? 'Resend' : 'nothing yet: no email service set up'}</b>
+              Sent through <b className="text-ink">{transport.kind === 'resend' ? `Resend (${transport.from})` : 'nothing yet: no email service set up'}</b>
             </p>
             <ActionForm action={sendTestEmail} submit="Send test email" primary={false} resetOnSuccess={false}>
               <input name="to" type="email" required aria-label="Send a test email to" placeholder="someone@company.com" defaultValue={me.email ?? ''} className="input" />
