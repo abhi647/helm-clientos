@@ -393,3 +393,55 @@ export async function dismissContact(contactId: string): Promise<ActionResult> {
   const { error } = await supabase.from('customer_contacts').update({ invited_at: new Date().toISOString() }).eq('id', contactId)
   return error ? dbFail(error) : done()
 }
+
+const customerAccessSchema = z.object({
+  user_id: uuid,
+  customer_role: z.enum(['customer_exec', 'customer_member']),
+  can_view_invoices: z.preprocess((v) => v === 'on', z.boolean()),
+})
+
+/** Changes a customer person's role or invoice access. Written to app_metadata, which the database turns into their profile. */
+export async function updateCustomerUser(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!canManage(me)) return fail('Only a PM, the CEO or an admin can change this.')
+  const parsed = customerAccessSchema.safeParse(formObject(form))
+  if (!parsed.success) return fail('Unknown person or role.')
+  const supabase = await createClient()
+  const { data: target } = await supabase.from('directory').select('id, kind, customer_id').eq('id', parsed.data.user_id).maybeSingle()
+  if (!target || target.kind !== 'customer') return fail('Person not found.')
+  const admin = createAdminClient()
+  const { data: user, error: getError } = await admin.auth.admin.getUserById(parsed.data.user_id)
+  if (getError || !user.user) return dbFail(getError, 'Person not found.')
+  const { error } = await admin.auth.admin.updateUserById(parsed.data.user_id, {
+    app_metadata: { ...user.user.app_metadata, customer_role: parsed.data.customer_role, can_view_invoices: parsed.data.can_view_invoices },
+  })
+  return error ? dbFail(error) : done('Saved.')
+}
+
+const teamSchema = z.object({ customer_id: uuid, profile_id: uuid, role_label: z.string().trim().max(60).default('') })
+
+/** Adds a Seven Billion person to a customer's account team (or changes their role on it). */
+export async function addToCustomerTeam(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  await requireStaff()
+  const parsed = teamSchema.safeParse(formObject(form))
+  if (!parsed.success) return fail('Pick someone to add.')
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('add_to_customer_team', { p_customer: parsed.data.customer_id, p_person: parsed.data.profile_id, p_role: parsed.data.role_label })
+  return error ? dbFail(error) : done('Added to the account team. They have been told.')
+}
+
+export async function removeFromCustomerTeam(customerId: string, profileId: string): Promise<ActionResult> {
+  await requireStaff()
+  if (!uuid.safeParse(customerId).success || !uuid.safeParse(profileId).success) return fail('Unknown person.')
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('remove_from_customer_team', { p_customer: customerId, p_person: profileId })
+  return error ? dbFail(error) : done('Removed from the account team.')
+}
+
+/** Admin switch: consultants see only the customers whose account team they are on (or whose work they do). */
+export async function setConsultantsSeeOwnCustomers(on: boolean): Promise<ActionResult> {
+  await requireStaff()
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('set_consultants_see_own_customers', { p_on: on })
+  return error ? dbFail(error) : done(on ? 'Consultants now see only their own customers.' : 'Consultants see every customer again.')
+}

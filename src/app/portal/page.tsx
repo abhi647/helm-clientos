@@ -11,6 +11,7 @@ import { formByKey } from '@/lib/forms'
 import { requireCustomer } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { OpenSurveys } from '@/components/csat-open'
+import { YourTeam } from '@/components/your-team'
 import { ExecHome } from './exec-home'
 
 export const metadata: Metadata = { title: 'Home' }
@@ -130,6 +131,7 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
               <div key={m.id} className="row min-h-9 grid-cols-[56px_minmax(0,1fr)]"><span className="font-mono text-xs text-muted">{shortDate(m.due_date)}</span><span className="truncate">{m.title}</span></div>
             )) : <Empty title="No upcoming milestones" />}
           </Card>
+          <YourTeam />
           {invoices ? (
             <Card flush title="Invoices" extra={<Link href="/portal/invoices">All invoices</Link>}>
               {invoices.length ? invoices.map((i) => (

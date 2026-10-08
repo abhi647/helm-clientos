@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createCustomer, inviteStaff, syncZohoNow } from '@/app/_actions/admin'
 import { ActionButton, ActionForm } from '@/components/forms'
-import { AccountOwnerSelect, AutomationToggle, RoleSelect } from '@/components/admin-controls'
+import { AccountOwnerSelect, AutomationToggle, ConsultantScopeToggle, RoleSelect } from '@/components/admin-controls'
 import { Avatar, Card, Chip, PageHeader } from '@/components/ui'
 import { env } from '@/lib/env'
 import { label, relativeTime } from '@/lib/format'
@@ -31,7 +31,7 @@ export default async function Admin() {
   const me = await requireStaff()
   if (!['admin', 'ceo'].includes(me.internal_role ?? '')) notFound()
   const supabase = await createClient()
-  const [{ data: staff }, { data: customers }, { data: rules }, { data: lastInvoice }, { data: setups }] = await Promise.all([
+  const [{ data: staff }, { data: customers }, { data: rules }, { data: lastInvoice }, { data: setups }, { data: org }] = await Promise.all([
     supabase.from('directory').select('id, full_name, email, internal_role, access_revoked_at').eq('kind', 'internal').eq('org_id', me.org_id!).order('full_name')
       .overrideTypes<Pick<DirectoryRow, 'id' | 'full_name' | 'email' | 'internal_role' | 'access_revoked_at'>[], { merge: false }>(),
     supabase.from('customers_internal').select('id, name, hubspot_company_id, zoho_customer_id, account_owner_id').order('name')
@@ -39,6 +39,7 @@ export default async function Admin() {
     supabase.from('automation_rules').select('key, enabled'),
     supabase.from('invoices').select('synced_at').order('synced_at', { ascending: false }).limit(1),
     supabase.from('engagement_setups').select('id').eq('status', 'pending'),
+    supabase.from('orgs').select('consultants_see_own_customers').eq('id', me.org_id!).maybeSingle(),
   ])
   const { data: activeProjects } = await supabase.from('projects').select('customer_id').eq('status', 'active')
   // last sign-in comes from Auth; this page is admin-only and server-rendered
@@ -142,6 +143,11 @@ export default async function Admin() {
               <span className="flex min-w-0 flex-col"><span className="font-medium">Removing access</span>
                 <span className="text-xs text-muted">Takes effect on the next click; all sessions end.</span></span>
               <span className="text-right"><Chip tone="good">Instant</Chip></span>
+            </div>
+            <div className="row grid-cols-[minmax(0,1fr)_96px] py-1.5">
+              <span className="flex min-w-0 flex-col"><span className="font-medium">Consultants see only their customers</span>
+                <span className="text-xs text-muted">When on, a consultant sees a customer only if they are on its account team, run one of its projects or own one of its tasks. Admins, the CEO, PMs and finance see every customer.</span></span>
+              <span className="flex justify-end"><ConsultantScopeToggle enabled={!!org?.consultants_see_own_customers} /></span>
             </div>
           </Card>
           <Card flush title="Integrations">

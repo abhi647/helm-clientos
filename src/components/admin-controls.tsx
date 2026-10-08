@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { setAccountOwner, setAutomation, setStaffRole } from '@/app/_actions/admin'
+import { setAccountOwner, setAutomation, setConsultantsSeeOwnCustomers, setStaffRole } from '@/app/_actions/admin'
 import { StatusSelect } from '@/components/forms'
 import { cn } from '@/components/ui'
 
@@ -28,6 +28,22 @@ export function AutomationToggle({ ruleKey, enabled }: { ruleKey: Parameters<typ
   return (
     <button type="button" role="switch" aria-checked={on} aria-label={on ? 'Rule is on' : 'Rule is off'} disabled={pending}
       onClick={() => start(async () => { const res = await setAutomation(ruleKey, !on); if (res.ok) setOn(!on) })}
+      className="ml-auto inline-flex cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-xs font-semibold">
+      <span className={cn('relative h-[18px] w-8 rounded-full transition-colors', on ? 'bg-good' : 'bg-[#c4cdd0]')}>
+        <span className={cn('absolute top-[2px] size-[14px] rounded-full bg-white transition-all', on ? 'left-4' : 'left-[2px]')} />
+      </span>
+      <span className={on ? 'text-good-ink' : 'text-muted'}>{on ? 'On' : 'Off'}</span>
+    </button>
+  )
+}
+
+/** Admin switch: consultants see only the customers they are on. */
+export function ConsultantScopeToggle({ enabled }: { enabled: boolean }) {
+  const [on, setOn] = useState(enabled)
+  const [pending, start] = useTransition()
+  return (
+    <button type="button" role="switch" aria-checked={on} aria-label="Consultants see only their own customers" disabled={pending}
+      onClick={() => start(async () => { const res = await setConsultantsSeeOwnCustomers(!on); if (res.ok) setOn(!on) })}
       className="ml-auto inline-flex cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-xs font-semibold">
       <span className={cn('relative h-[18px] w-8 rounded-full transition-colors', on ? 'bg-good' : 'bg-[#c4cdd0]')}>
         <span className={cn('absolute top-[2px] size-[14px] rounded-full bg-white transition-all', on ? 'left-4' : 'left-[2px]')} />

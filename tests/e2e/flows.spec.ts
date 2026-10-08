@@ -293,7 +293,7 @@ test('CEO adds a customer, links it to HubSpot and Zoho, and starts projects by 
   await page.getByLabel('Customer name').fill('Orbit Foods')
   await page.getByLabel('HubSpot company id').fill('9100001')
   await page.getByRole('button', { name: 'Add customer' }).click()
-  await expect(page.getByRole('heading', { name: 'Orbit Foods' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Orbit Foods', exact: true })).toBeVisible()
   await expect(page.getByText('HubSpot 9100001 · Not linked to Zoho')).toBeVisible()
 
   // link the Zoho customer afterwards (no integrations in tests, so the ids are saved as typed)
@@ -352,6 +352,46 @@ test('system health: the uptime check answers, a background job is recorded, and
   await expect(emailsJob.getByText('OK', { exact: true })).toBeVisible()
   await expect(page.getByText('Sent in the last 24 hours')).toBeVisible()
   await shot(page, '39-system-health')
+})
+
+test('customer level: the account team and the customer\'s people, managed on the customer page', async ({ page }) => {
+  await signIn(page, 'rahul@example.com')
+  await page.goto('/customers')
+  await page.getByRole('link', { name: /Nesma Group/ }).click()
+  const team = page.locator('.card', { hasText: 'Seven Billion team' })
+  const open = (d: import('@playwright/test').Locator) => d.evaluate((el) => { (el as HTMLDetailsElement).open = true })
+  await open(team.locator('details', { hasText: '+ Add a team member' }))
+  await team.getByLabel('Team member').selectOption({ label: 'Sahil' })
+  await team.getByLabel('Role on this account').fill('Data engineer')
+  await team.getByRole('button', { name: 'Add to the team' }).click()
+  await expect(team.getByText('Data engineer')).toBeVisible()
+
+  // a new person from the customer, then their role and invoice access changed in place
+  const people = page.locator('.card', { hasText: 'People at Nesma Group' })
+  await open(people.locator('details', { hasText: '+ Add someone from Nesma Group' }))
+  await people.getByLabel('Full name').fill('Leila Haddad')
+  await people.getByLabel('Work email').fill('leila@nesma.example.com')
+  await people.getByRole('button', { name: 'Send invitation' }).click()
+  await expect(people.getByText('Invitation sent to leila@nesma.example.com.')).toBeVisible()
+  await page.reload()
+  const leila = people.locator('details', { hasText: 'Leila Haddad' })
+  await expect(leila.locator('summary').getByText('Member', { exact: true })).toBeVisible()
+  await leila.locator('summary').click()
+  await leila.getByLabel('Role for Leila Haddad').selectOption('customer_exec')
+  await leila.getByLabel('Can see invoices and approve billing').check()
+  await leila.getByRole('button', { name: 'Save' }).click()
+  await expect(leila.getByText('Saved.')).toBeVisible()
+  await page.reload()
+  await expect(leila.locator('summary').getByText('Executive', { exact: true })).toBeVisible()
+  await expect(leila.locator('summary').getByText('Invoices', { exact: true })).toBeVisible()
+  await shot(page, '44-customer-team')
+
+  // the customer sees who serves them
+  await signIn(page, 'michel@nesma.example.com')
+  await page.goto('/portal')
+  const yours = page.locator('.card', { hasText: 'Your Seven Billion team' })
+  await expect(yours.getByText('Sahil')).toBeVisible()
+  await expect(yours.getByText('Data engineer')).toBeVisible()
 })
 
 test('deleting: a task and a phase from the plan, then the whole project after typing its name', async ({ page }) => {

@@ -1010,3 +1010,61 @@ describe('deleting', () => {
     await service.from('invoices').delete().eq('number', 'INV-TEST-1')
   })
 })
+
+describe('account team', () => {
+  const id = async (email: string) => (await service.from('profiles').select('id').eq('email', email).single()).data!.id
+
+  it('the PM adds Seven Billion people to a customer with a role; the customer sees them; a consultant cannot add', async () => {
+    const sahilId = await id('sahil@example.com')
+    expect((await sahil.rpc('add_to_customer_team', { p_customer: nesma, p_person: sahilId, p_role: 'Data engineer' })).error?.message).toMatch(/not allowed/)
+    expect((await michel.rpc('add_to_customer_team', { p_customer: nesma, p_person: sahilId })).error?.message).toMatch(/not allowed/)
+    expect((await rahul.rpc('add_to_customer_team', { p_customer: nesma, p_person: await id('omar@nesma.example.com') })).error?.message).toMatch(/only Seven Billion people/)
+    expect((await rahul.rpc('add_to_customer_team', { p_customer: nesma, p_person: sahilId, p_role: 'Data engineer' })).error).toBeNull()
+    expect((await sahil.from('notifications').select('title').eq('kind', 'team.added')).data![0]!.title).toBe('You are on the Nesma Group account team')
+    expect((await michel.from('customer_team').select('role_label').eq('profile_id', sahilId)).data).toEqual([{ role_label: 'Data engineer' }])
+    expect((await cbdLead.from('customer_team').select('profile_id').eq('customer_id', nesma)).data ?? []).toHaveLength(0)
+    expect((await michel.from('customer_team').insert({ customer_id: nesma, profile_id: await id('rahul@example.com') })).error).not.toBeNull()
+    // the role can be changed by adding again
+    await rahul.rpc('add_to_customer_team', { p_customer: nesma, p_person: sahilId, p_role: 'Lead engineer' })
+    expect((await service.from('customer_team').select('role_label').eq('customer_id', nesma).eq('profile_id', sahilId).single()).data!.role_label).toBe('Lead engineer')
+  })
+
+  it('the account team hears about the customer\'s new requests', async () => {
+    await rahul.rpc('add_to_customer_team', { p_customer: nesma, p_person: await id('finance@example.com'), p_role: 'Billing' })
+    const { error } = await michel.from('requests').insert({ customer_id: nesma, title: 'Team should hear this', requested_by: await id('michel@nesma.example.com') })
+    expect(error).toBeNull()
+    const { data } = await finance.from('notifications').select('title, body').eq('kind', 'request.submitted').like('title', '%Team should hear this')
+    expect(data).toHaveLength(1)
+    expect(data![0]!.body).toMatch(/from an account you are on/)
+    await rahul.rpc('remove_from_customer_team', { p_customer: nesma, p_person: await id('finance@example.com') })
+    expect((await service.from('customer_team').select('profile_id').eq('customer_id', nesma).eq('profile_id', await id('finance@example.com'))).data).toHaveLength(0)
+  })
+
+  it('whoever adds a customer is on its team as account lead', async () => {
+    const c = { id: crypto.randomUUID() }   // as the app does: the row is not read back
+    const { error } = await rahul.from('customers').insert({ id: c.id, name: 'Team Starter Co', org_id: (await service.from('customers').select('org_id').eq('id', nesma).single()).data!.org_id })
+    expect(error).toBeNull()
+    expect((await service.from('customer_team').select('profile_id, role_label').eq('customer_id', c.id)).data).toEqual([{ profile_id: await id('rahul@example.com'), role_label: 'Account lead' }])
+    await service.from('customers').delete().eq('id', c.id)
+  })
+
+  it('with the switch on, a consultant sees only the customers they are on; everyone else sees all', async () => {
+    const org = (await service.from('customers').select('org_id').eq('id', nesma).single()).data!.org_id
+    const hidden = (await service.from('customers').insert({ name: 'Quiet Co', org_id: org }).select('id').single()).data!.id
+    const ceo = await asCeo()
+    expect((await sahil.from('customers').select('id').eq('id', hidden)).data).toHaveLength(1)     // off: everyone sees everything
+    expect((await rahul.rpc('set_consultants_see_own_customers', { p_on: true })).error?.message).toMatch(/not allowed/)
+    expect((await ceo.rpc('set_consultants_see_own_customers', { p_on: true })).error).toBeNull()
+    try {
+      expect((await sahil.from('customers').select('id').eq('id', hidden)).data ?? []).toHaveLength(0)
+      expect((await sahil.from('customers').select('id').eq('id', nesma)).data).toHaveLength(1)      // on its team and owns its tasks
+      expect((await rahul.from('customers').select('id').eq('id', hidden)).data).toHaveLength(1)     // PMs see all
+      expect((await finance.from('customers').select('id').eq('id', hidden)).data).toHaveLength(1)
+      await rahul.rpc('add_to_customer_team', { p_customer: hidden, p_person: await id('sahil@example.com') })
+      expect((await sahil.from('customers').select('id').eq('id', hidden)).data).toHaveLength(1)
+    } finally {
+      await ceo.rpc('set_consultants_see_own_customers', { p_on: false })
+      await service.from('customers').delete().eq('id', hidden)
+    }
+  })
+})

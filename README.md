@@ -231,6 +231,13 @@ Every customer can be billed differently, and a project can mix models:
 5. **Billed once**: when the statement is approved (by the customer or for them), those days are marked billed on it and never fill another statement. A statement that would bill more days than are approved and unbilled (another statement billed some since it was filled) cannot be sent or approved until it is filled again. Lowering a quantity writes the rest of those days off.
 6. **Unbilled work** on the project's Billing page and on Finance: approved billable days not billed yet, per person, at the agreed day rate, flagging anyone not on a day-rate line.
 
+**People at the customer level.** A customer's page has two cards:
+
+- **Seven Billion team**: the PM, an admin or the CEO adds our people to the account with their role on it ("Data engineer", "Billing"). They are told, they hear about the customer's new requests, and the customer sees them in the portal under *Your Seven Billion team*. Whoever adds a customer starts on its team as account lead.
+- **People at {customer}**: *+ Add someone* invites a person from the customer by email (team member or executive, and whether they see invoices and approve billing). Each person's **Edit** changes their role or invoice access, or removes access instantly. Contacts imported from HubSpot wait here to be invited.
+
+Admin → Security has **Consultants see only their customers** (off by default). When on, a consultant sees a customer only if they are on its account team, run one of its projects or own one of its tasks; admins, the CEO, PMs and finance see every customer. It is enforced in the database.
+
 **Deleting.** Each delete is a deliberate step with a confirmation, is written to the customer's activity (internal), and is checked in the database (direct deletes through the API are refused):
 
 | What | Who | Where | Kept when |

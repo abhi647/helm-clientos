@@ -452,6 +452,55 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"customer_team": {
+                  Row: {
+                    "added_at": string,"added_by": string | null,"customer_id": string,"profile_id": string,"role_label": string
+                  }
+                  Insert: {
+                    "added_at"?: string,"added_by"?: string | null,"customer_id": string,"profile_id": string,"role_label"?: string
+                  }
+                  Update: {
+                    "added_at"?: string,"added_by"?: string | null,"customer_id"?: string,"profile_id"?: string,"role_label"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "customer_team_added_by_fkey"
+      columns: ["added_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "customer_team_added_by_fkey"
+      columns: ["added_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "customer_team_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "customer_team_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "customer_team_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "customer_team_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"customers": {
                   Row: {
                     "account_owner_id": string | null,"created_at": string,"hubspot_company_id": string | null,"id": string,"name": string,"org_id": string,"zoho_customer_id": string | null
@@ -972,13 +1021,13 @@ isOneToOne: false
                   ]
                 },"orgs": {
                   Row: {
-                    "created_at": string,"id": string,"name": string
+                    "consultants_see_own_customers": boolean,"created_at": string,"id": string,"name": string
                   }
                   Insert: {
-                    "created_at"?: string,"id"?: string,"name": string
+                    "consultants_see_own_customers"?: boolean,"created_at"?: string,"id"?: string,"name": string
                   }
                   Update: {
-                    "created_at"?: string,"id"?: string,"name"?: string
+                    "consultants_see_own_customers"?: boolean,"created_at"?: string,"id"?: string,"name"?: string
                   }
                   Relationships: [
                     
@@ -1850,6 +1899,9 @@ isOneToOne: false
 "add_rate_card_line":
 { Args: { "p_card": string,"p_description"?: string,"p_kind": Database["public"]['Enums']["billing_kind"],"p_label": string,"p_planned"?: number,"p_rate": number,"p_unit": string,"p_zoho_item"?: string }; Returns: string
                            },
+"add_to_customer_team":
+{ Args: { "p_customer": string,"p_person": string,"p_role"?: string }; Returns: undefined
+                           },
 "answer_csat":
 { Args: { "p_comment"?: string,"p_score": number,"p_survey": string }; Returns: undefined
                            },
@@ -1947,6 +1999,9 @@ isOneToOne: false
 "refill_statement":
 { Args: { "p_statement": string }; Returns: undefined
                            },
+"remove_from_customer_team":
+{ Args: { "p_customer": string,"p_person": string }; Returns: undefined
+                           },
 "request_to_task":
 { Args: { "p_assignee"?: string,"p_due"?: string,"p_estimate"?: number,"p_phase"?: string,"p_project"?: string,"p_request": string,"p_shared"?: boolean,"p_unit"?: string }; Returns: string
                            },
@@ -1961,6 +2016,9 @@ isOneToOne: false
                            },
 "set_access":
 { Args: { "p_revoked": boolean,"p_user": string }; Returns: undefined
+                           },
+"set_consultants_see_own_customers":
+{ Args: { "p_on": boolean }; Returns: undefined
                            },
 "set_line_people":
 { Args: { "p_line": string,"p_people": (string)[] }; Returns: undefined
