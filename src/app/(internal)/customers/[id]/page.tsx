@@ -45,20 +45,8 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
           <Link href={`/requests/new?customer=${c.id}`} className="btn">+ Log a request</Link>
         </div>} />
       <div className="flex flex-col gap-3 p-4">
-        <div className="flex flex-wrap items-start gap-3">
-          <div className="flex min-w-0 flex-[999_1_600px] flex-col gap-3">
-            <Card flush className="overflow-x-auto" title="Projects" extra={`${projects?.length ?? 0}`}>
-              {projects?.length ? projects.map((p) => (
-                <Link key={p.id} href={`/projects/${p.id}`} className="row grid-cols-[minmax(0,1fr)_130px_110px_90px_90px] text-ink no-underline hover:bg-head">
-                  <span className="truncate font-medium">{p.name}</span><Health health={p.health} /><Progress value={prog.get(p.id) ?? 0} width={44} />
-                  <span className="truncate text-xs">{p.pm?.full_name}</span><span className="font-mono text-xs text-muted">{shortDate(p.end_date)}</span>
-                </Link>
-              )) : <Empty title="No projects yet" />}
-            </Card>
-          <DocumentsPanel me={me} customerId={c.id} projects={(projects ?? []).map((p) => ({ id: p.id, name: p.name }))} />
-          <Card flush title="Activity"><ActivityList customerId={c.id} limit={30} /></Card>
-          </div>
-          <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-3 xl:max-w-[400px]">
+        <div className="grid items-start gap-3 lg:grid-cols-[minmax(300px,340px)_minmax(0,1fr)]">
+          <aside aria-label={`About ${c.name}`} className="flex min-w-0 flex-col gap-3">
             <Card title="Seven Billion team" extra={`${team?.length ?? 0} on this account`}>
               <div className="flex flex-col gap-1.5">
                 {(team ?? []).map((t) => (
@@ -197,6 +185,18 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
             </div>
           </Card>
         ) : null}
+          </aside>
+          <div className="flex min-w-0 flex-col gap-3">
+            <Card flush className="overflow-x-auto" title="Projects" extra={`${projects?.length ?? 0}`}>
+              {projects?.length ? projects.map((p) => (
+                <Link key={p.id} href={`/projects/${p.id}`} className="row grid-cols-[minmax(0,1fr)_130px_110px_90px_90px] text-ink no-underline hover:bg-head">
+                  <span className="truncate font-medium">{p.name}</span><Health health={p.health} /><Progress value={prog.get(p.id) ?? 0} width={44} />
+                  <span className="truncate text-xs">{p.pm?.full_name}</span><span className="font-mono text-xs text-muted">{shortDate(p.end_date)}</span>
+                </Link>
+              )) : <Empty title="No projects yet" />}
+            </Card>
+          <DocumentsPanel tiles me={me} customerId={c.id} projects={(projects ?? []).map((p) => ({ id: p.id, name: p.name }))} />
+          <Card flush title="Activity" extra="Latest 15"><ActivityList customerId={c.id} limit={15} /></Card>
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { ArchiveControls, FileRows } from '@/components/file-rows'
+import { ArchiveControls, FileRows, FileTiles } from '@/components/file-rows'
 import { UploadForm } from '@/components/upload'
 import { Card, Empty, Health, Visibility } from '@/components/ui'
 import { relativeTime, shortDate } from '@/lib/format'
@@ -32,7 +32,7 @@ export function UpdateCard({ u, projectName }: {
   )
 }
 
-export async function DocumentsPanel({ me, customerId, projectId, projects }: { me: Profile; customerId: string; projectId?: string; projects?: { id: string; name: string }[] }) {
+export async function DocumentsPanel({ me, customerId, projectId, projects, tiles = false }: { me: Profile; customerId: string; projectId?: string; projects?: { id: string; name: string }[]; tiles?: boolean }) {
   const supabase = await createClient()
   let q = supabase.from('documents').select('id, name, folder, visibility, version, created_at, storage_path, project_id, scan_status, archived_at, uploader:profiles!documents_uploaded_by_fkey(full_name)')
     .eq('customer_id', customerId).order('folder').order('created_at', { ascending: false })
@@ -46,6 +46,26 @@ export async function DocumentsPanel({ me, customerId, projectId, projects }: { 
   const docs = all.filter((d) => !d.archived_at)
   const archived = all.filter((d) => d.archived_at)
   const grouped = Object.keys(FOLDERS).map((f) => ({ f, docs: docs.filter((d) => d.folder === f) })).filter((g) => g.docs.length)
+  if (tiles) {
+    // one card: tiles, newest first; upload and archive fold away behind buttons
+    return (
+      <Card flush title="Documents" extra={`${docs.length} ${docs.length === 1 ? 'file' : 'files'}`}>
+        <div className="flex flex-wrap items-start gap-2 border-b border-line-soft px-3 py-2.5">
+          <details className="group min-w-0 flex-[1_1_100%]">
+            <summary className="btn h-8 w-fit cursor-pointer list-none text-xs">+ Upload a file</summary>
+            <div className="mt-2 max-w-[520px]"><UploadForm customerId={customerId} projectId={projectId} projects={projects} folders={FOLDERS} staff={staff} /></div>
+          </details>
+        </div>
+        {docs.length ? <FileTiles docs={docs} staff={staff} customerId={customerId} folders={FOLDERS} /> : <Empty title="No documents yet">Upload the first file above.</Empty>}
+        {staff && docs.length ? (
+          <div className="border-t border-line-soft">
+            <details><summary className="cursor-pointer px-3 py-2 text-xs font-medium text-link">Archive a file…</summary><ArchiveControls docs={docs} archived={false} /></details>
+            {archived.length ? <details className="border-t border-line-soft"><summary className="cursor-pointer px-3 py-2 text-xs font-medium text-link">Archived ({archived.length})</summary><ArchiveControls docs={archived} archived /></details> : null}
+          </div>
+        ) : null}
+      </Card>
+    )
+  }
   return (
     <div className="flex flex-wrap items-start gap-3">
       <Card flush className="min-w-0 flex-[999_1_560px] overflow-x-auto" title="Documents" extra={`${docs.length} files`}>

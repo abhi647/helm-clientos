@@ -1,4 +1,4 @@
-import { Download, Eye } from 'lucide-react'
+import { Download, Eye, File, FileArchive, FileImage, FileSpreadsheet, FileText, Presentation } from 'lucide-react'
 import { archiveDocument } from '@/app/_actions/collab'
 import { deleteDocument } from '@/app/_actions/delete'
 import { ActionButton } from '@/components/forms'
@@ -77,5 +77,48 @@ export function ArchiveControls({ docs, archived }: { docs: FileRow[]; archived:
         </div>
       ))}
     </>
+  )
+}
+
+const ICONS: [RegExp, typeof File][] = [
+  [/\.(xlsx?|csv)$/i, FileSpreadsheet], [/\.(pptx?)$/i, Presentation], [/\.(png|jpe?g|gif|webp)$/i, FileImage],
+  [/\.(zip)$/i, FileArchive], [/\.(pdf|docx?|txt|md)$/i, FileText],
+]
+const iconFor = (name: string) => ICONS.find(([re]) => re.test(name))?.[1] ?? File
+
+/** The same files as tiles: what it is, where it sits, who added it, and open or download in one click. */
+export function FileTiles({ docs, staff, customerId, folders }: { docs: (FileRow & { folder: string })[]; staff: boolean; customerId: string; folders: Record<string, string> }) {
+  return (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-2.5 p-3">
+      {docs.map((d) => {
+        const openable = !!d.storage_path && OPENABLE.has(d.scan_status)
+        const previewable = openable && PREVIEWABLE.has(fileType(d.storage_path!)?.mime ?? '')
+        const Icon = iconFor(d.name)
+        const open = previewable ? `/api/documents/${d.id}?preview=1` : openable ? `/api/documents/${d.id}` : null
+        return (
+          <div key={d.id} className="flex min-w-0 flex-col gap-2 rounded-md border border-line bg-white p-3 transition-colors hover:border-brand">
+            <div className="flex items-start gap-2">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-head text-muted"><Icon className="size-[18px]" aria-hidden /></span>
+              <span className="flex min-w-0 flex-col">
+                {open ? <a href={open} {...(previewable ? { target: '_blank', rel: 'noopener noreferrer' } : {})} title={d.name}
+                  className="line-clamp-2 text-[13px] leading-snug font-medium break-words text-ink no-underline hover:underline">{d.name}</a>
+                  : <span title={d.name} className="line-clamp-2 text-[13px] leading-snug font-medium break-words">{d.name}</span>}
+                <span className="truncate text-[11px] text-muted">{folders[d.folder] ?? d.folder} · v{d.version}</span>
+              </span>
+            </div>
+            <span className="truncate text-xs text-muted">{d.uploader?.full_name ? `${d.uploader.full_name} · ` : ''}{relativeTime(d.created_at)}</span>
+            <div className="mt-auto flex items-center gap-1.5 border-t border-line-soft pt-2">
+              {staff ? <Visibility value={d.visibility} /> : null}
+              <Status status={d.scan_status} staff={staff} />
+              <span className="ml-auto flex items-center gap-2">
+                {previewable ? <a href={`/api/documents/${d.id}?preview=1`} target="_blank" rel="noopener noreferrer" aria-label={`Preview ${d.name}`} title="Preview" className="text-link"><Eye className="size-4" aria-hidden /></a> : null}
+                {openable ? <a href={`/api/documents/${d.id}`} aria-label={`Download ${d.name}`} title="Download" className="text-link"><Download className="size-4" aria-hidden /></a> : null}
+              </span>
+            </div>
+            {d.storage_path && !d.archived_at && (staff || d.visibility === 'shared') ? <NewVersionButton documentId={d.id} customerId={customerId} /> : null}
+          </div>
+        )
+      })}
+    </div>
   )
 }
