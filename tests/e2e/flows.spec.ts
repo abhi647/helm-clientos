@@ -304,7 +304,8 @@ test('a file left waiting for its check (scanner was down) is checked when opene
 
   await page.reload()
   await files.getByRole('button', { name: 'Check waiting files now' }).click()
-  await expect(files.getByText(/Checked 1 file, all done/)).toBeVisible()
+  await expect(files.getByText(/Checked \d+ files?, all done/)).toBeVisible()
+  await expect(files.getByText('Waiting for the security check').locator('xpath=following-sibling::dd[1]')).toHaveText(/^0/)
   await shot(page, '40-system-health-files')
 })
 

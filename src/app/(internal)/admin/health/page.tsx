@@ -56,7 +56,8 @@ export default async function SystemHealth() {
               <dd className={`m-0 font-mono ${filesWaiting ? 'text-warn-ink' : ''}`}>{filesWaiting}{waiting.data?.[0] ? <span className="text-muted"> · oldest {relativeTime(waiting.data[0].created_at)}</span> : null}</dd>
             </dl>
             <p className={`mt-2 mb-2 text-xs ${scanner.ok ? 'text-muted' : 'text-crit-ink'}`} role={scanner.ok ? undefined : 'alert'}>{scanner.ok ? <>Checked by <b className="text-ink">{scanner.text}</b></> : scanner.text}</p>
-            {filesWaiting ? <ActionButton run={recheckFiles} className="btn h-8 text-xs">Check waiting files now</ActionButton> : null}
+            {/* always shown: hiding it once nothing waits would also hide the result of the check that just emptied the list */}
+            <ActionButton run={recheckFiles} className="btn h-8 text-xs">Check waiting files now</ActionButton>
           </Card>
           <Card className="min-w-0 flex-[1_1_320px]" title="Emails">
             <dl className="m-0 grid grid-cols-[1fr_auto] gap-y-1.5 text-[13px]">
