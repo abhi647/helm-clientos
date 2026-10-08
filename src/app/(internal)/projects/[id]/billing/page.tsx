@@ -9,7 +9,7 @@ import { KIND_LABEL, KIND_UNIT, PLANNED_LABEL, RateCardStatus, RateLines, Statem
 import { ActionButton, ActionForm, ApproveForCustomer, AutoSaveSelect } from '@/components/forms'
 import { Card, Empty } from '@/components/ui'
 import { LineFields } from '@/components/rate-line-fields'
-import { LinePeople, UnbilledTime } from '@/components/time-billing'
+import { LinePeople, ReadyToBill, UnbilledTime, type ReadyRow } from '@/components/time-billing'
 import { CURRENCIES, CURRENCY_CODES } from '@/lib/currencies'
 import { money, relativeTime } from '@/lib/format'
 import { canSeeFinance, requireStaff } from '@/lib/session'
@@ -43,10 +43,15 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
     supabase.from('invoices').select('number, total, balance, currency, status, issued_on').eq('project_id', id),
   ])
   const lineIds = (cards ?? []).filter((c) => c.status !== 'superseded').flatMap((c) => c.rate_card_lines.map((l) => l.id))
-  const [{ data: staff }, { data: covers }, { data: unbilled }] = await Promise.all([
+  const [{ data: staff }, { data: covers }, { data: unbilled }, { data: doneTasks }, { data: phaseLines }, { data: allLines }] = await Promise.all([
     supabase.from('profiles').select('id, full_name').eq('kind', 'internal').order('full_name'),
     lineIds.length ? supabase.from('rate_line_people').select('rate_card_line_id, profile_id').in('rate_card_line_id', lineIds) : Promise.resolve({ data: [] }),
     supabase.rpc('unbilled_time', { p_project: id }),
+    // finished tasks not billed yet, with what they are billed as (their own line, else their phase's)
+    supabase.from('tasks').select('id, title, completed_at, rate_line_id, phase_id, task_estimates(estimate, unit), time_entries(days, approved_at, statement_id, billable)')
+      .eq('project_id', id).eq('status', 'done').is('parent_id', null).is('statement_id', null).order('completed_at', { ascending: false }).limit(200),
+    supabase.from('phases').select('id, rate_line_id').eq('project_id', id),
+    supabase.from('rate_card_lines').select('id, kind, label, unit, rate, rate_card_id, rate_cards!inner(project_id)').eq('rate_cards.project_id', id),
   ])
   const covered = new Map<string, string[]>()
   for (const c of covers ?? []) covered.set(c.rate_card_line_id, [...(covered.get(c.rate_card_line_id) ?? []), c.profile_id])
@@ -56,6 +61,23 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
   const open = cards?.find((c) => ['draft', 'pending', 'changes_requested'].includes(c.status))
   const editable = open && ['draft', 'changes_requested'].includes(open.status)
   const sortLines = <T extends { position: number }>(l: T[]) => [...l].sort((a, b) => a.position - b.position)
+
+  // what each finished task is billed as, matched to the approved card by kind and name (lines keep their meaning across versions)
+  const lineById = new Map((allLines ?? []).map((l) => [l.id, l]))
+  const key = (l?: { kind: string; label: string }) => (l ? `${l.kind}:${l.label.trim().toLowerCase()}` : '')
+  const liveByKey = new Map((live?.rate_card_lines ?? []).map((l) => [key(l), l]))
+  const phaseLine = new Map((phaseLines ?? []).map((p) => [p.id, p.rate_line_id]))
+  const readyRows: ReadyRow[] = (doneTasks ?? []).map((t) => {
+    const own = t.rate_line_id ?? (t.phase_id ? phaseLine.get(t.phase_id) : null) ?? null
+    const line = own ? lineById.get(own) : undefined
+    const current = line ? liveByKey.get(key(line)) : undefined
+    const unbilledDays = t.time_entries.filter((e) => e.billable && e.approved_at && !e.statement_id).reduce((a, e) => a + Number(e.days), 0)
+    const waitingDays = t.time_entries.filter((e) => e.billable && !e.approved_at).reduce((a, e) => a + Number(e.days), 0)
+    const est = t.task_estimates
+    const qty = current?.kind === 'unit' && est && est.unit.trim().toLowerCase() === current.unit.trim().toLowerCase() ? Number(est.estimate) : 1
+    return { id: t.id, title: t.title, completedAt: t.completed_at, lineLabel: line?.label ?? null, kind: (current ?? line)?.kind ?? null,
+      onLiveCard: !!current, quantity: qty, unit: current?.unit ?? null, rate: current ? Number(current.rate) : null, unbilledDays, waitingDays }
+  })
   const today = new Date()
   const firstOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)).toISOString().slice(0, 10)
   const endOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0)).toISOString().slice(0, 10)
@@ -166,6 +188,7 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
       </Card>
 
       <UnbilledTime rows={unbilled ?? []} />
+      <ReadyToBill tasks={readyRows} currency={live?.currency ?? null} />
 
       {deals?.length ? (
         <Card flush title="History from HubSpot & Zoho" extra={`${deals.length} billing period${deals.length === 1 ? '' : 's'}`}>

@@ -761,6 +761,15 @@ test('billed as: the PM attaches rate card lines to a phase and a task by name, 
   await panel.getByLabel('Task billed as').selectOption({ label: 'Engineer' })
   await expect(panel.getByText(/only finance, an admin or the CEO can change what it is billed as/)).toBeVisible()
   await expect(panel.getByLabel('Task billed as')).toHaveValue('')
+
+  // finance sees finished work that is not billed yet, and why
+  await signIn(page, 'finance@example.com')
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Management Reporting' }).click()
+  await page.getByRole('link', { name: 'Billing' }).click()
+  const done = page.locator('.card', { has: page.getByRole('heading', { name: 'Done work, not billed yet' }) })
+  await expect(done.locator('.row', { hasText: 'Data Engineering: Plan' })).toContainText('no days logged')
+  await shot(page, '47-done-not-billed')
 })
 
 test('admin previews and runs the HubSpot + Zoho import', async ({ page }) => {

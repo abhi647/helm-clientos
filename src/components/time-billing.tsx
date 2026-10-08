@@ -90,3 +90,53 @@ export function UnbilledTime({ rows, showProject = false }: { rows: Unbilled[]; 
     </Card>
   )
 }
+
+export type ReadyRow = {
+  id: string; title: string; completedAt: string | null; lineLabel: string | null; kind: string | null; onLiveCard: boolean
+  quantity: number; unit: string | null; rate: number | null; unbilledDays: number; waitingDays: number
+}
+
+/**
+ * Finished tasks that no approved statement has billed yet, and what billing them needs. A delivery or unit task is
+ * billed by the next statement; a day-rate task is billed through its approved days; a task billed as nothing is not billed.
+ */
+export function ReadyToBill({ tasks, currency }: { tasks: ReadyRow[]; currency: string | null }) {
+  const shown = tasks.filter((t) => t.kind !== 'retainer')
+  if (!shown.length) return null
+  const ready = shown.filter((t) => (t.kind === 'delivery' || t.kind === 'unit') && t.onLiveCard)
+  const total = currency ? ready.reduce((a, t) => a + t.quantity * (t.rate ?? 0), 0) : 0
+  const what = (t: ReadyRow) => {
+    if (!t.kind) return <Chip tone="warn">Not billed as anything</Chip>
+    if (t.kind === 'day_rate') {
+      return t.unbilledDays
+        ? <span className="text-xs">{t.lineLabel} · {+t.unbilledDays.toFixed(2)} approved days (in Unbilled work)</span>
+        : t.waitingDays
+          ? <span className="text-xs text-warn-ink">{t.lineLabel} · {+t.waitingDays.toFixed(2)} days waiting for approval in Timesheets</span>
+          : <span className="text-xs text-warn-ink">{t.lineLabel} · no days logged: day-rate work is billed from logged, approved days</span>
+    }
+    if (!t.onLiveCard) return <span className="text-xs text-warn-ink">{t.lineLabel} is not on the approved rate card</span>
+    return <span className="text-xs">{t.lineLabel} · {+t.quantity.toFixed(2)} {t.kind === 'unit' ? t.unit : t.quantity === 1 ? 'delivery' : 'deliveries'}</span>
+  }
+  return (
+    <Card flush title="Done work, not billed yet" extra={ready.length && currency ? `${money(total, currency)} ready for the next statement` : undefined}>
+      <div className="overflow-x-auto">
+        <div className="min-w-[600px]">
+          <div className="row row-head grid-cols-[minmax(0,1fr)_90px_minmax(0,1.2fr)_120px]"><span>Task</span><span>Done</span><span>Billed as</span><span className="text-right">At agreed rate</span></div>
+          {shown.map((t) => (
+            <div key={t.id} className="row grid-cols-[minmax(0,1fr)_90px_minmax(0,1.2fr)_120px]">
+              <span className="truncate">{t.title}</span>
+              <span className="font-mono text-xs">{shortDate(t.completedAt)}</span>
+              <span className="min-w-0 truncate">{what(t)}</span>
+              <span className="text-right font-mono text-xs">{(t.kind === 'delivery' || t.kind === 'unit') && t.onLiveCard && t.rate != null && currency ? money(t.quantity * t.rate, currency, { exact: true }) : '–'}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="m-0 border-t border-line-soft px-3 py-2 text-xs text-muted">
+        Tasks billed as a delivery or unit fill the next statement for the period they were finished in (New statement, or
+        Fill from timesheets on a draft). Day-rate work is billed through approved days. A task billed as nothing is not
+        billed: set its line in the plan (task panel → Billed as), or on its phase.
+      </p>
+    </Card>
+  )
+}
