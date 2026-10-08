@@ -284,8 +284,11 @@ describe('requests logged for a customer, and requests that become tasks', () =>
     expect(internal.error).toBeNull()
     expect((await omar.from('tasks').select('id').eq('id', internal.data!)).data).toHaveLength(0)
     expect((await service.from('requests').select('status').eq('id', reqId).single()).data!.status).toBe('submitted')
+    // putting it on the plan again shares the same task rather than adding another
     const shared = await rahul.rpc('request_to_task', { p_request: reqId, p_shared: true, p_estimate: 2, p_unit: 'day' })
     expect(shared.error).toBeNull()
+    expect(shared.data).toBe(internal.data)
+    expect((await rahul.rpc('request_to_task', { p_request: reqId, p_shared: true })).error?.message).toMatch(/already on the plan/)
     const { data: t } = await omar.from('tasks').select('title, request_id, visibility').eq('id', shared.data!).single()
     expect(t).toMatchObject({ request_id: reqId, visibility: 'shared' })
     expect(t!.title).toMatch(/^REQ-\d+ Add a weekly stock email$/)
@@ -1226,5 +1229,36 @@ describe('billed as: rate card lines on phases and tasks', () => {
     expect((await finance.rpc('set_billed_as', { p_task: taskA, p_phase: null, p_line: bi })).error).toBeNull()
     expect((await rahul.from('tasks').update({ statement_id: null }).eq('id', taskD).select('id')).error?.message ?? '').toMatch(/billed and stays|permission|not allowed|^$/)
     expect((await service.from('tasks').select('statement_id').eq('id', taskD).single()).data!.statement_id).not.toBeNull()
+  })
+})
+
+describe('plan roll-up', () => {
+  let project: string, phase: string, task: string
+  beforeAll(async () => {
+    project = (await service.from('projects').insert({ customer_id: nesma, name: 'Roll-up project' }).select('id').single()).data!.id
+    phase = (await service.from('phases').insert({ project_id: project, customer_id: nesma, name: 'Build', position: 0 }).select('id').single()).data!.id
+    task = (await service.from('tasks').insert({ project_id: project, phase_id: phase, customer_id: nesma, title: 'Parent' }).select('id').single()).data!.id
+  })
+  afterAll(async () => { await service.from('projects').delete().eq('id', project) })
+
+  it('a request goes on the plan once', async () => {
+    const { data: req } = await service.from('requests').insert({ customer_id: nesma, project_id: project, title: 'Once only' }).select('id').single()
+    expect((await rahul.rpc('request_to_task', { p_request: req!.id })).error).toBeNull()
+    expect((await rahul.rpc('request_to_task', { p_request: req!.id })).error?.message).toMatch(/already on the plan/)
+    expect((await service.from('tasks').select('id').eq('request_id', req!.id)).data).toHaveLength(1)
+  })
+
+  it('starting a subtask starts its task; reopening a subtask reopens a done task; finishing them does not close it', async () => {
+    const status = async () => (await service.from('tasks').select('status').eq('id', task).single()).data!.status
+    const { data: s } = await rahul.from('tasks').insert({ project_id: project, customer_id: nesma, parent_id: task, title: 'Child' }).select('id').single()
+    expect(await status()).toBe('todo')
+    await rahul.from('tasks').update({ status: 'in_progress' }).eq('id', s!.id)
+    expect(await status()).toBe('in_progress')
+    await rahul.from('tasks').update({ status: 'done' }).eq('id', s!.id)
+    expect(await status()).toBe('in_progress')
+    await rahul.from('tasks').update({ status: 'done', completed_at: new Date().toISOString() }).eq('id', task)
+    await rahul.from('tasks').update({ status: 'in_review' }).eq('id', s!.id)
+    expect(await status()).toBe('in_progress')
+    expect((await service.from('tasks').select('completed_at').eq('id', task).single()).data!.completed_at).toBeNull()
   })
 })

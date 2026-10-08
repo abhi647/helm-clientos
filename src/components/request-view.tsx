@@ -105,7 +105,20 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
             </Card>
           ) : null}
 
-          {staff && !['delivered', 'cancelled'].includes(r.status) ? (
+          {/* a request goes on the plan once; more work on it becomes subtasks of that task */}
+          {staff && !!linked?.length && !['delivered', 'cancelled'].includes(r.status) ? (
+            <div className="flex flex-col gap-2">
+              <p className="m-0 text-xs text-muted">This request is on the plan. To split the work, open its task and add subtasks.</p>
+              {linked.every((t) => t.visibility === 'internal') ? (
+                <ActionForm action={requestToTask} submit="Share the task with the customer" primary={false}>
+                  <input type="hidden" name="request_id" value={r.id} />
+                  <input type="hidden" name="project_id" value={linked[0]!.project_id} />
+                  <input type="hidden" name="visibility" value="shared" />
+                </ActionForm>
+              ) : null}
+            </div>
+          ) : null}
+          {staff && !linked?.length && !['delivered', 'cancelled'].includes(r.status) ? (
             <Card title="Turn into a task">
               <ActionForm action={requestToTask} submit="Add to the plan">
                 <input type="hidden" name="request_id" value={r.id} />

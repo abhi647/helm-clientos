@@ -165,7 +165,15 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                       <span>{phase.name}</span><span className="text-xs font-normal text-muted">{pts.length} tasks</span>
                       <span className="h-1 w-14 overflow-hidden rounded-full bg-line"><span className="block h-full bg-info" style={{ width: `${pct}%` }} /></span>
                     </span>
-                    <span className="text-xs font-normal text-muted">{pct}% done</span>
+                    <span className="flex items-center gap-1.5 text-xs font-normal text-muted">
+                      {/* a phase's state comes from its tasks and subtasks */}
+                      {(() => {
+                        const work = inPhase.filter((t) => t.phase_id === phase.id)
+                        return !allPhase.length ? null : pct === 100 ? <Chip tone="good">Done</Chip>
+                          : work.some((t) => t.status !== 'todo') ? <Chip tone="info">In progress</Chip> : <Chip tone="neutral">Not started</Chip>
+                      })()}
+                      {pct}% done
+                    </span>
                     <span className="font-normal">{!preview && lines?.length ? (
                       <StatusSelect key={`ph-${phase.id}-${phase.rate_line_id ?? ''}`} label={`${phase.name} billed as`} value={phase.rate_line_id ?? ''} options={withCurrent(phase.rate_line_id)} onChange={setBilledAs.bind(null, 'phase', phase.id)} />
                     ) : null}</span>

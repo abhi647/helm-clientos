@@ -848,6 +848,17 @@ test('the plan has subtasks: the PM breaks a task down, the consultant finds the
   await expect(page.getByRole('link', { name: 'Performance test', exact: true })).toBeVisible()
   await shot(page, '45-plan-accordion')
 
+  // starting a subtask starts its task, and the phase shows it is under way
+  const testing = page.locator('summary', { hasText: /^.*Testing\s*4 tasks/ })
+  await expect(testing.getByText('Not started', { exact: true })).toBeVisible()
+  await page.getByRole('link', { name: 'Run regression pack' }).click()
+  await page.waitForLoadState('networkidle')
+  await panel.getByLabel('Task status').selectOption({ label: 'In progress' })
+  await page.waitForLoadState('networkidle')
+  await page.reload()
+  await expect(build.getByText('In progress', { exact: true })).toBeVisible()
+  await expect(testing.getByText('In progress', { exact: true })).toBeVisible()
+
   await signIn(page, 'sahil@example.com')
   await page.goto('/my-work')
   await expect(page.getByRole('link', { name: 'Testing: Plan › Order test cases' })).toBeVisible()
@@ -878,9 +889,13 @@ test('PM logs a verbal request for a customer and puts it on the plan; the custo
   await card.getByLabel('Task owner').selectOption({ label: 'Sahil' })
   await card.getByLabel('Estimate in days').fill('2')
   await card.getByRole('button', { name: 'Add to the plan' }).click()
-  await expect(page.getByText('Added to the plan. The customer can see it.')).toBeVisible()
+  // the form gives way to the task it made
+  await expect(page.getByRole('heading', { name: 'On the plan' })).toBeVisible()
   await page.reload()
   await expect(page.getByRole('heading', { name: 'On the plan' })).toBeVisible()
+  // it goes on the plan once: no second "Add to the plan"
+  await expect(page.getByRole('heading', { name: 'Turn into a task' })).toHaveCount(0)
+  await expect(page.getByText('This request is on the plan. To split the work, open its task and add subtasks.')).toBeVisible()
   await shot(page, '34-request-to-task')
 
   await signIn(page, 'omar@nesma.example.com')
