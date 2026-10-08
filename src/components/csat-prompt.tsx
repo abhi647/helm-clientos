@@ -3,6 +3,7 @@
 import { useActionState, useState } from 'react'
 import { answerCsat } from '@/app/_actions/feedback'
 import type { ActionResult } from '@/app/_actions/shared'
+import { keepOnError } from '@/components/forms'
 import { cn } from '@/components/ui'
 import { SCORE_LABEL } from '@/lib/csat'
 
@@ -12,7 +13,7 @@ export function CsatPrompt({ surveyId, question, compact }: { surveyId: string; 
   const [state, run, pending] = useActionState<ActionResult | null, FormData>(answerCsat, null)
   if (state?.ok) return <p role="status" className="m-0 text-[13px] font-medium text-good-ink">{state.message}</p>
   return (
-    <form action={run} className="flex flex-col gap-2.5">
+    <form onSubmit={keepOnError(run)} className="flex flex-col gap-2.5">
       <input type="hidden" name="survey_id" value={surveyId} />
       <input type="hidden" name="score" value={score ?? ''} />
       <p className={cn('m-0 font-semibold', compact ? 'text-[13px]' : 'text-[14px]')}>{question}</p>

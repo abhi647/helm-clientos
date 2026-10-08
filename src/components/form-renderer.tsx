@@ -4,6 +4,7 @@ import { useActionState, useState } from 'react'
 import { submitForm } from '@/app/_actions/forms'
 import type { ActionResult } from '@/app/_actions/shared'
 import type { FormDef } from '@/lib/forms'
+import { keepOnError } from '@/components/forms'
 
 /** Renders one of the fixed forms. Conditional questions appear only when they apply. */
 export function FormRenderer({ def, projectId, actionId, projects }: {
@@ -13,7 +14,7 @@ export function FormRenderer({ def, projectId, actionId, projects }: {
   const [state, run, pending] = useActionState<ActionResult | null, FormData>(submitForm, null)
   const shown = def.fields.filter((f) => !f.when || values[f.when.field] === f.when.is)
   return (
-    <form action={run} className="flex flex-col gap-3" onChange={(e) => {
+    <form onSubmit={keepOnError(run)} className="flex flex-col gap-3" onChange={(e) => {
       const t = e.target as unknown as HTMLInputElement
       if (t.name) setValues((v) => ({ ...v, [t.name]: t.value }))
     }}>

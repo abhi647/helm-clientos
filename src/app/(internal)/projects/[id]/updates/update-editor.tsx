@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react'
 import type { ActionResult } from '@/app/_actions/shared'
+import { keepOnError } from '@/components/forms'
 
 type Draft = { id: string; health: string; completed: string; in_progress: string; waiting_on_customer: string; next_week: string }
 
@@ -9,7 +10,7 @@ export function UpdateEditor({ action, update }: { action: (p: ActionResult | nu
   const [state, run, pending] = useActionState(action, null)
   const fields: [keyof Draft, string][] = [['completed', 'Completed'], ['in_progress', 'Working on'], ['waiting_on_customer', 'Waiting on customer'], ['next_week', 'Next week']]
   return (
-    <form action={run} className="flex flex-col gap-2.5">
+    <form onSubmit={keepOnError(run)} className="flex flex-col gap-2.5">
       <input type="hidden" name="update_id" value={update.id} />
       <label className="flex items-center gap-2 text-xs"><span className="label w-28">Health</span>
         <select name="health" defaultValue={update.health} className="input"><option value="on_track">On track</option><option value="needs_attention">Needs attention</option><option value="at_risk">At risk</option></select>

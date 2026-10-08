@@ -41,7 +41,9 @@ export async function setSpotlight(taskId: string, spotlight: boolean): Promise<
 
 const taskSchema = z.object({
   project_id: uuid,
-  phase_id: z.preprocess((v) => (v === '' ? null : v), uuid.nullable()),
+  // a phase of the plan, or 'new' (or nothing, when the project has no phases yet) to start one named new_phase
+  phase_id: z.preprocess((v) => (v === '' || v == null || v === 'new' ? null : v), uuid.nullable()),
+  new_phase: z.preprocess((v) => (v == null ? '' : v), z.string().trim().max(120)),
   title: z.string().trim().min(2, 'Give the task a title.').max(200),
   assignee_id: z.preprocess((v) => (v === '' ? null : v), uuid.nullable()),
   due_date: optionalDate,
@@ -54,10 +56,23 @@ export async function createTask(_prev: ActionResult | null, form: FormData): Pr
   const me = await requireStaff()
   const parsed = taskSchema.safeParse(formObject(form))
   if (!parsed.success) return fail(parsed.error.issues[0]!.message)
-  const { estimate, unit, ...t } = parsed.data
+  const { estimate, unit, new_phase, ...t } = parsed.data
   const supabase = await createClient()
   const { data: project } = await supabase.from('projects').select('customer_id').eq('id', t.project_id).single()
   if (!project) return fail('Project not found.')
+  if (!t.phase_id) {
+    // the plan shows tasks under their phase, so every task gets one
+    const { data: phases } = await supabase.from('phases').select('id, position').eq('project_id', t.project_id).order('position')
+    if (phases?.length && !new_phase && form.get('phase_id') !== 'new') t.phase_id = phases[0]!.id
+    else {
+      if (form.get('phase_id') === 'new' && !new_phase) return fail('Name the new phase.')
+      const { data: ph, error: pe } = await supabase.from('phases')
+        .insert({ project_id: t.project_id, customer_id: project.customer_id, name: new_phase || 'Delivery', position: (phases?.at(-1)?.position ?? -1) + 1 })
+        .select('id').single()
+      if (pe || !ph) return dbFail(pe)
+      t.phase_id = ph.id
+    }
+  }
   let owner_side: 'seven_billion' | 'customer' = 'seven_billion'
   if (t.assignee_id) {
     const { data: assignee } = await supabase.from('profiles').select('kind').eq('id', t.assignee_id).single()

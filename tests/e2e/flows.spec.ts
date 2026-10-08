@@ -371,6 +371,40 @@ test('CEO adds a customer, links it to HubSpot and Zoho, and starts projects by 
   await expect(page.getByRole('link', { name: '+ New project' })).toHaveCount(0)
 })
 
+test('adding a task to a project with no phases starts one; + New phase adds another', async ({ page }) => {
+  const env = Object.fromEntries(readFileSync('.env.local', 'utf8').split('\n').filter((l) => /^[A-Z_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim()]))
+  const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL!, env.SUPABASE_SECRET_KEY!, { auth: { persistSession: false } })
+  // a project imported from a HubSpot deal starts without a plan
+  const { data: project } = await db.from('projects').select('id').eq('name', 'Orbit pilot').single()
+  await db.from('phases').delete().eq('project_id', project!.id)
+
+  await signIn(page, 'abhijit@example.com')
+  await page.goto(`/projects/${project!.id}`)
+  const addTask = async (title: string) => {
+    await page.getByText('+ Add task').click()
+    await page.getByLabel('Task title').fill(title)
+  }
+  await addTask('Kick-off workshop')
+  await expect(page.getByLabel('Phase', { exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('New phase name')).toHaveValue('Delivery')
+  await page.getByRole('button', { name: 'Add task' }).click()
+  await expect(page.getByText('Task added.')).toBeVisible()
+  await page.reload()
+  await expect(page.getByText('Kick-off workshop')).toBeVisible()
+
+  await addTask('Data audit')
+  await page.getByLabel('Phase', { exact: true }).selectOption('new')
+  await page.getByRole('button', { name: 'Add task' }).click()
+  await expect(page.getByText('Name the new phase.')).toBeVisible()
+  await page.getByLabel('New phase name').fill('Discovery')
+  await page.getByRole('button', { name: 'Add task' }).click()
+  await expect(page.getByText('Task added.')).toBeVisible()
+  await page.reload()
+  await expect(page.getByText('Data audit')).toBeVisible()
+  const phases = (await db.from('phases').select('name').eq('project_id', project!.id).order('position')).data!.map((p) => p.name)
+  expect(phases).toEqual(['Delivery', 'Discovery'])
+})
+
 test('system health: the uptime check answers, a background job is recorded, and the CEO sees both', async ({ page, request }) => {
   const health = await request.get('/api/health')
   expect(health.status()).toBe(200)

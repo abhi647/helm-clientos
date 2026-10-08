@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useRef, useState, useTransition } from 'react'
+import { startTransition, useActionState, useRef, useState, useTransition } from 'react'
 import { Lock, Users } from 'lucide-react'
 import type { ActionResult } from '@/app/_actions/shared'
 import { MentionTextarea, type Person } from '@/components/mention-textarea'
@@ -37,6 +37,20 @@ function stoppedBy(guards?: UnsavedGuard | UnsavedGuard[]) {
 }
 
 /** A form bound to a server action, with pending state and an inline result message. */
+/**
+ * Submits a form to its action without React's automatic reset. With action={run}, React clears every field once
+ * the action finishes, even when it failed, so the person lost what they typed along with seeing the error.
+ * Forms here reset themselves only on success.
+ */
+export function keepOnError(run: (data: FormData) => void, stop?: () => boolean) {
+  return (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (stop?.()) return
+    const data = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter)
+    startTransition(() => run(data))
+  }
+}
+
 export function ActionForm({ action, children, submit, className, resetOnSuccess = true, primary = true, guard }: {
   action: FormAction; children?: React.ReactNode; submit: string; className?: string; resetOnSuccess?: boolean; primary?: boolean; guard?: UnsavedGuard | UnsavedGuard[]
 }) {
@@ -47,7 +61,7 @@ export function ActionForm({ action, children, submit, className, resetOnSuccess
     return res
   }, null)
   return (
-    <form ref={ref} action={run} onSubmit={(e) => { if (stoppedBy(guard)) e.preventDefault() }} className={cn('flex flex-col gap-2', className)}>
+    <form ref={ref} onSubmit={keepOnError(run, () => stoppedBy(guard))} className={cn('flex flex-col gap-2', className)}>
       {children}
       <div className="flex flex-wrap items-center gap-2">
         <button type="submit" disabled={pending} className={cn('btn', primary && 'btn-primary')}>{pending ? 'Saving…' : submit}</button>
@@ -73,7 +87,7 @@ export function CommentBox({ action, entityType, entityId, customerId, staff, de
   const mentionable = staff && vis === 'internal' ? people.filter((p) => !p.customer) : people
   const id = `reply-${entityId}`
   return (
-    <form ref={ref} action={run} className="flex flex-col gap-2">
+    <form ref={ref} onSubmit={keepOnError(run)} className="flex flex-col gap-2">
       <input type="hidden" name="entity_type" value={entityType} />
       <input type="hidden" name="entity_id" value={entityId} />
       <input type="hidden" name="customer_id" value={customerId} />
@@ -150,7 +164,7 @@ export function StatusSelect<T extends string>({ value, options, onChange, label
 export function DecisionForm({ action, approvalId, idName = 'approval_id' }: { action: FormAction; approvalId: string; idName?: string }) {
   const [state, run, pending] = useActionState<ActionResult | null, FormData>(action, null)
   return (
-    <form action={run} className="flex flex-col gap-2">
+    <form onSubmit={keepOnError(run)} className="flex flex-col gap-2">
       <input type="hidden" name={idName} value={approvalId} />
       <label htmlFor={`c-${approvalId}`} className="label">Comment (needed to request changes)</label>
       <textarea id={`c-${approvalId}`} name="comment" rows={2} className="textarea" placeholder="Optional for approval" />

@@ -85,7 +85,13 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
             <ActionForm action={createTask} submit="Add task">
               <input type="hidden" name="project_id" value={id} />
               <input name="title" required placeholder="Task title" aria-label="Task title" className="input" />
-              <select name="phase_id" aria-label="Phase" className="input">{(phases ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+              {phases?.length ? (
+                <select name="phase_id" aria-label="Phase" className="input">
+                  {phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  <option value="new">+ New phase…</option>
+                </select>
+              ) : null}
+              <input name="new_phase" aria-label="New phase name" placeholder={phases?.length ? 'New phase name (with + New phase)' : 'Phase, e.g. Delivery'} defaultValue={phases?.length ? '' : 'Delivery'} maxLength={120} className="input" />
               <select name="assignee_id" aria-label="Owner" className="input"><option value="">Unassigned</option>{people.map((p) => <option key={p.id} value={p.id}>{p.full_name}{p.kind === 'customer' ? ' (customer)' : ''}</option>)}</select>
               <div className="flex flex-wrap gap-2"><input type="date" name="due_date" aria-label="Due date" className="input flex-1" /><EffortInput name="estimate" unitName="unit" units={units ?? ['day']} placeholder="Estimate" /></div>
               <select name="visibility" aria-label="Visibility" defaultValue="shared" className="input"><option value="shared">Shared with customer</option><option value="internal">Internal</option></select>
