@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import {
-  addRateCardLine, approveRateCardForCustomer, createStatement, discardRateCard, removeRateCardLine, saveRateCard, startRateCard, submitRateCard,
+  addRateCardLine, approveRateCardForCustomer, createInvoice, createStatement, discardRateCard, removeRateCardLine, saveRateCard, startRateCard, submitRateCard,
   updateRateCardLine,
 } from '@/app/_actions/billing'
 import { KIND_LABEL, KIND_UNIT, PLANNED_LABEL, RateCardStatus, RateLines, StatementStatus, period } from '@/components/billing'
@@ -43,15 +43,17 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
     supabase.from('invoices').select('number, total, balance, currency, status, issued_on').eq('project_id', id),
   ])
   const lineIds = (cards ?? []).filter((c) => c.status !== 'superseded').flatMap((c) => c.rate_card_lines.map((l) => l.id))
-  const [{ data: staff }, { data: covers }, { data: unbilled }, { data: doneTasks }, { data: phaseLines }, { data: allLines }] = await Promise.all([
+  const [{ data: staff }, { data: covers }, { data: unbilled }, { data: allTasks }, { data: phaseLines }, { data: allLines }, { data: held }] = await Promise.all([
     supabase.from('profiles').select('id, full_name').eq('kind', 'internal').order('full_name'),
     lineIds.length ? supabase.from('rate_line_people').select('rate_card_line_id, profile_id').in('rate_card_line_id', lineIds) : Promise.resolve({ data: [] }),
     supabase.rpc('unbilled_time', { p_project: id }),
     // finished tasks not billed yet, with what they are billed as (their own line, else their phase's)
-    supabase.from('tasks').select('id, title, completed_at, rate_line_id, phase_id, task_estimates(estimate, unit), time_entries(days, approved_at, statement_id, billable)')
-      .eq('project_id', id).eq('status', 'done').is('parent_id', null).is('statement_id', null).order('completed_at', { ascending: false }).limit(200),
+    supabase.from('tasks').select('id, title, status, completed_at, rate_line_id, phase_id, parent_id, statement_id, task_estimates(estimate, unit), time_entries(id, days, approved_at, returned_at, statement_id, billable, user_id)')
+      .eq('project_id', id).order('position').limit(1000),
     supabase.from('phases').select('id, rate_line_id').eq('project_id', id),
     supabase.from('rate_card_lines').select('id, kind, label, unit, rate, rate_card_id, rate_cards!inner(project_id)').eq('rate_cards.project_id', id),
+    // tasks already on a statement that is being prepared or waiting for the customer
+    supabase.from('statement_tasks').select('task_id, billing_statements!inner(status, project_id)').eq('billing_statements.project_id', id).in('billing_statements.status', ['draft', 'pending', 'changes_requested']),
   ])
   const covered = new Map<string, string[]>()
   for (const c of covers ?? []) covered.set(c.rate_card_line_id, [...(covered.get(c.rate_card_line_id) ?? []), c.profile_id])
@@ -67,16 +69,27 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
   const key = (l?: { kind: string; label: string }) => (l ? `${l.kind}:${l.label.trim().toLowerCase()}` : '')
   const liveByKey = new Map((live?.rate_card_lines ?? []).map((l) => [key(l), l]))
   const phaseLine = new Map((phaseLines ?? []).map((p) => [p.id, p.rate_line_id]))
-  const readyRows: ReadyRow[] = (doneTasks ?? []).map((t) => {
+  const heldOn = new Map((held ?? []).map((h) => [h.task_id, h.billing_statements.status]))
+  // a task's days include its subtasks' (billing is on tasks, not subtasks)
+  // (returned days are not counted: the person deletes and logs them again)
+  const entriesOf = (tid: string) => (allTasks ?? []).filter((x) => x.id === tid || x.parent_id === tid).flatMap((x) => x.time_entries).filter((e) => !e.returned_at)
+  const candidates = (allTasks ?? []).filter((t) => !t.parent_id && !t.statement_id && (t.status === 'done'
+    || entriesOf(t.id).some((e) => e.billable && !e.statement_id)))
+  const readyRows: ReadyRow[] = candidates.map((t) => {
     const own = t.rate_line_id ?? (t.phase_id ? phaseLine.get(t.phase_id) : null) ?? null
-    const line = own ? lineById.get(own) : undefined
+    const entries = entriesOf(t.id)
+    // no line on the task or its phase: its days bill on the day-rate line that names the person (as on statements)
+    const byPerson = !own ? (live?.rate_card_lines ?? []).find((l) => l.kind === 'day_rate'
+      && entries.some((e) => e.billable && !e.statement_id && (covered.get(l.id) ?? []).includes(e.user_id))) : undefined
+    const line = own ? lineById.get(own) : byPerson
     const current = line ? liveByKey.get(key(line)) : undefined
-    const unbilledDays = t.time_entries.filter((e) => e.billable && e.approved_at && !e.statement_id).reduce((a, e) => a + Number(e.days), 0)
-    const waitingDays = t.time_entries.filter((e) => e.billable && !e.approved_at).reduce((a, e) => a + Number(e.days), 0)
+    const unbilledDays = entries.filter((e) => e.billable && e.approved_at && !e.statement_id).reduce((a, e) => a + Number(e.days), 0)
+    const waitingDays = entries.filter((e) => e.billable && !e.approved_at).reduce((a, e) => a + Number(e.days), 0)
     const est = t.task_estimates
     const qty = current?.kind === 'unit' && est && est.unit.trim().toLowerCase() === current.unit.trim().toLowerCase() ? Number(est.estimate) : 1
-    return { id: t.id, title: t.title, completedAt: t.completed_at, lineLabel: line?.label ?? null, kind: (current ?? line)?.kind ?? null,
-      onLiveCard: !!current, quantity: qty, unit: current?.unit ?? null, rate: current ? Number(current.rate) : null, unbilledDays, waitingDays }
+    return { id: t.id, title: t.title, completedAt: t.completed_at, lineLabel: line ? `${line.label}${byPerson ? ' (by person)' : ''}` : null, kind: (current ?? line)?.kind ?? null,
+      onLiveCard: !!current, quantity: qty, unit: current?.unit ?? null, rate: current ? Number(current.rate) : null, unbilledDays, waitingDays,
+      done: t.status === 'done', heldBy: heldOn.get(t.id) ?? null }
   })
   const today = new Date()
   const firstOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)).toISOString().slice(0, 10)
@@ -188,7 +201,7 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
       </Card>
 
       <UnbilledTime rows={unbilled ?? []} />
-      <ReadyToBill tasks={readyRows} currency={live?.currency ?? null} />
+      <ReadyToBill tasks={readyRows} currency={live?.currency ?? null} projectId={id} canCreate={!!live} />
 
       {deals?.length ? (
         <Card flush title="History from HubSpot & Zoho" extra={`${deals.length} billing period${deals.length === 1 ? '' : 's'}`}>
@@ -213,37 +226,41 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
       ) : null}
 
       {/* ------------------------------------------------ statements */}
-      <Card flush title="Statements" extra="Approved by the customer, then a draft invoice in Zoho">
+      <Card flush title="Statements" extra="Approved by the customer, then invoiced in Zoho when you choose">
         {live ? (
           <div className="border-b border-line-soft p-3">
-            <ActionForm action={createStatement} submit="New statement" resetOnSuccess={false}>
+            <ActionForm action={createStatement} submit="Statement for a period" primary={false} resetOnSuccess={false}>
               <input type="hidden" name="project_id" value={id} />
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                 <label className="flex items-center gap-1.5">From <input type="date" name="period_start" required defaultValue={firstOfMonth} className="input" /></label>
                 <label className="flex items-center gap-1.5">to <input type="date" name="period_end" required defaultValue={endOfMonth} className="input" /></label>
-                <span>Day rates with people named are filled from their approved days; others start at resources × working days. Retainers at 1 month.</span>
+                <span>Or a statement for a whole period (retainers, day rates by person): day rates with people named are filled from their approved days; others start at resources × working days.</span>
               </div>
             </ActionForm>
           </div>
         ) : null}
         {statements?.length ? (
-          <div className="overflow-x-auto">
-            <div className="min-w-[640px]">
-              <div className="row row-head grid-cols-[minmax(0,1fr)_170px_140px_minmax(0,1fr)]"><span>Period</span><span>Status</span><span className="text-right">Subtotal</span><span>Zoho</span></div>
-              {statements.map((s) => {
-                const subtotal = s.statement_lines.reduce((a, l) => a + Number(l.amount ?? 0), 0)
-                return (
-                  <Link key={s.id} href={`/projects/${id}/billing/${s.id}`} className="row grid-cols-[minmax(0,1fr)_170px_140px_minmax(0,1fr)] text-ink no-underline hover:bg-head">
-                    <span className="font-medium">{period(s.period_start, s.period_end)}</span>
-                    <span><StatementStatus status={s.status} /></span>
-                    <span className="text-right font-mono text-xs">{money(subtotal, s.rate_cards?.currency ?? 'INR', { exact: true })}</span>
-                    <span className="truncate text-xs">{s.zoho_invoice_number ? <span className="font-mono">Draft {s.zoho_invoice_number}</span>
-                      : s.invoice_error ? <span className="text-crit-ink">{s.invoice_error}</span> : <span className="text-muted">–</span>}</span>
-                  </Link>
-                )
-              })}
+          <ActionForm action={createInvoice} submit="Create invoice in Zoho for the ticked statements" resetOnSuccess={false} className="gap-0 [&>div:last-child]:p-3">
+            <div className="overflow-x-auto">
+              <div className="min-w-[680px]">
+                <div className="row row-head grid-cols-[28px_minmax(0,1fr)_170px_140px_minmax(0,1fr)]"><span /><span>Period</span><span>Status</span><span className="text-right">Subtotal</span><span>Invoice</span></div>
+                {statements.map((s) => {
+                  const subtotal = s.statement_lines.reduce((a, l) => a + Number(l.amount ?? 0), 0)
+                  const invoiceable = s.status === 'approved' && !s.zoho_invoice_number
+                  return (
+                    <div key={s.id} className="row grid-cols-[28px_minmax(0,1fr)_170px_140px_minmax(0,1fr)] hover:bg-head">
+                      <span>{invoiceable ? <input type="checkbox" name="statement" value={s.id} aria-label={`Invoice ${period(s.period_start, s.period_end)}`} /> : null}</span>
+                      <Link href={`/projects/${id}/billing/${s.id}`} className="font-medium text-ink no-underline hover:underline">{period(s.period_start, s.period_end)}</Link>
+                      <span><StatementStatus status={s.status} /></span>
+                      <span className="text-right font-mono text-xs">{money(subtotal, s.rate_cards?.currency ?? 'INR', { exact: true })}</span>
+                      <span className="truncate text-xs">{s.zoho_invoice_number ? <span className="font-mono">Draft {s.zoho_invoice_number}</span>
+                        : s.invoice_error ? <span className="text-crit-ink">{s.invoice_error}</span> : invoiceable ? <span className="text-muted">Ready to invoice</span> : <span className="text-muted">–</span>}</span>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-          </div>
+          </ActionForm>
         ) : <Empty title="No statements yet">{live ? 'Create one for the period you want to bill.' : 'They start once the rate card is approved.'}</Empty>}
       </Card>
     </div>

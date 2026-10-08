@@ -8,7 +8,9 @@ import { ActionButton, ActionForm } from '@/components/forms'
 import { ActivityList, DocumentsPanel } from '@/components/project-parts'
 import { Avatar, Card, Chip, Empty, Health, PageHeader, Progress } from '@/components/ui'
 import { shortDate } from '@/lib/format'
-import { canManage, requireStaff } from '@/lib/session'
+import { canManage, canSeeFinance, requireStaff } from '@/lib/session'
+import { zohoTaxOptions } from '@/lib/integrations/zoho'
+import { setCustomerTax } from '@/app/_actions/billing'
 import { createClient } from '@/lib/supabase/server'
 import type { CustomerInternalRow, DirectoryRow } from '@/lib/views'
 
@@ -18,9 +20,13 @@ export const metadata: Metadata = { title: 'Customer' }
 export default async function Customer({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const me = await requireStaff()
+  const finance = canSeeFinance(me)
   const supabase = await createClient()
   const { data: c } = await supabase.from('customers_internal').select('*').eq('id', id).maybeSingle().overrideTypes<CustomerInternalRow, { merge: false }>()
   if (!c) notFound()
+  const [{ data: billing }, taxes] = finance
+    ? await Promise.all([supabase.from('customer_billing').select('zoho_tax_id, zoho_tax_exemption_id, tax_label').eq('customer_id', id).maybeSingle(), zohoTaxOptions()])
+    : [{ data: null }, { taxes: [], exemptions: [] as { id: string; name: string }[], error: undefined as string | undefined }]
   const [{ data: projects }, { data: progress }, { data: people }, { data: contacts }, { data: team }, { data: staff }] = await Promise.all([
     supabase.from('projects').select('id, name, health, status, end_date, pm:profiles!projects_pm_id_fkey(full_name)').eq('customer_id', id).order('status').order('name'),
     supabase.from('project_progress').select('*'),
@@ -152,7 +158,26 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
               <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[13px]">
                 <dt className="text-muted">HubSpot</dt><dd className="m-0 font-mono">{c.hubspot_company_id ?? 'Not linked'}</dd>
                 <dt className="text-muted">Zoho</dt><dd className="m-0 font-mono">{c.zoho_customer_id ?? 'Not linked'}</dd>
+                {finance ? <><dt className="text-muted">GST on invoices</dt><dd className="m-0">{billing?.tax_label || <span className="text-warn-ink">Not set: Zoho will refuse invoices</span>}</dd></> : null}
               </dl>
+              {finance ? (
+                <details className="mt-3 border-t border-line-soft pt-3">
+                  <summary className="btn h-8 w-fit cursor-pointer list-none text-xs">{billing ? 'Change GST' : 'Set GST'}</summary>
+                  <div className="mt-2">
+                    {taxes.taxes.length || taxes.exemptions.length ? (
+                      <ActionForm action={setCustomerTax} submit="Save GST" resetOnSuccess={false} primary={false}>
+                        <input type="hidden" name="customer_id" value={c.id} />
+                        <select name="tax" aria-label="GST on invoices" className="input" defaultValue={billing?.zoho_tax_id ? `tax:${billing.zoho_tax_id}|${billing.tax_label}` : billing?.zoho_tax_exemption_id ? `exemption:${billing.zoho_tax_exemption_id}|${billing.tax_label}` : ''}>
+                          <option value="">Not set</option>
+                          <optgroup label="Taxes">{taxes.taxes.map((t) => <option key={t.id} value={`tax:${t.id}|${t.name}`}>{t.name} ({t.percentage}%)</option>)}</optgroup>
+                          {taxes.exemptions.length ? <optgroup label="Tax exemptions">{taxes.exemptions.map((x) => <option key={x.id} value={`exemption:${x.id}|${x.name}`}>{x.name}</option>)}</optgroup> : null}
+                        </select>
+                        <p className="m-0 text-xs text-muted">Every line of this customer&apos;s invoices carries it. Usually GST18 in Punjab, IGST18 in other states, and an exemption (export under LUT) or IGST0 for clients abroad: check with your accountant.</p>
+                      </ActionForm>
+                    ) : <p className="m-0 text-xs text-muted">{taxes.error ? `Zoho could not list the taxes: ${taxes.error}` : 'Connect Zoho Books to pick the GST from its tax list.'}</p>}
+                  </div>
+                </details>
+              ) : null}
               {canManage(me) ? (
                 <details className="mt-3 border-t border-line-soft pt-3">
                   <summary className="btn h-8 w-fit cursor-pointer list-none text-xs">{c.hubspot_company_id || c.zoho_customer_id ? 'Change links' : 'Link to HubSpot and Zoho'}</summary>

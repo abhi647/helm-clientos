@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { setLinePeople } from '@/app/_actions/billing'
+import { createStatementFromTasks, setLinePeople } from '@/app/_actions/billing'
 import { ActionForm } from '@/components/forms'
 import { Card, Chip } from '@/components/ui'
 import { money, shortDate } from '@/lib/format'
@@ -94,18 +94,23 @@ export function UnbilledTime({ rows, showProject = false }: { rows: Unbilled[]; 
 export type ReadyRow = {
   id: string; title: string; completedAt: string | null; lineLabel: string | null; kind: string | null; onLiveCard: boolean
   quantity: number; unit: string | null; rate: number | null; unbilledDays: number; waitingDays: number
+  done: boolean; heldBy: string | null
 }
 
 /**
  * Finished tasks that no approved statement has billed yet, and what billing them needs. A delivery or unit task is
  * billed by the next statement; a day-rate task is billed through its approved days; a task billed as nothing is not billed.
  */
-export function ReadyToBill({ tasks, currency }: { tasks: ReadyRow[]; currency: string | null }) {
+export function ReadyToBill({ tasks, currency, projectId, canCreate }: { tasks: ReadyRow[]; currency: string | null; projectId: string; canCreate: boolean }) {
   const shown = tasks.filter((t) => t.kind !== 'retainer')
   if (!shown.length) return null
-  const ready = shown.filter((t) => (t.kind === 'delivery' || t.kind === 'unit') && t.onLiveCard)
-  const total = currency ? ready.reduce((a, t) => a + t.quantity * (t.rate ?? 0), 0) : 0
+  // what a statement made from this task would bill now
+  const billable = (t: ReadyRow) => !t.heldBy && t.onLiveCard && (((t.kind === 'delivery' || t.kind === 'unit') && t.done) || (t.kind === 'day_rate' && t.unbilledDays > 0))
+  const value = (t: ReadyRow) => (t.rate ?? 0) * (t.kind === 'day_rate' ? t.unbilledDays : t.quantity)
+  const ready = shown.filter(billable)
+  const total = currency ? ready.reduce((a, t) => a + value(t), 0) : 0
   const what = (t: ReadyRow) => {
+    if (t.heldBy) return <span className="text-xs text-muted">On a statement {t.heldBy === 'pending' ? 'waiting for the customer' : 'being prepared'}</span>
     if (!t.kind) return <Chip tone="warn">Not billed as anything</Chip>
     if (t.kind === 'day_rate') {
       return t.unbilledDays
@@ -115,28 +120,34 @@ export function ReadyToBill({ tasks, currency }: { tasks: ReadyRow[]; currency: 
           : <span className="text-xs text-warn-ink">{t.lineLabel} · no days logged: day-rate work is billed from logged, approved days</span>
     }
     if (!t.onLiveCard) return <span className="text-xs text-warn-ink">{t.lineLabel} is not on the approved rate card</span>
+    if (!t.done) return <span className="text-xs text-warn-ink">{t.lineLabel} · counts once the task is Done</span>
     return <span className="text-xs">{t.lineLabel} · {+t.quantity.toFixed(2)} {t.kind === 'unit' ? t.unit : t.quantity === 1 ? 'delivery' : 'deliveries'}</span>
   }
   return (
-    <Card flush title="Done work, not billed yet" extra={ready.length && currency ? `${money(total, currency)} ready for the next statement` : undefined}>
-      <div className="overflow-x-auto">
-        <div className="min-w-[600px]">
-          <div className="row row-head grid-cols-[minmax(0,1fr)_90px_minmax(0,1.2fr)_120px]"><span>Task</span><span>Done</span><span>Billed as</span><span className="text-right">At agreed rate</span></div>
-          {shown.map((t) => (
-            <div key={t.id} className="row grid-cols-[minmax(0,1fr)_90px_minmax(0,1.2fr)_120px]">
-              <span className="truncate">{t.title}</span>
-              <span className="font-mono text-xs">{shortDate(t.completedAt)}</span>
-              <span className="min-w-0 truncate">{what(t)}</span>
-              <span className="text-right font-mono text-xs">{(t.kind === 'delivery' || t.kind === 'unit') && t.onLiveCard && t.rate != null && currency ? money(t.quantity * t.rate, currency, { exact: true }) : '–'}</span>
-            </div>
-          ))}
+    <Card flush title="Work to bill" extra={ready.length && currency ? `${money(total, currency)} ready to bill` : undefined}>
+      <ActionForm action={createStatementFromTasks} submit="Create statement from the ticked tasks" resetOnSuccess={false} className="gap-0 [&>div:last-child]:p-3">
+        <input type="hidden" name="project_id" value={projectId} />
+        <div className="overflow-x-auto">
+          <div className="min-w-[640px]">
+            <div className="row row-head grid-cols-[28px_minmax(0,1fr)_90px_minmax(0,1.2fr)_120px]"><span /><span>Task</span><span>Done</span><span>Billed as</span><span className="text-right">At agreed rate</span></div>
+            {shown.map((t) => (
+              <label key={t.id} className="row grid-cols-[28px_minmax(0,1fr)_90px_minmax(0,1.2fr)_120px]">
+                <span>{canCreate && billable(t) ? <input type="checkbox" name="task" value={t.id} aria-label={`Bill ${t.title}`} /> : null}</span>
+                <span className="truncate">{t.title}</span>
+                <span className="font-mono text-xs">{t.done ? shortDate(t.completedAt) : <span className="text-muted">Not yet</span>}</span>
+                <span className="min-w-0 truncate">{what(t)}</span>
+                <span className="text-right font-mono text-xs">{billable(t) && t.rate != null && currency ? money(value(t), currency, { exact: true }) : '–'}</span>
+              </label>
+            ))}
+          </div>
         </div>
-      </div>
-      <p className="m-0 border-t border-line-soft px-3 py-2 text-xs text-muted">
-        Tasks billed as a delivery or unit fill the next statement for the period they were finished in (New statement, or
-        Fill from timesheets on a draft). Day-rate work is billed through approved days. A task billed as nothing is not
-        billed: set its line in the plan (task panel → Billed as), or on its phase.
-      </p>
+        <p className="m-0 border-t border-line-soft px-3 py-2 text-xs text-muted">
+          Tick the work to bill and create a statement: it bills exactly that work (approved days on the task and its
+          subtasks; deliveries and units once Done). Send it to the customer to approve, then invoice approved statements
+          under Statements. Days waiting for approval are billed once approved; a task billed as nothing needs its line
+          set in the plan (task panel → Billed as), or on its phase.
+        </p>
+      </ActionForm>
     </Card>
   )
 }

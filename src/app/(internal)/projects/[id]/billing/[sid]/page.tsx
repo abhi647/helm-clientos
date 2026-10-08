@@ -63,7 +63,7 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
           <div className="flex flex-col gap-3">
             {fromTimesheets.size ? (
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                <ActionButton run={refillStatement.bind(null, st.id)} confirm="Fill the day-rate lines again from approved timesheets? Their quantities and notes are replaced. Save any other changes first.">Fill from timesheets</ActionButton>
+                <ActionButton run={refillStatement.bind(null, st.id)} confirm={st.from_tasks ? 'Fill the lines again from this statement\'s tasks (approved days, and deliveries or units that are Done)? Quantities and notes are replaced.' : 'Fill the day-rate lines again from approved timesheets? Their quantities and notes are replaced. Save any other changes first.'}>{st.from_tasks ? 'Fill again from its tasks' : 'Fill from timesheets'}</ActionButton>
                 <span>Lines marked ⏱ are filled from the approved days of the people named on them. Lowering a quantity writes the rest off.</span>
               </div>
             ) : null}
@@ -117,7 +117,7 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
               <ApproveForCustomer action={approveStatementForCustomer} idName="statement_id" id={st.id} label="Approve the statement for the customer"
                 hint="No need to wait: the draft invoice is created in Zoho and the customer's billing contacts are told." />
             ) : null}
-            {st.status === 'approved' ? <div><ActionButton run={retryZohoInvoice.bind(null, st.id)} primary>{st.invoice_error ? 'Retry Zoho' : 'Create the draft invoice in Zoho'}</ActionButton></div> : null}
+            {st.status === 'approved' ? <div><ActionButton run={retryZohoInvoice.bind(null, st.id)} primary>{st.invoice_error ? 'Try the invoice again' : 'Create invoice in Zoho'}</ActionButton></div> : null}
           </div>
         )}
       </Card>

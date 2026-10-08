@@ -258,13 +258,13 @@ isOneToOne: false
                   ]
                 },"billing_statements": {
                   Row: {
-                    "approved_for_customer": boolean,"created_at": string,"created_by": string | null,"customer_id": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"id": string,"invoice_error": string | null,"invoiced_at": string | null,"note": string,"period_end": string,"period_start": string,"project_id": string,"rate_card_id": string,"status": Database["public"]['Enums']["statement_status"],"submitted_at": string | null,"submitted_by": string | null,"zoho_claimed_at": string | null,"zoho_invoice_id": string | null,"zoho_invoice_number": string | null
+                    "approved_for_customer": boolean,"created_at": string,"created_by": string | null,"customer_id": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"from_tasks": boolean,"id": string,"invoice_error": string | null,"invoiced_at": string | null,"note": string,"period_end": string,"period_start": string,"project_id": string,"rate_card_id": string,"status": Database["public"]['Enums']["statement_status"],"submitted_at": string | null,"submitted_by": string | null,"zoho_claimed_at": string | null,"zoho_invoice_id": string | null,"zoho_invoice_number": string | null
                   }
                   Insert: {
-                    "approved_for_customer"?: boolean,"created_at"?: string,"created_by"?: string | null,"customer_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"invoice_error"?: string | null,"invoiced_at"?: string | null,"note"?: string,"period_end": string,"period_start": string,"project_id": string,"rate_card_id": string,"status"?: Database["public"]['Enums']["statement_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"zoho_claimed_at"?: string | null,"zoho_invoice_id"?: string | null,"zoho_invoice_number"?: string | null
+                    "approved_for_customer"?: boolean,"created_at"?: string,"created_by"?: string | null,"customer_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"from_tasks"?: boolean,"id"?: string,"invoice_error"?: string | null,"invoiced_at"?: string | null,"note"?: string,"period_end": string,"period_start": string,"project_id": string,"rate_card_id": string,"status"?: Database["public"]['Enums']["statement_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"zoho_claimed_at"?: string | null,"zoho_invoice_id"?: string | null,"zoho_invoice_number"?: string | null
                   }
                   Update: {
-                    "approved_for_customer"?: boolean,"created_at"?: string,"created_by"?: string | null,"customer_id"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"invoice_error"?: string | null,"invoiced_at"?: string | null,"note"?: string,"period_end"?: string,"period_start"?: string,"project_id"?: string,"rate_card_id"?: string,"status"?: Database["public"]['Enums']["statement_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"zoho_claimed_at"?: string | null,"zoho_invoice_id"?: string | null,"zoho_invoice_number"?: string | null
+                    "approved_for_customer"?: boolean,"created_at"?: string,"created_by"?: string | null,"customer_id"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"from_tasks"?: boolean,"id"?: string,"invoice_error"?: string | null,"invoiced_at"?: string | null,"note"?: string,"period_end"?: string,"period_start"?: string,"project_id"?: string,"rate_card_id"?: string,"status"?: Database["public"]['Enums']["statement_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"zoho_claimed_at"?: string | null,"zoho_invoice_id"?: string | null,"zoho_invoice_number"?: string | null
                   }
                   Relationships: [
                     {
@@ -424,6 +424,43 @@ isOneToOne: false
       columns: ["request_id"]
 isOneToOne: false
       referencedRelation: "requests"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"customer_billing": {
+                  Row: {
+                    "customer_id": string,"tax_label": string,"updated_at": string,"updated_by": string | null,"zoho_tax_exemption_id": string | null,"zoho_tax_id": string | null
+                  }
+                  Insert: {
+                    "customer_id": string,"tax_label"?: string,"updated_at"?: string,"updated_by"?: string | null,"zoho_tax_exemption_id"?: string | null,"zoho_tax_id"?: string | null
+                  }
+                  Update: {
+                    "customer_id"?: string,"tax_label"?: string,"updated_at"?: string,"updated_by"?: string | null,"zoho_tax_exemption_id"?: string | null,"zoho_tax_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "customer_billing_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: true
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "customer_billing_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: true
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "customer_billing_updated_by_fkey"
+      columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "customer_billing_updated_by_fkey"
+      columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -1523,6 +1560,43 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"statement_entries": {
+                  Row: {
+                    "customer_id": string,"entry_id": string,"statement_id": string
+                  }
+                  Insert: {
+                    "customer_id": string,"entry_id": string,"statement_id": string
+                  }
+                  Update: {
+                    "customer_id"?: string,"entry_id"?: string,"statement_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "statement_entries_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "statement_entries_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "statement_entries_entry_id_fkey"
+      columns: ["entry_id"]
+isOneToOne: false
+      referencedRelation: "time_entries"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "statement_entries_statement_id_fkey"
+      columns: ["statement_id"]
+isOneToOne: false
+      referencedRelation: "billing_statements"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"statement_lines": {
                   Row: {
                     "amount": number | null,"customer_id": string,"id": string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"note": string,"position": number,"quantity": number,"rate": number,"rate_card_line_id": string,"statement_id": string,"unit": string
@@ -1557,6 +1631,43 @@ isOneToOne: false
       columns: ["statement_id"]
 isOneToOne: false
       referencedRelation: "billing_statements"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"statement_tasks": {
+                  Row: {
+                    "customer_id": string,"statement_id": string,"task_id": string
+                  }
+                  Insert: {
+                    "customer_id": string,"statement_id": string,"task_id": string
+                  }
+                  Update: {
+                    "customer_id"?: string,"statement_id"?: string,"task_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "statement_tasks_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "statement_tasks_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "statement_tasks_statement_id_fkey"
+      columns: ["statement_id"]
+isOneToOne: false
+      referencedRelation: "billing_statements"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "statement_tasks_task_id_fkey"
+      columns: ["task_id"]
+isOneToOne: false
+      referencedRelation: "tasks"
       referencedColumns: ["id"]
     }
                   ]
@@ -1954,6 +2065,9 @@ isOneToOne: false
                            },
 "create_statement":
 { Args: { "p_end": string,"p_project": string,"p_start": string }; Returns: string
+                           },
+"create_statement_from_tasks":
+{ Args: { "p_project": string,"p_tasks": (string)[] }; Returns: string
                            },
 "create_task_from_meeting_action":
 { Args: { "p_action": string,"p_phase"?: string }; Returns: string

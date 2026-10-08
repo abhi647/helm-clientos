@@ -601,7 +601,7 @@ test('billing (finance only): rate card approved by the customer, a statement ap
   // finance bills the month: days worked (checked against the hours logged) and the delivery accepted
   await signIn(page, 'finance@example.com')
   await openBilling()
-  await page.getByRole('button', { name: 'New statement' }).click()
+  await page.getByRole('button', { name: 'Statement for a period' }).click()
   await page.waitForURL(/\/billing\/[0-9a-f-]{36}$/)
   await page.getByLabel('Quantity for Data engineer').fill('38')
   await page.getByLabel('Note for Data engineer').fill('2 days leave')
@@ -614,7 +614,7 @@ test('billing (finance only): rate card approved by the customer, a statement ap
   await expect(page.getByText('Waiting for approval')).toBeVisible()
   const statementUrl = page.url()
 
-  // the customer approves the statement; the server then creates the Zoho draft (Zoho is not connected locally)
+  // the customer approves the statement; approving no longer invoices it
   await signIn(page, 'michel@nesma.example.com')
   await page.goto('/portal/billing')
   const st = page.locator('.card', { hasText: 'Waiting for approval' })
@@ -624,12 +624,16 @@ test('billing (finance only): rate card approved by the customer, a statement ap
   await expect(st).toHaveCount(0)
   await expect(page.locator('.card', { hasText: 'Statements' }).getByText('Approved', { exact: true })).toBeVisible()
 
+  // finance ticks approved statements and creates one invoice (Zoho is not connected locally, so it says why)
   await signIn(page, 'finance@example.com')
-  await expect(async () => {
-    await page.goto(statementUrl)
-    await expect(page.getByText(/Zoho is not connected|has no Zoho customer id/)).toBeVisible({ timeout: 1000 })   // never reaches the real Zoho
-  }).toPass({ timeout: 15_000 })
-  await expect(page.getByRole('button', { name: 'Retry Zoho' })).toBeVisible()
+  await page.goto(statementUrl)
+  await expect(page.getByText(/Draft invoice/)).toHaveCount(0)
+  await openBilling()
+  const statements = page.locator('.card', { has: page.getByRole('heading', { name: 'Statements' }) })
+  await expect(statements.getByText('Ready to invoice')).toBeVisible()
+  await statements.getByRole('checkbox').first().check()
+  await statements.getByRole('button', { name: 'Create invoice in Zoho for the ticked statements' }).click()
+  await expect(statements.getByText(/Zoho is not connected|has no Zoho customer id|Set the GST/).first()).toBeVisible()
 })
 
 test('time to billing: logged, returned and approved, then billed once on the statement', async ({ page }) => {
@@ -708,22 +712,25 @@ test('time to billing: logged, returned and approved, then billed once on the st
   await people.getByLabel('Sahil').check()
   await people.getByRole('button', { name: 'Save people' }).click()
   await expect(page.getByText('Their approved days fill this line')).toBeVisible()
-  const unbilled = page.locator('.card', { hasText: 'Unbilled work' })
+  const unbilled = page.locator('.card', { has: page.getByRole('heading', { name: 'Unbilled work' }) })
   await expect(unbilled.getByText('Sahil')).toBeVisible()
   await expect(unbilled.getByText('Engineer')).toBeVisible()
   await shot(page, '41-unbilled-work')
 
-  await page.getByRole('button', { name: 'New statement' }).click()
+  // finance ticks the work to bill: the statement bills exactly that task's approved day
+  const work = page.locator('.card', { has: page.getByRole('heading', { name: 'Work to bill' }) })
+  await work.getByLabel(/^Bill .*: Build$/).first().check()
+  await work.getByRole('button', { name: 'Create statement from the ticked tasks' }).click()
   await page.waitForURL(/\/billing\/[0-9a-f-]{36}$/)
   await expect(page.getByLabel('Quantity for Engineer')).toHaveValue('1')
-  await expect(page.getByLabel('Note for Engineer')).toHaveValue('From approved timesheets: Sahil 1 day')
+  await expect(page.getByLabel('Note for Engineer')).toHaveValue(/^From tasks: .*: Build 1 day$/)
   await shot(page, '42-statement-from-timesheets')
   await page.getByText('✓ Approve the statement for the customer').click()
   await page.getByRole('button', { name: 'Approve the statement for the customer' }).click()
   await expect(page.getByRole('heading', { name: /Statement · .* Approved/ })).toBeVisible()
   await expect(page.locator('.card', { hasText: 'Days logged in this period' }).locator('.row', { hasText: 'Sahil' })).toContainText('1.5 1.5 1 0 1'.replace(/ /g, ''))
   await page.getByRole('link', { name: '← Billing' }).click()
-  await expect(page.locator('.card', { hasText: 'Unbilled work' })).toHaveCount(0)
+  await expect(page.locator('.card', { has: page.getByRole('heading', { name: 'Unbilled work' }) })).toHaveCount(0)
 
   // billed days are locked for good
   await signIn(page, 'sahil@example.com')
@@ -767,7 +774,7 @@ test('billed as: the PM attaches rate card lines to a phase and a task by name, 
   await page.goto('/projects')
   await page.getByRole('link', { name: 'Management Reporting' }).click()
   await page.getByRole('link', { name: 'Billing' }).click()
-  const done = page.locator('.card', { has: page.getByRole('heading', { name: 'Done work, not billed yet' }) })
+  const done = page.locator('.card', { has: page.getByRole('heading', { name: 'Work to bill' }) })
   await expect(done.locator('.row', { hasText: 'Data Engineering: Plan' })).toContainText('no days logged')
   await shot(page, '47-done-not-billed')
 })

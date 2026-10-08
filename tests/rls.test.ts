@@ -1262,3 +1262,70 @@ describe('plan roll-up', () => {
     expect((await service.from('tasks').select('completed_at').eq('id', task).single()).data!.completed_at).toBeNull()
   })
 })
+
+describe('statements from ticked tasks', () => {
+  let project: string, phase: string, engineer: string, report: string, sahilId: string
+  let built: string, partly: string, monthly: string, notDone: string, sub: string
+  const day = (d: number) => `2027-01-${String(d).padStart(2, '0')}`
+  beforeAll(async () => {
+    sahilId = (await service.from('profiles').select('id').eq('email', 'sahil@example.com').single()).data!.id
+    project = (await service.from('projects').insert({ customer_id: nesma, name: 'Ticked-tasks project' }).select('id').single()).data!.id
+    const card = (await service.from('rate_cards').insert({ project_id: project, customer_id: nesma, status: 'approved', currency: 'EUR' }).select('id').single()).data!.id
+    const lines = (await service.from('rate_card_lines').insert([
+      { rate_card_id: card, customer_id: nesma, kind: 'day_rate', label: 'Engineer', unit: 'day', rate: 1, position: 0 },
+      { rate_card_id: card, customer_id: nesma, kind: 'unit', label: 'Monthly report', unit: 'monthly report', rate: 1, position: 1 },
+    ]).select('id, label')).data!
+    engineer = lines.find((l) => l.label === 'Engineer')!.id
+    report = lines.find((l) => l.label === 'Monthly report')!.id
+    phase = (await service.from('phases').insert({ project_id: project, customer_id: nesma, name: 'Build', position: 0, rate_line_id: engineer }).select('id').single()).data!.id
+    const done = { status: 'done', completed_at: `${day(10)}T10:00:00Z` }
+    const tasks = (await service.from('tasks').insert([
+      { project_id: project, phase_id: phase, customer_id: nesma, title: 'Built', ...done },
+      { project_id: project, phase_id: phase, customer_id: nesma, title: 'Partly', status: 'in_progress' },
+      { project_id: project, phase_id: phase, customer_id: nesma, title: 'January report', rate_line_id: report, ...done },
+      { project_id: project, phase_id: phase, customer_id: nesma, title: 'Not done report', rate_line_id: report, status: 'in_progress' },
+    ]).select('id, title')).data!
+    const t = (x: string) => tasks.find((r) => r.title === x)!.id
+    built = t('Built'); partly = t('Partly'); monthly = t('January report'); notDone = t('Not done report')
+    sub = (await service.from('tasks').insert({ project_id: project, customer_id: nesma, parent_id: built, title: 'Built part' }).select('id').single()).data!.id
+    const log = (task: string, d: number, days: number, approved = true) => ({ task_id: task, customer_id: nesma, user_id: sahilId, days, worked_on: day(d), billable: true, approved_at: approved ? new Date().toISOString() : null })
+    await service.from('time_entries').insert([log(built, 2, 1), log(sub, 3, 0.5), log(partly, 4, 0.75), log(partly, 5, 0.25, false)])
+  })
+  afterAll(async () => {
+    await service.from('billing_statements').delete().eq('project_id', project)
+    await service.from('time_entries').delete().in('task_id', [built, partly, sub])
+    await service.from('projects').delete().eq('id', project)
+  })
+
+  it('finance bills exactly the ticked work; the PM and the customer cannot', async () => {
+    expect((await rahul.rpc('create_statement_from_tasks', { p_project: project, p_tasks: [built] })).error?.message).toMatch(/not allowed/)
+    expect((await michel.rpc('create_statement_from_tasks', { p_project: project, p_tasks: [built] })).error).not.toBeNull()
+    expect((await finance.rpc('create_statement_from_tasks', { p_project: project, p_tasks: [notDone] })).error?.message).toMatch(/nothing to bill/)
+    expect((await finance.rpc('create_statement_from_tasks', { p_project: project, p_tasks: [sub] })).error?.message).toMatch(/subtasks are billed with their task/)
+    const { data: st, error } = await finance.rpc('create_statement_from_tasks', { p_project: project, p_tasks: [built, partly, monthly] })
+    expect(error).toBeNull()
+    const { data: lines } = await service.from('statement_lines').select('label, quantity, note').eq('statement_id', st as string).order('position')
+    // Built 1 + its subtask 0.5 + Partly 0.75 (its unapproved 0.25 waits); the done report
+    expect(lines!.map((l) => [l.label, Number(l.quantity)])).toEqual([['Engineer', 2.25], ['Monthly report', 1]])
+    expect(lines![0]!.note).toBe('From tasks: Built 1.5 days, Partly 0.75 days')
+    expect((await service.from('billing_statements').select('period_start, period_end').eq('id', st as string).single()).data).toEqual({ period_start: day(2), period_end: day(10) })
+
+    // the same tasks cannot go on a second open statement
+    expect((await finance.rpc('create_statement_from_tasks', { p_project: project, p_tasks: [built] })).error?.message).toMatch(/already on an open statement: Built/)
+    // a period statement leaves that work alone, and approving the task statement bills exactly it
+    const { data: period } = await finance.rpc('create_statement', { p_project: project, p_start: day(1), p_end: day(31) })
+    await service.from('billing_statements').update({ status: 'approved' }).eq('id', st as string)
+    const billed = (await service.from('time_entries').select('statement_id').in('task_id', [built, sub, partly])).data!
+    expect(billed.filter((e) => e.statement_id === st).length).toBe(3)
+    expect((await service.from('tasks').select('statement_id').eq('id', monthly).single()).data!.statement_id).toBe(st)
+    await service.from('billing_statements').delete().eq('id', period as string)
+  })
+
+  it('GST is set per customer by finance only', async () => {
+    expect((await finance.from('customer_billing').upsert({ customer_id: nesma, zoho_tax_id: '123', tax_label: 'GST18' })).error).toBeNull()
+    expect((await rahul.from('customer_billing').select('zoho_tax_id').eq('customer_id', nesma)).data ?? []).toHaveLength(0)
+    expect((await michel.from('customer_billing').select('zoho_tax_id')).data ?? []).toHaveLength(0)
+    expect((await finance.from('customer_billing').upsert({ customer_id: nesma, zoho_tax_id: '1', zoho_tax_exemption_id: '2' })).error).not.toBeNull()
+    await service.from('customer_billing').delete().eq('customer_id', nesma)
+  })
+})

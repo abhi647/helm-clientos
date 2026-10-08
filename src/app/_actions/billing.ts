@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation'
 import { after } from 'next/server'
 import { z } from 'zod'
-import { createZohoDraftInvoice } from '@/lib/integrations/zoho'
+import { createZohoInvoice } from '@/lib/integrations/zoho'
 import { canSeeFinance, requireCustomer, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { type ActionResult, dbFail, done, fail, uuid } from './shared'
@@ -123,7 +123,7 @@ export async function approveRateCardForCustomer(_prev: ActionResult | null, for
   return error ? dbFail(error) : done('Approved. The customer has been told.')
 }
 
-/** The same for a statement; the Zoho draft invoice follows straight away. */
+/** The same for a statement. The invoice is created later, when finance invoices approved statements. */
 export async function approveStatementForCustomer(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   const me = await requireStaff()
   if (!canSeeFinance(me)) return fail('Only finance, the CEO or an admin can approve a statement for the customer.')
@@ -133,11 +133,7 @@ export async function approveStatementForCustomer(_prev: ActionResult | null, fo
   const supabase = await createClient()
   const { error } = await supabase.rpc('approve_statement_for_customer', { p_statement: id.data, p_note: parsed.data.note || undefined })
   if (error) return dbFail(error)
-  after(async () => {
-    const res = await createZohoDraftInvoice(id.data)
-    if (!res.ok) console.error('[zoho] draft invoice', id.data, res.error)
-  })
-  return done('Approved. The customer has been told, and the draft invoice is being created in Zoho.')
+  return done('Approved. The customer has been told. Tick it under Statements to invoice it.')
 }
 
 export async function discardRateCard(cardId: string): Promise<ActionResult> {
@@ -229,14 +225,59 @@ export async function deleteStatement(statementId: string, projectId: string): P
   redirect(`/projects/${projectId}/billing`)
 }
 
-/** Finance: try the Zoho draft invoice again (for example after adding the customer's Zoho id). */
+/** Finance: one draft invoice in Zoho for the ticked approved statements (same customer and currency). */
+export async function createInvoice(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!canSeeFinance(me)) return fail('Only finance, the CEO or an admin can create invoices.')
+  const ids = z.array(uuid).min(1, 'Tick the approved statements to invoice first.').max(50).safeParse(form.getAll('statement'))
+  if (!ids.success) return fail(ids.error.issues[0]!.message)
+  const supabase = await createClient()   // finance can read them: also checks they exist
+  const { data } = await supabase.from('billing_statements').select('id, status').in('id', ids.data)
+  if ((data ?? []).length !== ids.data.length || data!.some((s) => s.status !== 'approved')) return fail('Only approved statements without an invoice can be invoiced.')
+  const res = await createZohoInvoice(ids.data)
+  return res.ok ? done(`Draft invoice ${res.number} created in Zoho for ${ids.data.length} ${ids.data.length === 1 ? 'statement' : 'statements'}. Review and send it in Zoho Books.`) : fail(res.error)
+}
+
+/** Kept for the statement page: invoice one approved statement. */
 export async function retryZohoInvoice(statementId: string): Promise<ActionResult> {
-  await requireStaff()
+  const form = new FormData()
+  form.append('statement', statementId)
+  return createInvoice(null, form)
+}
+
+/** Finance ticks finished (or partly done) tasks; the statement bills exactly that work. */
+export async function createStatementFromTasks(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!canSeeFinance(me)) return fail('Only finance, the CEO or an admin can create statements.')
+  const project = uuid.safeParse(form.get('project_id'))
+  const tasks = z.array(uuid).min(1, 'Tick the tasks to bill first.').max(500).safeParse(form.getAll('task'))
+  if (!project.success) return fail('Unknown project.')
+  if (!tasks.success) return fail(tasks.error.issues[0]!.message)
   const supabase = await createClient()
-  const { data } = await supabase.from('billing_statements').select('id, status').eq('id', statementId).maybeSingle()
-  if (!data || data.status !== 'approved') return fail('Only an approved statement that has no invoice yet can be sent to Zoho.')
-  const res = await createZohoDraftInvoice(statementId)
-  return res.ok ? done(`Draft invoice ${res.number} created in Zoho.`) : fail(res.error)
+  const { data, error } = await supabase.rpc('create_statement_from_tasks', { p_project: project.data, p_tasks: tasks.data })
+  if (error) return dbFail(error)
+  redirect(`/projects/${project.data}/billing/${data}`)
+}
+
+/** Finance: the GST every invoice line for this customer carries (a Zoho tax, or a tax exemption). */
+export async function setCustomerTax(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!canSeeFinance(me)) return fail('Only finance, the CEO or an admin can set the GST.')
+  const customer = uuid.safeParse(form.get('customer_id'))
+  // the option value is "tax:<zoho id>|<name>" or "exemption:<zoho id>|<name>"
+  const choice = z.string().max(240).parse(form.get('tax') ?? '')
+  if (!customer.success) return fail('Unknown customer.')
+  const [ref = '', label = ''] = choice.split('|')
+  const [kind, id] = ref.split(':')
+  if (choice && (!['tax', 'exemption'].includes(kind ?? '') || !/^\d+$/.test(id ?? ''))) return fail('Pick a tax from the list.')
+  const supabase = await createClient()
+  const { error } = !choice
+    ? await supabase.from('customer_billing').delete().eq('customer_id', customer.data)
+    : await supabase.from('customer_billing').upsert({
+      customer_id: customer.data, tax_label: label, updated_at: new Date().toISOString(),
+      zoho_tax_id: kind === 'tax' ? id! : null, zoho_tax_exemption_id: kind === 'exemption' ? id! : null,
+    })
+  return error ? dbFail(error) : done(choice ? `Saved. Invoices for this customer carry ${label || 'that tax'}.` : 'Cleared.')
 }
 
 // ---------------------------------------------------------------- customer decisions
@@ -267,10 +308,5 @@ export async function decideStatement(_prev: ActionResult | null, form: FormData
   const approve = parsed.data.decision === 'approved'
   const { error } = await supabase.rpc('decide_statement', { p_statement: id.data, p_approve: approve, p_note: parsed.data.comment || undefined })
   if (error) return dbFail(error)
-  // the draft invoice is created after the response, so the customer is not kept waiting on Zoho
-  if (approve) after(async () => {
-    const res = await createZohoDraftInvoice(id.data)
-    if (!res.ok) console.error('[zoho] draft invoice', id.data, res.error)
-  })
   return done(approve ? 'Statement approved. Thank you.' : 'Sent back to Seven Billion with your comments.')
 }

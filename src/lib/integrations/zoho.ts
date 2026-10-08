@@ -120,61 +120,108 @@ async function syncPayments(token: string, byZoho: Map<string, string>): Promise
 
 type DraftResult = { ok: true; number: string } | { ok: false; error: string }
 
+/** The taxes and tax exemptions in Zoho Books, for finance to pick each customer's GST. Empty when Zoho is not connected. */
+export async function zohoTaxOptions(): Promise<{ taxes: { id: string; name: string; percentage: number }[]; exemptions: { id: string; name: string }[]; error?: string }> {
+  const e = env()
+  if (!e.ZOHO_CLIENT_ID || !e.ZOHO_REFRESH_TOKEN || !e.ZOHO_ORGANIZATION_ID) return { taxes: [], exemptions: [] }
+  try {
+    const token = await accessToken()
+    const get = async (path: string) => {
+      const url = new URL(`${apiBase()}/books/v3/${path}`)
+      url.search = new URLSearchParams({ organization_id: e.ZOHO_ORGANIZATION_ID }).toString()
+      const res = await fetch(url, { headers: { Authorization: `Zoho-oauthtoken ${token}` }, next: { revalidate: 600 } })
+      return (await res.json()) as Record<string, unknown>
+    }
+    const [t, x] = await Promise.all([get('settings/taxes'), get('settings/taxexemptions')])
+    const taxes = ((t.taxes ?? []) as { tax_id: string; tax_name: string; tax_percentage: number; status?: string }[])
+      .filter((r) => r.status !== 'inactive').map((r) => ({ id: r.tax_id, name: r.tax_name, percentage: r.tax_percentage }))
+    const exemptions = ((x.tax_exemptions ?? []) as { tax_exemption_id: string; tax_exemption_code: string; description?: string }[])
+      .map((r) => ({ id: r.tax_exemption_id, name: [r.tax_exemption_code, r.description].filter(Boolean).join(' · ') }))
+    return { taxes, exemptions }
+  } catch (err) {
+    return { taxes: [], exemptions: [], error: err instanceof Error ? err.message : 'Zoho could not be reached.' }
+  }
+}
+
+/** One statement: the same as an invoice for just that statement. */
+export const createZohoDraftInvoice = (statementId: string) => createZohoInvoice([statementId])
+
 /**
- * Creates a DRAFT invoice in Zoho Books for an approved billing statement: one line per resource, delivery, unit or
- * retainer, at the approved rate x the approved quantity. Zoho applies tax (from the line's Zoho item, if set),
- * numbering and totals; Finance reviews the draft and sends it from Zoho. Safe to call twice: a statement is claimed
- * before Zoho is called and is never invoiced again once it has a Zoho id.
- * Needs the Zoho scope ZohoBooks.invoices.CREATE on top of the read scopes.
+ * Creates ONE draft invoice in Zoho Books for one or more approved statements of the same customer and currency:
+ * one line per statement line, at the approved rate x the approved quantity, each carrying the customer's GST
+ * (Admin: customer page → HubSpot and Zoho → GST), or the tax of the line's Zoho item. Zoho adds numbering and
+ * totals; finance reviews the draft and sends it from Zoho. Statements are claimed before Zoho is called and are
+ * never invoiced twice. Needs the Zoho scope ZohoBooks.invoices.CREATE (and settings.READ for the GST list).
  */
-export async function createZohoDraftInvoice(statementId: string): Promise<DraftResult> {
+export async function createZohoInvoice(statementIds: string[]): Promise<DraftResult> {
   const e = env()
   const db = createAdminClient()
-  const fail = async (error: string): Promise<DraftResult> => {
-    await db.from('billing_statements').update({ invoice_error: error, zoho_claimed_at: null }).eq('id', statementId)
-    await logError('zoho', error, { statement: statementId }, 'warn')
+  const ids = [...new Set(statementIds)]
+  if (!ids.length) return { ok: false, error: 'Tick the approved statements to invoice first.' }
+  const release = async (error: string): Promise<DraftResult> => {
+    await db.from('billing_statements').update({ invoice_error: error, zoho_claimed_at: null }).in('id', ids)
+    await logError('zoho', error, { statements: ids }, 'warn')
     return { ok: false, error }
   }
-  // claim it: approved, not invoiced, and nobody else working on it (a claim older than 5 minutes is abandoned)
+  // claim them all: approved, not invoiced, and nobody else working on them (a claim older than 5 minutes is abandoned)
   const stale = new Date(Date.now() - 5 * 60_000).toISOString()
   const { data: claimed } = await db.from('billing_statements')
     .update({ zoho_claimed_at: new Date().toISOString(), invoice_error: null })
-    .eq('id', statementId).eq('status', 'approved').is('zoho_invoice_id', null)
+    .in('id', ids).eq('status', 'approved').is('zoho_invoice_id', null)
     .or(`zoho_claimed_at.is.null,zoho_claimed_at.lt.${stale}`)
     .select('id, project_id, customer_id, rate_card_id, period_start, period_end, note')
-  const st = claimed?.[0]
-  if (!st) return { ok: false, error: 'This statement is already invoiced, not approved yet, or being sent to Zoho right now.' }
+  if ((claimed ?? []).length !== ids.length) {
+    if (claimed?.length) await db.from('billing_statements').update({ zoho_claimed_at: null }).in('id', claimed.map((c) => c.id))
+    return { ok: false, error: 'Only approved statements without an invoice can be invoiced (one may be invoiced already, or being sent to Zoho right now).' }
+  }
+  const sts = [...claimed!].sort((a, b) => a.period_start.localeCompare(b.period_start))
+  if (new Set(sts.map((s) => s.customer_id)).size > 1) return release('An invoice is for one customer: tick statements of the same customer.')
 
-  if (!e.ZOHO_CLIENT_ID || !e.ZOHO_REFRESH_TOKEN || !e.ZOHO_ORGANIZATION_ID) return fail('Zoho is not connected. Add the ZOHO_* settings, then press Retry.')
-  const [{ data: customer }, { data: project }, { data: card }, { data: lines }] = await Promise.all([
-    db.from('customers').select('name, zoho_customer_id').eq('id', st.customer_id).single(),
-    db.from('projects').select('name').eq('id', st.project_id).single(),
-    db.from('rate_cards').select('currency, po_number').eq('id', st.rate_card_id).single(),
-    db.from('statement_lines').select('label, unit, rate, quantity, note, kind, position, rate_card_lines(zoho_item_id, description)')
-      .eq('statement_id', statementId).gt('quantity', 0).order('position'),
+  if (!e.ZOHO_CLIENT_ID || !e.ZOHO_REFRESH_TOKEN || !e.ZOHO_ORGANIZATION_ID) return release('Zoho is not connected. Add the ZOHO_* settings, then try again.')
+  const customerId = sts[0]!.customer_id
+  const [{ data: customer }, { data: tax }, { data: projects }, { data: cards }, { data: lines }] = await Promise.all([
+    db.from('customers').select('name, zoho_customer_id').eq('id', customerId).single(),
+    db.from('customer_billing').select('zoho_tax_id, zoho_tax_exemption_id').eq('customer_id', customerId).maybeSingle(),
+    db.from('projects').select('id, name').in('id', sts.map((s) => s.project_id)),
+    db.from('rate_cards').select('id, currency, po_number').in('id', sts.map((s) => s.rate_card_id)),
+    db.from('statement_lines').select('statement_id, label, unit, rate, quantity, note, kind, position, rate_card_lines(zoho_item_id, description)')
+      .in('statement_id', ids).gt('quantity', 0).order('position'),
   ])
-  if (!customer?.zoho_customer_id) return fail(`${customer?.name ?? 'This customer'} has no Zoho customer id. Add it in Admin → Customers, then press Retry.`)
-  if (!lines?.length) return fail('The statement has no lines with a quantity.')
+  if (!customer?.zoho_customer_id) return release(`${customer?.name ?? 'This customer'} has no Zoho customer id. Add it on the customer page (HubSpot and Zoho), then try again.`)
+  if (!lines?.length) return release('The statements have no lines with a quantity.')
+  const currencies = new Set((cards ?? []).map((c) => c.currency))
+  if (currencies.size > 1) return release(`The statements are in different currencies (${[...currencies].join(', ')}): invoice them separately.`)
+  const currency = cards?.[0]?.currency
+  const taxFields = tax?.zoho_tax_id ? { tax_id: tax.zoho_tax_id } : tax?.zoho_tax_exemption_id ? { tax_exemption_id: tax.zoho_tax_exemption_id } : null
+  if (!taxFields && lines.some((l) => !l.rate_card_lines?.zoho_item_id)) {
+    return release(`Set the GST for ${customer.name} first: customer page → HubSpot and Zoho → GST on invoices. Zoho needs a tax or an exemption on every line.`)
+  }
 
   // Zoho bills a customer in the currency set on them in Zoho; an invoice can't be in another one
   const zohoCustomer = await lookupZohoCustomer(customer.zoho_customer_id)
-  const mismatch = zohoCustomer.found ? currencyProblem(zohoCustomer.name, zohoCustomer.currency, card?.currency) : null
-  if (mismatch) return fail(mismatch)
+  const mismatch = zohoCustomer.found ? currencyProblem(zohoCustomer.name, zohoCustomer.currency, currency) : null
+  if (mismatch) return release(mismatch)
 
-  const periodText = `${st.period_start} to ${st.period_end}`
+  const projectName = new Map((projects ?? []).map((p) => [p.id, p.name]))
+  const stById = new Map(sts.map((s) => [s.id, s]))
+  const pos = [...new Set((cards ?? []).map((c) => c.po_number).filter(Boolean))]
   const body = {
     customer_id: customer.zoho_customer_id,
     date: new Date().toISOString().slice(0, 10),
-    reference_number: card?.po_number || undefined,
-    line_items: lines.map((l) => ({
-      ...(l.rate_card_lines?.zoho_item_id ? { item_id: l.rate_card_lines.zoho_item_id } : {}),
-      name: l.label,
-      description: [`${project?.name} · ${periodText}`, l.rate_card_lines?.description, l.note].filter(Boolean).join('\n'),
-      rate: Number(l.rate),
-      quantity: Number(l.quantity),
-      unit: l.unit,
-    })),
-    notes: st.note || undefined,
+    reference_number: pos.join(', ') || undefined,
+    line_items: [...lines].sort((a, b) => (stById.get(a.statement_id)!.period_start.localeCompare(stById.get(b.statement_id)!.period_start)) || a.position - b.position).map((l) => {
+      const st = stById.get(l.statement_id)!
+      return {
+        ...(l.rate_card_lines?.zoho_item_id ? { item_id: l.rate_card_lines.zoho_item_id } : {}),
+        ...(taxFields ?? {}),
+        name: l.label,
+        description: [`${projectName.get(st.project_id)} · ${st.period_start} to ${st.period_end}`, l.rate_card_lines?.description, l.note].filter(Boolean).join('\n'),
+        rate: Number(l.rate),
+        quantity: Number(l.quantity),
+        unit: l.unit,
+      }
+    }),
+    notes: sts.map((s) => s.note).filter(Boolean).join('\n') || undefined,
   }
   try {
     const token = await accessToken()
@@ -186,15 +233,15 @@ export async function createZohoDraftInvoice(statementId: string): Promise<Draft
       body: JSON.stringify(body),
     })
     const json = (await res.json()) as { code?: number; message?: string; invoice?: { invoice_id: string; invoice_number: string; currency_code?: string } }
-    if (!res.ok || json.code !== 0 || !json.invoice) return fail(`Zoho refused the invoice: ${json.message ?? res.status}`)
-    const warn = card?.currency && json.invoice.currency_code && json.invoice.currency_code !== card.currency
-      ? `Zoho used ${json.invoice.currency_code}, but the rate card is in ${card.currency}. Check the draft before sending.` : null
+    if (!res.ok || json.code !== 0 || !json.invoice) return release(`Zoho refused the invoice: ${json.message ?? res.status}`)
+    const warn = currency && json.invoice.currency_code && json.invoice.currency_code !== currency
+      ? `Zoho used ${json.invoice.currency_code}, but the rate card is in ${currency}. Check the draft before sending.` : null
     await db.from('billing_statements').update({
       status: 'invoiced', zoho_invoice_id: json.invoice.invoice_id, zoho_invoice_number: json.invoice.invoice_number,
       invoiced_at: new Date().toISOString(), invoice_error: warn, zoho_claimed_at: null,
-    }).eq('id', statementId)
+    }).in('id', ids)
     return { ok: true, number: json.invoice.invoice_number }
   } catch (err) {
-    return fail(err instanceof Error ? err.message : 'Zoho could not be reached.')
+    return release(err instanceof Error ? err.message : 'Zoho could not be reached.')
   }
 }
