@@ -3,7 +3,7 @@
 import { execSync } from 'node:child_process'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import * as OTPAuth from 'otpauth'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { applyPlan } from '@/lib/backfill-apply'
 import { planImport } from '@/lib/backfill-plan'
 import type { Database } from '@/lib/database.types'
@@ -1066,5 +1066,67 @@ describe('account team', () => {
       await ceo.rpc('set_consultants_see_own_customers', { p_on: false })
       await service.from('customers').delete().eq('id', hidden)
     }
+  })
+})
+
+describe('subtasks', () => {
+  let project: string, build: string, test: string, task: string, internalTask: string
+  beforeAll(async () => {
+    project = (await service.from('projects').insert({ customer_id: nesma, name: 'Subtask project' }).select('id').single()).data!.id
+    const phases = (await service.from('phases').insert([
+      { project_id: project, customer_id: nesma, name: 'Build', position: 0 },
+      { project_id: project, customer_id: nesma, name: 'Test', position: 1 },
+    ]).select('id, name')).data!
+    build = phases.find((p) => p.name === 'Build')!.id
+    test = phases.find((p) => p.name === 'Test')!.id
+    const tasks = (await service.from('tasks').insert([
+      { project_id: project, phase_id: build, customer_id: nesma, title: 'Sales dashboard', visibility: 'shared', position: 0 },
+      { project_id: project, phase_id: build, customer_id: nesma, title: 'Internal prep', visibility: 'internal', position: 1 },
+    ]).select('id, title')).data!
+    task = tasks.find((t) => t.title === 'Sales dashboard')!.id
+    internalTask = tasks.find((t) => t.title === 'Internal prep')!.id
+  })
+  afterAll(async () => { await service.from('projects').delete().eq('id', project) })
+
+  it('a subtask sits in its task\'s phase, follows it when the task moves, and is never wider than it', async () => {
+    const { data: s, error } = await rahul.from('tasks').insert({ project_id: project, customer_id: nesma, parent_id: task, title: 'Data model', visibility: 'shared' }).select('id, phase_id, visibility').single()
+    expect(error).toBeNull()
+    expect(s).toMatchObject({ phase_id: build, visibility: 'shared' })
+    const { data: hidden } = await rahul.from('tasks').insert({ project_id: project, customer_id: nesma, parent_id: internalTask, title: 'Draft notes', visibility: 'shared' }).select('visibility').single()
+    expect(hidden!.visibility).toBe('internal')
+
+    await rahul.from('tasks').update({ phase_id: test }).eq('id', task)
+    expect((await service.from('tasks').select('phase_id').eq('id', s!.id).single()).data!.phase_id).toBe(test)
+    await rahul.from('tasks').update({ visibility: 'internal' }).eq('id', task)
+    expect((await service.from('tasks').select('visibility').eq('id', s!.id).single()).data!.visibility).toBe('internal')
+    // the customer sees neither once the task is internal
+    expect((await michel.from('tasks').select('id').in('id', [task, s!.id])).data).toHaveLength(0)
+    await rahul.from('tasks').update({ visibility: 'shared' }).eq('id', task)
+    await rahul.from('tasks').update({ visibility: 'shared' }).eq('id', s!.id)
+    expect((await michel.from('tasks').select('id').in('id', [task, s!.id])).data).toHaveLength(2)
+  })
+
+  it('one level only, and progress counts tasks rather than subtasks', async () => {
+    const { data: sub } = await service.from('tasks').select('id').eq('parent_id', task).limit(1).single()
+    const nested = await rahul.from('tasks').insert({ project_id: project, customer_id: nesma, parent_id: sub!.id, title: 'Too deep' })
+    expect(nested.error?.message).toMatch(/a subtask cannot have subtasks/)
+    const self = await rahul.from('tasks').update({ parent_id: task }).eq('id', task)
+    expect(self.error?.message).toMatch(/cannot be its own subtask/)
+    const withChildren = await rahul.from('tasks').update({ parent_id: internalTask }).eq('id', task)
+    expect(withChildren.error?.message).toMatch(/has subtasks, so it cannot become a subtask/)
+    const { data: prog } = await service.from('project_progress').select('total').eq('project_id', project).single()
+    expect(prog!.total).toBe(2)
+  })
+
+  it('deleting a task takes its subtasks, unless days on a subtask are approved', async () => {
+    const { data: sub } = await service.from('tasks').select('id').eq('parent_id', task).limit(1).single()
+    const sahilId = (await service.from('profiles').select('id').eq('email', 'sahil@example.com').single()).data!.id
+    const { data: te } = await service.from('time_entries').insert({ task_id: sub!.id, customer_id: nesma, user_id: sahilId, days: 0.5, worked_on: '2026-12-02', approved_at: new Date().toISOString() }).select('id').single()
+    expect((await rahul.rpc('delete_task', { p_task: task })).error?.message).toMatch(/approved or billed days are logged on this task \(0.5 days\)/)
+    await service.from('time_entries').delete().eq('id', te!.id)
+    expect((await rahul.rpc('delete_task', { p_task: task })).error).toBeNull()
+    expect((await service.from('tasks').select('id').or(`id.eq.${task},parent_id.eq.${task}`)).data).toHaveLength(0)
+    const { data: log } = await service.from('activity').select('summary').eq('project_id', project).like('summary', 'deleted%')
+    expect(log!.map((l) => l.summary)).toEqual(['deleted the task Sales dashboard and its 1 subtasks'])
   })
 })

@@ -15,7 +15,7 @@ export default async function MyWork() {
   const me = await requireStaff()
   const supabase = await createClient()
   const { data } = await supabase.from('tasks')
-    .select('id, title, status, due_date, visibility, project_id, projects(name, customers(name)), task_estimates(estimate, unit)')
+    .select('id, title, status, due_date, visibility, project_id, parent:parent_id(title), projects(name, customers(name)), task_estimates(estimate, unit)')
     .eq('assignee_id', me.id).neq('status', 'done').order('due_date', { ascending: true, nullsFirst: false })
   const tasks = data ?? []
   // my days: the last 30, plus anything older still waiting or returned
@@ -52,7 +52,7 @@ export default async function MyWork() {
             <div className="min-w-[760px]">
               {g.tasks.map((t) => (
                 <div key={t.id} className="row grid-cols-[minmax(0,1fr)_200px_70px_60px_150px_84px] hover:bg-head">
-                  <Link href={`/projects/${t.project_id}?task=${t.id}`} className="truncate font-medium text-ink no-underline hover:underline">{t.title}</Link>
+                  <Link href={`/projects/${t.project_id}?task=${t.id}`} className="truncate font-medium text-ink no-underline hover:underline">{t.parent ? <span className="font-normal text-muted">{t.parent.title} › </span> : null}{t.title}</Link>
                   <span className="truncate text-xs text-muted">{t.projects?.customers?.name} · {t.projects?.name}</span>
                   <span className={cn('font-mono text-xs', g.key === 'overdue' && 'font-semibold text-crit-ink')}>{shortDate(t.due_date)}</span>
                   <span className="text-right font-mono text-xs text-muted">{t.task_estimates?.estimate ? effortShort(t.task_estimates.estimate, t.task_estimates.unit) : ''}</span>

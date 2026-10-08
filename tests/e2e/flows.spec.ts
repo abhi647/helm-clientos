@@ -778,6 +778,56 @@ test('PM gives a task to a consultant, who finds it in My Work', async ({ page }
   await expect(page.getByText('Testing: Plan')).toBeVisible()
 })
 
+test('the plan has subtasks: the PM breaks a task down, the consultant finds theirs, the customer sees shared ones', async ({ page }) => {
+  const env = Object.fromEntries(readFileSync('.env.local', 'utf8').split('\n').filter((l) => /^[A-Z_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim()]))
+  const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL!, env.SUPABASE_SECRET_KEY!, { auth: { persistSession: false } })
+  await db.from('tasks').update({ visibility: 'shared' }).eq('title', 'Testing: Plan')
+
+  await signIn(page, 'rahul@example.com')
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Infor LN Integration' }).click()
+  await page.getByRole('link', { name: 'Testing: Plan' }).click()
+  const panel = page.getByRole('complementary', { name: 'Task details' })
+  await panel.getByText('+ Add subtask').click()
+  await panel.getByLabel('Subtask title').fill('Order test cases')
+  await panel.getByLabel('Owner of the new subtask').selectOption({ label: 'Sahil' })
+  await panel.getByRole('button', { name: 'Add subtask' }).click()
+  await expect(panel.getByText('Subtask added.')).toBeVisible()
+  await page.reload()
+  await expect(panel.getByText('Subtasks · 0/1 done')).toBeVisible()
+  await expect(page.getByText('0/1 subtasks')).toBeVisible()
+  // the subtask is listed under its task, and opens with its task as context
+  await page.getByRole('link', { name: 'Order test cases' }).first().click()
+  await expect(panel.getByRole('link', { name: 'Testing: Plan' })).toBeVisible()
+  await expect(panel.getByRole('button', { name: 'Delete subtask' })).toBeVisible()
+  await shot(page, '44-subtasks')
+
+  // the plan opens like an accordion: phase → task → subtasks, each with a line to add to it
+  await page.goto(page.url().split('?')[0]!)
+  const build = page.locator('summary', { hasText: 'Testing: Build' })
+  await expect(page.getByLabel('New subtask of Testing: Build', { exact: true })).toBeHidden()
+  await build.click({ position: { x: 12, y: 12 } })
+  await page.getByLabel('New subtask of Testing: Build', { exact: true }).fill('Run regression pack')
+  await page.getByLabel('New subtask of Testing: Build', { exact: true }).press('Enter')
+  await expect(page.getByRole('link', { name: 'Run regression pack' })).toBeVisible()
+  await expect(build.getByText('0/1 subtasks')).toBeVisible()
+  await page.getByLabel('New task in Testing', { exact: true }).fill('Performance test')
+  await page.getByLabel('New task in Testing', { exact: true }).press('Enter')
+  await expect(page.getByRole('link', { name: 'Performance test', exact: true })).toBeVisible()
+  await shot(page, '45-plan-accordion')
+
+  await signIn(page, 'sahil@example.com')
+  await page.goto('/my-work')
+  await expect(page.getByRole('link', { name: 'Testing: Plan › Order test cases' })).toBeVisible()
+
+  await signIn(page, 'michel@nesma.example.com')
+  const { data: proj } = await db.from('projects').select('id').eq('name', 'Infor LN Integration').single()
+  await page.goto(`/portal/projects/${proj!.id}`)
+  await expect(page.getByRole('link', { name: /Order test cases/ })).toBeVisible()
+  await page.getByRole('link', { name: /Order test cases/ }).click()
+  await expect(page.getByText('Part of')).toBeVisible()
+})
+
 test('PM logs a verbal request for a customer and puts it on the plan; the customer sees both', async ({ page }) => {
   await signIn(page, 'rahul@example.com')
   await page.goto('/requests')

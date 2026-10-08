@@ -41,6 +41,7 @@ export async function setSpotlight(taskId: string, spotlight: boolean): Promise<
 
 const taskSchema = z.object({
   project_id: uuid,
+  parent_id: z.preprocess((v) => (v === '' || v == null ? null : v), uuid.nullable()),   // a subtask: it takes its task's phase
   // a phase of the plan, or 'new' (or nothing, when the project has no phases yet) to start one named new_phase
   phase_id: z.preprocess((v) => (v === '' || v == null || v === 'new' ? null : v), uuid.nullable()),
   new_phase: z.preprocess((v) => (v == null ? '' : v), z.string().trim().max(120)),
@@ -60,7 +61,7 @@ export async function createTask(_prev: ActionResult | null, form: FormData): Pr
   const supabase = await createClient()
   const { data: project } = await supabase.from('projects').select('customer_id').eq('id', t.project_id).single()
   if (!project) return fail('Project not found.')
-  if (!t.phase_id) {
+  if (!t.phase_id && !t.parent_id) {
     // the plan shows tasks under their phase, so every task gets one
     const { data: phases } = await supabase.from('phases').select('id, position').eq('project_id', t.project_id).order('position')
     if (phases?.length && !new_phase && form.get('phase_id') !== 'new') t.phase_id = phases[0]!.id
@@ -82,7 +83,7 @@ export async function createTask(_prev: ActionResult | null, form: FormData): Pr
     .insert({ ...t, customer_id: project.customer_id, owner_side, created_by: me.id, position: 999 }).select('id').single()
   if (error || !task) return dbFail(error)
   if (estimate != null) await supabase.from('task_estimates').insert({ task_id: task.id, customer_id: project.customer_id, estimate, unit })
-  return done('Task added.')
+  return done(t.parent_id ? 'Subtask added.' : 'Task added.')
 }
 
 const timeSchema = z.object({
