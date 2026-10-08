@@ -1,7 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { sendTestEmail } from '@/app/_actions/admin'
+import { ActionForm } from '@/components/forms'
 import { Card, Chip, Empty, PageHeader } from '@/components/ui'
+import { mailTransport } from '@/lib/mail-transport'
 import { relativeTime } from '@/lib/format'
 import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
@@ -16,6 +19,7 @@ const JOBS: { job: string; name: string; every: string; staleAfterMin: number }[
 /** Admin and CEO: are emails going out, are the background jobs running, and what went wrong recently. */
 export default async function SystemHealth() {
   const me = await requireStaff()
+  const transport = mailTransport()
   if (!['admin', 'ceo'].includes(me.internal_role ?? '')) notFound()
   const supabase = await createClient()
   const [{ data: jobs }, { data: outbox }, { data: log }] = await Promise.all([
@@ -41,6 +45,12 @@ export default async function SystemHealth() {
               <dt className="text-muted">Failed in the last 7 days</dt><dd className={`m-0 font-mono ${outbox?.failed_7d ? 'text-crit-ink' : ''}`}>{outbox?.failed_7d ?? 0}</dd>
             </dl>
             {emailsStuck ? <p role="alert" className="mt-2 mb-0 text-xs text-crit-ink">Emails have been waiting over 30 minutes. Check the email job below and the Resend dashboard.</p> : null}
+            <p className="mt-3 mb-2 text-xs text-muted">
+              Sent through <b className="text-ink">{transport.kind === 'microsoft' ? `Microsoft 365 (${transport.from})` : transport.kind === 'resend' ? 'Resend' : 'nothing yet: no email service set up'}</b>
+            </p>
+            <ActionForm action={sendTestEmail} submit="Send test email" primary={false} resetOnSuccess={false}>
+              <input name="to" type="email" required aria-label="Send a test email to" placeholder="someone@company.com" defaultValue={me.email ?? ''} className="input" />
+            </ActionForm>
           </Card>
           <Card className="min-w-0 flex-[2_1_480px]" title="Background jobs">
             <div className="flex flex-col gap-2">

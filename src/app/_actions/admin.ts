@@ -10,7 +10,7 @@ import { logError } from '@/lib/system-log'
 import { lookupHubSpotCompany, lookupHubSpotDeal, lookupProblem, lookupZohoCustomer } from '@/lib/integrations/lookup'
 import { syncZohoInvoices } from '@/lib/integrations/zoho'
 import { templateByKey } from '@/lib/templates'
-import { type ActionResult, dbFail, done, fail, formObject, uuid } from './shared'
+import { type ActionResult, dbFail, done, fail, formObject, ok, uuid } from './shared'
 
 const inviteSchema = z.object({
   customer_id: uuid,
@@ -444,4 +444,26 @@ export async function setConsultantsSeeOwnCustomers(on: boolean): Promise<Action
   const supabase = await createClient()
   const { error } = await supabase.rpc('set_consultants_see_own_customers', { p_on: on })
   return error ? dbFail(error) : done(on ? 'Consultants now see only their own customers.' : 'Consultants see every customer again.')
+}
+
+/** Admin → System health: sends one email straight away (not through the outbox) to check delivery to an address. */
+export async function sendTestEmail(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!['admin', 'ceo'].includes(me.internal_role ?? '')) return fail('Only an admin or the CEO can send a test email.')
+  const to = z.string().trim().toLowerCase().email('Enter a valid email.').safeParse(form.get('to'))
+  if (!to.success) return fail(to.error.issues[0]!.message)
+  const { sendMail, mailTransport } = await import('@/lib/mail-transport')
+  const sentAt = new Date().toISOString()
+  try {
+    await sendMail({
+      to: to.data, subject: `Helm test email · ${sentAt.slice(0, 16).replace('T', ' ')} UTC`, tag: 'test',
+      html: `<p>Hi,</p><p>This is a test from Helm, sent by ${me.full_name} at ${sentAt.slice(11, 16)} UTC through ${mailTransport().kind === 'microsoft' ? 'Microsoft 365' : 'Resend'}.</p><p>If it arrived in Junk or late, compare the time above with when you received it.</p>`,
+      text: `This is a test from Helm, sent by ${me.full_name} at ${sentAt.slice(11, 16)} UTC.`,
+    })
+  } catch (err) {
+    await logError('email', err, { to: to.data, test: true })
+    return fail(err instanceof Error ? err.message : 'Sending failed.')
+  }
+  await logError('email', `test email sent to ${to.data}`, { via: (await import('@/lib/mail-transport')).mailTransport().kind }, 'info')
+  return ok(`Sent to ${to.data} at ${sentAt.slice(11, 16)} UTC. Check the inbox and the Junk folder.`)
 }

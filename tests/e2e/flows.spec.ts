@@ -352,6 +352,11 @@ test('system health: the uptime check answers, a background job is recorded, and
   const emailsJob = page.locator('div', { hasText: /^Emails, surveys and file scans/ }).first()
   await expect(emailsJob.getByText('OK', { exact: true })).toBeVisible()
   await expect(page.getByText('Sent in the last 24 hours')).toBeVisible()
+  // the test email says plainly when no email service is set up (as here, locally)
+  await expect(page.getByText(/Sent through/)).toBeVisible()
+  await page.getByLabel('Send a test email to').fill('someone@example.com')
+  await page.getByRole('button', { name: 'Send test email' }).click()
+  await expect(page.getByText(/No email service is set up|Sent to someone@example.com/)).toBeVisible()
   await shot(page, '39-system-health')
 })
 

@@ -1,4 +1,5 @@
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse, after, type NextRequest } from 'next/server'
+import { flushOutbox } from '@/lib/email'
 import { env } from '@/lib/env'
 import { handleHubSpotEvents, verifyHubSpotSignature } from '@/lib/integrations/hubspot'
 
@@ -20,7 +21,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Bad payload' }, { status: 400 })
   }
   try {
-    return NextResponse.json(await handleHubSpotEvents(events))
+    const result = await handleHubSpotEvents(events)
+    after(() => flushOutbox().then(() => undefined, (e) => console.error('[email] flush failed', e)))   // tell people now, not at the next job
+    return NextResponse.json(result)
   } catch (e) {
     console.error('[hubspot] webhook failed', e)
     return NextResponse.json({ error: 'Processing failed' }, { status: 500 })   // HubSpot retries

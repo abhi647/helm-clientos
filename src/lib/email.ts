@@ -1,8 +1,8 @@
 import 'server-only'
 import { logError } from '@/lib/system-log'
-import { Resend } from 'resend'
 import { env } from '@/lib/env'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { mailTransport, sendMail } from '@/lib/mail-transport'
 import { composeEmail, type EmailContext } from '@/lib/email-copy'
 import { effort, shortDate } from '@/lib/format'
 
@@ -69,7 +69,7 @@ async function emailContext(db: Db, userId: string, link: string): Promise<Email
 export async function flushOutbox(limit = 25): Promise<{ sent: number; skipped: number; failed: number }> {
   const e = env()
   const db = createAdminClient()
-  const resend = e.RESEND_API_KEY ? new Resend(e.RESEND_API_KEY) : null
+  const transport = mailTransport().kind
   const result = { sent: 0, skipped: 0, failed: 0 }
 
   const { data: queue, error } = await db
@@ -96,23 +96,21 @@ export async function flushOutbox(limit = 25): Promise<{ sent: number; skipped: 
     })
     const { subject, html, text } = composeEmail({ kind: n.kind, title: n.title, body: n.body, link, c: ctx, siteOrigin: new URL(link).origin, to: row.to_email })
 
-    if (!resend) {
+    if (transport === 'none') {
       console.info(`[email:dev] to=${row.to_email} subject="${subject}" link=${link}`)
-      await db.from('email_outbox').update({ status: 'skipped', last_error: 'RESEND_API_KEY not set' }).eq('id', row.id)
+      await db.from('email_outbox').update({ status: 'skipped', last_error: 'no email service set up' }).eq('id', row.id)
       result.skipped++
       continue
     }
-    const { data, error: sendError } = await resend.emails.send(
-      { from: e.EMAIL_FROM, to: [row.to_email], subject, html, text, tags: [{ name: 'kind', value: n.kind.replace(/[^a-zA-Z0-9_-]/g, '_') }] },
-      { idempotencyKey: `outbox-${row.id}` },
-    )
-    if (sendError) {
-      await db.from('email_outbox').update({ last_error: sendError.message, status: row.attempts + 1 >= 5 ? 'failed' : 'queued' }).eq('id', row.id)
-      await logError('email', sendError.message, { to: row.to_email, kind: n.kind, attempt: row.attempts + 1 }, row.attempts + 1 >= 5 ? 'error' : 'warn')
-      result.failed++
-    } else {
-      await db.from('email_outbox').update({ status: 'sent', sent_at: new Date().toISOString(), provider_id: data?.id ?? null }).eq('id', row.id)
+    try {
+      const providerId = await sendMail({ to: row.to_email, subject, html, text, tag: n.kind, idempotencyKey: `outbox-${row.id}` })
+      await db.from('email_outbox').update({ status: 'sent', sent_at: new Date().toISOString(), provider_id: providerId }).eq('id', row.id)
       result.sent++
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      await db.from('email_outbox').update({ last_error: message, status: row.attempts + 1 >= 5 ? 'failed' : 'queued' }).eq('id', row.id)
+      await logError('email', message, { to: row.to_email, kind: n.kind, attempt: row.attempts + 1, via: transport }, row.attempts + 1 >= 5 ? 'error' : 'warn')
+      result.failed++
     }
   }
   return result

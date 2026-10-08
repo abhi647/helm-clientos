@@ -9,6 +9,13 @@ const schema = z.object({
   SUPABASE_SECRET_KEY: z.string().min(20),
   RESEND_API_KEY: z.string().optional().default(''),
   EMAIL_FROM: z.string().default('Seven Billion <updates@example.com>'),
+  // where replies go (a mailbox someone reads); empty: replies go to the From address
+  EMAIL_REPLY_TO: z.string().optional().default(''),
+  // optional: send from a Microsoft 365 mailbox through Microsoft Graph instead of Resend (see README, Email delivery)
+  MS_TENANT_ID: z.string().optional().default(''),
+  MS_CLIENT_ID: z.string().optional().default(''),
+  MS_CLIENT_SECRET: z.string().optional().default(''),
+  MS_SENDER: z.string().optional().default(''),
   CRON_SECRET: z.string().min(16),
   HUBSPOT_WEBHOOK_SECRET: z.string().optional().default(''),
   HUBSPOT_ACCESS_TOKEN: z.string().optional().default(''),
