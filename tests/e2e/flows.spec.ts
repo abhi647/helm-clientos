@@ -731,6 +731,38 @@ test('time to billing: logged, returned and approved, then billed once on the st
   await expect(page.locator('.card', { hasText: 'My time' }).locator('.row', { hasText: 'Management Reporting' }).getByText('Billed', { exact: true })).toBeVisible()
 })
 
+test('billed as: the PM attaches rate card lines to a phase and a task by name, never seeing a rate', async ({ page }) => {
+  await signIn(page, 'rahul@example.com')
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Management Reporting' }).click()
+  // the lines of the approved card, by name; no amounts on the plan
+  const phaseRow = page.locator('summary').filter({ has: page.getByLabel(/ billed as$/) }).first()
+  const phaseSelect = phaseRow.getByLabel(/ billed as$/)
+  await expect(phaseSelect.locator('option')).toHaveText(['Not billed separately', 'Engineer'])
+  await phaseSelect.selectOption({ label: 'Engineer' })
+  await page.waitForLoadState('networkidle')
+  await expect(page.getByText(/EUR|100\.00/)).toHaveCount(0)
+
+  // a task with no line of its own uses its phase's
+  await page.getByRole('link', { name: /: Plan$/ }).first().click()
+  const panel = page.getByRole('complementary', { name: 'Task details' })
+  await page.waitForLoadState('networkidle')
+  await expect(panel.getByText(/Uses the phase's line: Engineer|Days use the line the person is named on/)).toBeVisible()
+  await panel.getByLabel('Task billed as').selectOption({ label: 'Engineer' })
+  await page.waitForLoadState('networkidle')
+  await page.reload()
+  await expect(panel.getByLabel('Task billed as')).toHaveValue(/[0-9a-f-]{36}/)
+  await shot(page, '46-billed-as')
+
+  // days on this task are approved and billed: the PM can no longer change its line
+  await page.getByRole('link', { name: /: Build$/ }).first().click()
+  await expect(panel.getByText('1.5 days logged', { exact: false })).toBeVisible()
+  await page.waitForLoadState('networkidle')
+  await panel.getByLabel('Task billed as').selectOption({ label: 'Engineer' })
+  await expect(panel.getByText(/only finance, an admin or the CEO can change what it is billed as/)).toBeVisible()
+  await expect(panel.getByLabel('Task billed as')).toHaveValue('')
+})
+
 test('admin previews and runs the HubSpot + Zoho import', async ({ page }) => {
   test.setTimeout(180_000)
   await signIn(page, 'admin@example.com')

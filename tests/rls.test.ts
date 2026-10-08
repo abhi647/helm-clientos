@@ -1130,3 +1130,101 @@ describe('subtasks', () => {
     expect(log!.map((l) => l.summary)).toEqual(['deleted the task Sales dashboard and its 1 subtasks'])
   })
 })
+
+describe('billed as: rate card lines on phases and tasks', () => {
+  let project: string, buildPhase: string, opsPhase: string, engineer: string, bi: string, report: string
+  let taskA: string, taskB: string, taskC: string, sub: string, taskD: string, sahilId: string, rahulTask: string
+  const day = (d: number) => `2026-12-${String(d).padStart(2, '0')}`
+
+  beforeAll(async () => {
+    sahilId = (await service.from('profiles').select('id').eq('email', 'sahil@example.com').single()).data!.id
+    const rahulId = (await service.from('profiles').select('id').eq('email', 'rahul@example.com').single()).data!.id
+    project = (await service.from('projects').insert({ customer_id: nesma, name: 'Billed-as project', pm_id: rahulId }).select('id').single()).data!.id
+    const card = (await service.from('rate_cards').insert({ project_id: project, customer_id: nesma, status: 'approved', currency: 'EUR' }).select('id').single()).data!.id
+    const lines = (await service.from('rate_card_lines').insert([
+      { rate_card_id: card, customer_id: nesma, kind: 'day_rate', label: 'Data engineer', unit: 'day', rate: 1, planned_quantity: 1, position: 0 },
+      { rate_card_id: card, customer_id: nesma, kind: 'day_rate', label: 'BI developer', unit: 'day', rate: 1, planned_quantity: 1, position: 1 },
+      { rate_card_id: card, customer_id: nesma, kind: 'unit', label: 'Monthly report', unit: 'monthly report', rate: 1, planned_quantity: 2, position: 2 },
+    ]).select('id, label')).data!
+    engineer = lines.find((l) => l.label === 'Data engineer')!.id
+    bi = lines.find((l) => l.label === 'BI developer')!.id
+    report = lines.find((l) => l.label === 'Monthly report')!.id
+    await service.from('rate_line_people').insert({ rate_card_line_id: engineer, profile_id: sahilId, customer_id: nesma })
+    const phases = (await service.from('phases').insert([
+      { project_id: project, customer_id: nesma, name: 'Build', position: 0 },
+      { project_id: project, customer_id: nesma, name: 'Operate', position: 1 },
+    ]).select('id, name')).data!
+    buildPhase = phases.find((p) => p.name === 'Build')!.id
+    opsPhase = phases.find((p) => p.name === 'Operate')!.id
+    const tasks = (await service.from('tasks').insert([
+      { project_id: project, phase_id: buildPhase, customer_id: nesma, title: 'Pipelines', assignee_id: sahilId, position: 0 },
+      { project_id: project, phase_id: buildPhase, customer_id: nesma, title: 'Dashboards', assignee_id: sahilId, position: 1 },
+      { project_id: project, phase_id: opsPhase, customer_id: nesma, title: 'Support', assignee_id: sahilId, position: 0 },
+      { project_id: project, phase_id: opsPhase, customer_id: nesma, title: 'October report', assignee_id: sahilId, position: 1 },
+      { project_id: project, phase_id: opsPhase, customer_id: nesma, title: 'Rahul task', assignee_id: rahulId, position: 2 },
+    ]).select('id, title')).data!
+    const t = (title: string) => tasks.find((x) => x.title === title)!.id
+    taskA = t('Pipelines'); taskB = t('Dashboards'); taskC = t('Support'); taskD = t('October report'); rahulTask = t('Rahul task')
+    sub = (await service.from('tasks').insert({ project_id: project, customer_id: nesma, parent_id: taskA, title: 'Ingest orders', assignee_id: sahilId }).select('id').single()).data!.id
+    await service.from('task_estimates').insert({ task_id: taskD, customer_id: nesma, estimate: 1, unit: 'monthly report' })
+  })
+  afterAll(async () => {
+    await service.from('time_entries').delete().in('task_id', [taskA, taskB, taskC, sub])
+    await service.from('billing_statements').delete().eq('project_id', project)
+    await service.from('projects').delete().eq('id', project)
+  })
+
+  it('the team sees line names without rates; customers see none', async () => {
+    for (const c of [rahul, sahil]) {
+      const { data, error } = await c.rpc('billing_lines', { p_project: project })
+      expect(error).toBeNull()
+      expect(data!.map((l: { label: string }) => l.label)).toEqual(['Data engineer', 'BI developer', 'Monthly report'])
+      expect(Object.keys(data![0]!)).not.toContain('rate')
+    }
+    expect((await rahul.from('rate_card_lines').select('rate').eq('id', engineer)).data).toHaveLength(0)
+    expect((await michel.rpc('billing_lines', { p_project: project })).data ?? []).toHaveLength(0)
+  })
+
+  it('the PM links phases and tasks; a consultant only tasks they own; never a subtask or another project\'s line', async () => {
+    expect((await rahul.rpc('set_billed_as', { p_task: null, p_phase: buildPhase, p_line: bi })).error).toBeNull()
+    expect((await sahil.rpc('set_billed_as', { p_task: taskA, p_phase: null, p_line: engineer })).error).toBeNull()
+    expect((await sahil.rpc('set_billed_as', { p_task: rahulTask, p_phase: null, p_line: engineer })).error?.message).toMatch(/not allowed/)
+    expect((await sahil.rpc('set_billed_as', { p_task: null, p_phase: opsPhase, p_line: engineer })).error?.message).toMatch(/not allowed/)
+    expect((await michel.rpc('set_billed_as', { p_task: taskA, p_phase: null, p_line: engineer })).error).not.toBeNull()
+    expect((await rahul.rpc('set_billed_as', { p_task: sub, p_phase: null, p_line: engineer })).error?.message).toMatch(/subtasks are billed through their task/)
+    // a line from another project's card
+    const elsewhere = (await service.from('projects').insert({ customer_id: nesma, name: 'Billed-as other project' }).select('id').single()).data!.id
+    const otherCard = (await service.from('rate_cards').insert({ project_id: elsewhere, customer_id: nesma, status: 'draft' }).select('id').single()).data!.id
+    const other = (await service.from('rate_card_lines').insert({ rate_card_id: otherCard, customer_id: nesma, kind: 'day_rate', label: 'Elsewhere', unit: 'day', rate: 1 }).select('id').single()).data!.id
+    expect((await rahul.rpc('set_billed_as', { p_task: taskB, p_phase: null, p_line: other })).error?.message).toMatch(/not on this project/)
+    await service.from('projects').delete().eq('id', elsewhere)
+    expect((await rahul.rpc('set_billed_as', { p_task: taskD, p_phase: null, p_line: report })).error).toBeNull()
+  })
+
+  it('days bill on the task\'s line (subtasks through their task), else the phase\'s, else the person\'s; done tasks fill unit lines', async () => {
+    const log = (task: string, d: number, days: number) => ({ task_id: task, customer_id: nesma, user_id: sahilId, days, worked_on: day(d), billable: true, approved_at: new Date().toISOString() })
+    await service.from('time_entries').insert([log(taskA, 1, 1), log(sub, 1, 0.5), log(taskB, 2, 0.75), log(taskC, 3, 0.25)])
+    await service.from('tasks').update({ status: 'done', completed_at: `${day(5)}T10:00:00Z` }).eq('id', taskD)
+    const { data: st, error } = await finance.rpc('create_statement', { p_project: project, p_start: day(1), p_end: day(31) })
+    expect(error).toBeNull()
+    const { data: lines } = await service.from('statement_lines').select('label, quantity, note').eq('statement_id', st as string).order('position')
+    // Pipelines 1 + its subtask 0.5 + Support 0.25 (no line on task or phase: Sahil is named on Data engineer)
+    expect(lines!.map((l) => [l.label, Number(l.quantity)])).toEqual([['Data engineer', 1.75], ['BI developer', 0.75], ['Monthly report', 1]])
+    expect(lines![2]!.note).toBe('From tasks done: October report')
+
+    // approved: the days and the report are billed on it, and never again
+    await service.from('billing_statements').update({ status: 'approved' }).eq('id', st as string)
+    expect((await service.from('tasks').select('statement_id').eq('id', taskD).single()).data!.statement_id).toBe(st)
+    const { data: again } = await finance.rpc('create_statement', { p_project: project, p_start: day(1), p_end: day(31) })
+    const { data: lines2 } = await service.from('statement_lines').select('quantity').eq('statement_id', again as string)
+    expect(lines2!.every((l) => Number(l.quantity) === 0)).toBe(true)
+  })
+
+  it('once days are approved, only finance, an admin or the CEO can change what the work is billed as', async () => {
+    expect((await sahil.rpc('set_billed_as', { p_task: taskA, p_phase: null, p_line: bi })).error?.message).toMatch(/only finance, an admin or the CEO/)
+    expect((await rahul.rpc('set_billed_as', { p_task: null, p_phase: buildPhase, p_line: engineer })).error?.message).toMatch(/only finance, an admin or the CEO/)
+    expect((await finance.rpc('set_billed_as', { p_task: taskA, p_phase: null, p_line: bi })).error).toBeNull()
+    expect((await rahul.from('tasks').update({ statement_id: null }).eq('id', taskD).select('id')).error?.message ?? '').toMatch(/billed and stays|permission|not allowed|^$/)
+    expect((await service.from('tasks').select('statement_id').eq('id', taskD).single()).data!.statement_id).not.toBeNull()
+  })
+})

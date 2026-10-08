@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { deletePhase, deleteTask } from '@/app/_actions/delete'
-import { createTask, logTime, setSpotlight, setTaskStatus, setTaskOwner } from '@/app/_actions/work'
+import { createTask, logTime, setBilledAs, setSpotlight, setTaskStatus, setTaskOwner } from '@/app/_actions/work'
 import { ActionButton, ActionForm, StatusSelect } from '@/components/forms'
 import { Thread } from '@/components/thread'
 import { Avatar, Chip, TaskStatusChip, Visibility, cn } from '@/components/ui'
@@ -23,13 +23,14 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
   const openOnly = sp.open === '1'
   const q = (sp.q ?? '').trim().toLowerCase()
   const supabase = await createClient()
-  const [{ data: project }, { data: phases }, { data: tasks }, { data: time }, { data: comments }, { data: units }] = await Promise.all([
+  const [{ data: project }, { data: phases }, { data: tasks }, { data: time }, { data: comments }, { data: units }, { data: lines }] = await Promise.all([
     supabase.from('projects').select('id, customer_id, pm_id').eq('id', id).single(),
     supabase.from('phases').select('*').eq('project_id', id).order('position'),
     supabase.from('tasks').select('*, assignee:profiles!tasks_assignee_id_fkey(id, full_name, kind), task_estimates(estimate, unit), request:requests(id, number)').eq('project_id', id).order('position'),
     supabase.from('time_entries').select('task_id, days').in('task_id', (await supabase.from('tasks').select('id').eq('project_id', id)).data?.map((t) => t.id) ?? []),
     supabase.from('comments').select('entity_id').eq('entity_type', 'task'),
     supabase.rpc('effort_units', { p_project: id }),   // the project's billing units: effort is estimated in these
+    supabase.rpc('billing_lines', { p_project: id }),  // rate card line names (no rates) for "Billed as"
   ])
   if (!project) return null
   const people = (await supabase.from('profiles').select('id, full_name, kind').or(`kind.eq.internal,customer_id.eq.${project.customer_id}`).order('kind').order('full_name')).data ?? []
@@ -68,6 +69,10 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
     const s = next.toString()
     return `/projects/${id}${s ? `?${s}` : ''}`
   }
+  // "Billed as": the lines of the project's rate card, by name only (PMs and consultants never see rates)
+  const lineName = new Map((lines ?? []).map((l) => [l.id, l.label]))
+  const billedOptions = [{ value: '', label: 'Not billed separately' }, ...(lines ?? []).filter((l) => l.current).map((l) => ({ value: l.id, label: l.label }))]
+  const withCurrent = (v: string | null) => (v && !billedOptions.some((o) => o.value === v) ? [...billedOptions, { value: v, label: `${lineName.get(v) ?? 'Earlier line'} (earlier rate card)` }] : billedOptions)
   const statusOptions = (Object.keys(TASK_STATUS) as Enums<'task_status'>[]).map((v) => ({ value: v, label: TASK_STATUS[v] }))
 
   // one plan row: a task (with its accordion arrow when it can open) or a subtask under it
@@ -83,6 +88,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
             )}
             <span aria-hidden className={cn('size-[13px] flex-none rounded-sm', t.status === 'done' ? 'bg-good' : 'border-[1.5px] border-[#b9c4c8]')} />
             <Link href={link({ task: t.id })} className={cn('truncate no-underline hover:underline', t.status === 'done' ? 'text-muted' : sub ? 'text-ink' : 'font-medium text-ink')}>{t.title}</Link>
+            {!preview && t.rate_line_id ? <span className="flex-none rounded bg-head px-1.5 text-[11px] text-muted" title="Billed as">{lineName.get(t.rate_line_id) ?? 'Billed'}</span> : null}
             {kids.length ? <span className="flex-none text-[11px] text-muted" title="Subtasks done">{kids.filter((k) => k.status === 'done').length}/{kids.length} subtasks</span> : null}
             {commentCount.get(t.id) ? <span className="text-[11px] text-muted">{commentCount.get(t.id)} comments</span> : null}
           </span>
@@ -159,7 +165,10 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                       <span>{phase.name}</span><span className="text-xs font-normal text-muted">{pts.length} tasks</span>
                       <span className="h-1 w-14 overflow-hidden rounded-full bg-line"><span className="block h-full bg-info" style={{ width: `${pct}%` }} /></span>
                     </span>
-                    <span className="text-xs font-normal text-muted">{pct}% done</span><span />
+                    <span className="text-xs font-normal text-muted">{pct}% done</span>
+                    <span className="font-normal">{!preview && lines?.length ? (
+                      <StatusSelect key={`ph-${phase.id}-${phase.rate_line_id ?? ''}`} label={`${phase.name} billed as`} value={phase.rate_line_id ?? ''} options={withCurrent(phase.rate_line_id)} onChange={setBilledAs.bind(null, 'phase', phase.id)} />
+                    ) : null}</span>
                     <span className="font-mono text-xs font-normal text-muted">{shortDate(allPhase[0]?.start_date)}</span>
                     <span className="font-mono text-xs font-normal text-muted">{shortDate(allPhase.at(-1)?.due_date)}</span>
                     {!preview ? <><span className="text-right font-mono text-xs">{effortPhase.reduce((a, t) => a + est(t), 0) || ''}</span><span className="text-right font-mono text-xs">{effortPhase.reduce((a, t) => a + (logged.get(t.id) ?? 0), 0) || ''}</span></> : null}
@@ -241,6 +250,17 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                 <dt className="text-muted">Owner</dt><dd className="m-0">{sel.assignee?.full_name ?? 'Unassigned'} · {sel.owner_side === 'customer' ? 'Customer' : 'Seven Billion'}</dd>
                 {sel.request ? <><dt className="text-muted">Request</dt><dd className="m-0"><Link href={`/requests/${sel.request.id}`} className="font-mono">{sel.request.number}</Link></dd></> : null}
                 <dt className="text-muted">Start → Due</dt><dd className="m-0 font-mono">{shortDate(sel.start_date)} → {shortDate(sel.due_date)}</dd>
+                {!preview && lines?.length ? <><dt className="text-muted">Billed as</dt><dd className="m-0">
+                  {sel.parent_id ? <span className="text-muted">Through its task{selParent?.rate_line_id ? `: ${lineName.get(selParent.rate_line_id)}` : ''}</span> : (
+                    <span className="flex flex-col gap-1">
+                      <StatusSelect key={`bill-${sel.id}-${sel.rate_line_id ?? ''}`} label="Task billed as" value={sel.rate_line_id ?? ''} options={withCurrent(sel.rate_line_id)} onChange={setBilledAs.bind(null, 'task', sel.id)} />
+                      {!sel.rate_line_id ? <span className="text-xs text-muted">{(() => {
+                        const ph = phases?.find((p) => p.id === sel.phase_id)
+                        return ph?.rate_line_id ? `Uses the phase's line: ${lineName.get(ph.rate_line_id)}` : 'Days use the line the person is named on'
+                      })()}</span> : null}
+                    </span>
+                  )}
+                </dd></> : null}
                 {!preview ? <><dt className="text-muted">Effort</dt><dd className="m-0 font-mono">{effort(logged.get(sel.id) ?? 0)} logged · estimate {est(sel) ? effort(est(sel), unitOf(sel)) : '–'}</dd></> : null}
               </dl>
               {sel.description ? <p className="m-0 text-[13px] leading-relaxed">{sel.description}</p> : null}

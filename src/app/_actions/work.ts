@@ -32,6 +32,20 @@ export async function setTaskOwner(taskId: string, assigneeId: string): Promise<
   return error ? dbFail(error) : done(assigneeId ? 'Owner changed. They have been notified.' : 'Task unassigned.')
 }
 
+/**
+ * What a task or a phase is billed as: a line of the project's rate card, by name (or '' for none). Who may change
+ * it, and when it is locked, is decided in the database. Subtasks are billed through their task.
+ */
+export async function setBilledAs(on: 'task' | 'phase', id: string, lineId: string): Promise<ActionResult> {
+  await requireStaff()
+  if (!uuid.safeParse(id).success || (lineId && !uuid.safeParse(lineId).success)) return fail('Unknown line.')
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('set_billed_as', {
+    p_task: on === 'task' ? id : null, p_phase: on === 'phase' ? id : null, p_line: lineId || null,
+  } as never)
+  return error ? dbFail(error) : done()
+}
+
 export async function setSpotlight(taskId: string, spotlight: boolean): Promise<ActionResult> {
   await requireStaff()
   const supabase = await createClient()

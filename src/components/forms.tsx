@@ -149,10 +149,14 @@ export function StatusSelect<T extends string>({ value, options, onChange, label
   return (
     <span className="inline-flex items-center gap-1">
       <select aria-label={label} disabled={pending} defaultValue={value} className="input h-7 py-0 text-xs"
-        onChange={(e) => start(async () => {
-          const res = await onChange(e.target.value as T)
-          setError(res.ok ? null : res.error)
-        })}>
+        onChange={(e) => {
+          const el = e.target
+          start(async () => {
+            const res = await onChange(el.value as T)
+            setError(res.ok ? null : res.error)
+            if (!res.ok) el.value = value   // refused: show what is still saved
+          })
+        }}>
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       {error ? <span role="alert" className="text-xs text-crit-ink">{error}</span> : null}

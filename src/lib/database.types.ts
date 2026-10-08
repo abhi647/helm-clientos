@@ -1065,13 +1065,13 @@ isOneToOne: false
                   ]
                 },"phases": {
                   Row: {
-                    "customer_id": string,"end_date": string | null,"id": string,"name": string,"position": number,"project_id": string,"start_date": string | null,"visibility": Database["public"]['Enums']["visibility"]
+                    "customer_id": string,"end_date": string | null,"id": string,"name": string,"position": number,"project_id": string,"rate_line_id": string | null,"start_date": string | null,"visibility": Database["public"]['Enums']["visibility"]
                   }
                   Insert: {
-                    "customer_id": string,"end_date"?: string | null,"id"?: string,"name": string,"position"?: number,"project_id": string,"start_date"?: string | null,"visibility"?: Database["public"]['Enums']["visibility"]
+                    "customer_id": string,"end_date"?: string | null,"id"?: string,"name": string,"position"?: number,"project_id": string,"rate_line_id"?: string | null,"start_date"?: string | null,"visibility"?: Database["public"]['Enums']["visibility"]
                   }
                   Update: {
-                    "customer_id"?: string,"end_date"?: string | null,"id"?: string,"name"?: string,"position"?: number,"project_id"?: string,"start_date"?: string | null,"visibility"?: Database["public"]['Enums']["visibility"]
+                    "customer_id"?: string,"end_date"?: string | null,"id"?: string,"name"?: string,"position"?: number,"project_id"?: string,"rate_line_id"?: string | null,"start_date"?: string | null,"visibility"?: Database["public"]['Enums']["visibility"]
                   }
                   Relationships: [
                     {
@@ -1097,6 +1097,12 @@ isOneToOne: false
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "phases_rate_line_id_fkey"
+      columns: ["rate_line_id"]
+isOneToOne: false
+      referencedRelation: "rate_card_lines"
       referencedColumns: ["id"]
     }
                   ]
@@ -1600,13 +1606,13 @@ isOneToOne: true
                   ]
                 },"tasks": {
                   Row: {
-                    "assignee_id": string | null,"completed_at": string | null,"created_at": string,"created_by": string | null,"customer_id": string,"description": string,"due_date": string | null,"id": string,"owner_side": Database["public"]['Enums']["owner_side"],"parent_id": string | null,"phase_id": string | null,"position": number,"project_id": string,"request_id": string | null,"spotlight": boolean,"start_date": string | null,"status": Database["public"]['Enums']["task_status"],"title": string,"updated_at": string,"visibility": Database["public"]['Enums']["visibility"]
+                    "assignee_id": string | null,"completed_at": string | null,"created_at": string,"created_by": string | null,"customer_id": string,"description": string,"due_date": string | null,"id": string,"owner_side": Database["public"]['Enums']["owner_side"],"parent_id": string | null,"phase_id": string | null,"position": number,"project_id": string,"rate_line_id": string | null,"request_id": string | null,"spotlight": boolean,"start_date": string | null,"statement_id": string | null,"status": Database["public"]['Enums']["task_status"],"title": string,"updated_at": string,"visibility": Database["public"]['Enums']["visibility"]
                   }
                   Insert: {
-                    "assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"customer_id": string,"description"?: string,"due_date"?: string | null,"id"?: string,"owner_side"?: Database["public"]['Enums']["owner_side"],"parent_id"?: string | null,"phase_id"?: string | null,"position"?: number,"project_id": string,"request_id"?: string | null,"spotlight"?: boolean,"start_date"?: string | null,"status"?: Database["public"]['Enums']["task_status"],"title": string,"updated_at"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
+                    "assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"customer_id": string,"description"?: string,"due_date"?: string | null,"id"?: string,"owner_side"?: Database["public"]['Enums']["owner_side"],"parent_id"?: string | null,"phase_id"?: string | null,"position"?: number,"project_id": string,"rate_line_id"?: string | null,"request_id"?: string | null,"spotlight"?: boolean,"start_date"?: string | null,"statement_id"?: string | null,"status"?: Database["public"]['Enums']["task_status"],"title": string,"updated_at"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
                   }
                   Update: {
-                    "assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"customer_id"?: string,"description"?: string,"due_date"?: string | null,"id"?: string,"owner_side"?: Database["public"]['Enums']["owner_side"],"parent_id"?: string | null,"phase_id"?: string | null,"position"?: number,"project_id"?: string,"request_id"?: string | null,"spotlight"?: boolean,"start_date"?: string | null,"status"?: Database["public"]['Enums']["task_status"],"title"?: string,"updated_at"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
+                    "assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"customer_id"?: string,"description"?: string,"due_date"?: string | null,"id"?: string,"owner_side"?: Database["public"]['Enums']["owner_side"],"parent_id"?: string | null,"phase_id"?: string | null,"position"?: number,"project_id"?: string,"rate_line_id"?: string | null,"request_id"?: string | null,"spotlight"?: boolean,"start_date"?: string | null,"statement_id"?: string | null,"status"?: Database["public"]['Enums']["task_status"],"title"?: string,"updated_at"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
                   }
                   Relationships: [
                     {
@@ -1670,10 +1676,22 @@ isOneToOne: false
       referencedRelation: "projects_internal"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "tasks_rate_line_id_fkey"
+      columns: ["rate_line_id"]
+isOneToOne: false
+      referencedRelation: "rate_card_lines"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "tasks_request_id_fkey"
       columns: ["request_id"]
 isOneToOne: false
       referencedRelation: "requests"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tasks_statement_id_fkey"
+      columns: ["statement_id"]
+isOneToOne: false
+      referencedRelation: "billing_statements"
       referencedColumns: ["id"]
     }
                   ]
@@ -1926,6 +1944,11 @@ isOneToOne: false
 "archive_document":
 { Args: { "p_archive": boolean,"p_document": string }; Returns: undefined
                            },
+"billing_lines":
+{ Args: { "p_project": string }; Returns: {
+              "current": boolean,"id": string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"unit": string
+            }[]
+                           },
 "complete_action_item":
 { Args: { "p_action": string }; Returns: undefined
                            },
@@ -2022,6 +2045,9 @@ isOneToOne: false
                            },
 "set_access":
 { Args: { "p_revoked": boolean,"p_user": string }; Returns: undefined
+                           },
+"set_billed_as":
+{ Args: { "p_line": string,"p_phase": string,"p_task": string }; Returns: undefined
                            },
 "set_consultants_see_own_customers":
 { Args: { "p_on": boolean }; Returns: undefined
