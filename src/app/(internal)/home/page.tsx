@@ -57,12 +57,14 @@ export default async function Home() {
           <GreetingChip><b className="font-mono">{counts.approvals}</b> approvals with customers</GreetingChip>
         </>} />
 
-      <div className="card grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
-        <Stat label="Projects at risk" value={counts.atRisk} sub={`of ${rows.length}`} tone={counts.atRisk ? 'crit' : undefined} />
-        <Stat label="Critical requests" value={counts.critical} />
-        <Stat label="Customer overdue" value={counts.customerOverdue} sub="dependencies" tone={counts.customerOverdue ? 'warn' : undefined} />
-        <Stat label="Invoices > 30 days" value={counts.invoices30} tone={counts.invoices30 ? 'crit' : undefined} />
-        <Stat label="Approvals pending" value={counts.approvals} />
+      {/* meters: green when all is well, amber when something needs a look, red when it needs action */}
+      <div className="card grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] overflow-hidden">
+        <Stat label="Projects healthy" value={`${counts.healthy}/${rows.length}`} sub={counts.atRisk ? `${counts.atRisk} at risk` : undefined} href="/projects"
+          pct={rows.length ? (100 * counts.healthy) / rows.length : 0} tone={counts.atRisk ? 'crit' : counts.healthy < rows.length ? 'warn' : 'good'} />
+        <Stat label="Critical requests" value={counts.critical} href="/requests" tone={counts.critical ? 'crit' : 'good'} />
+        <Stat label="Customer overdue" value={counts.customerOverdue} sub="dependencies" tone={counts.customerOverdue ? 'warn' : 'good'} />
+        <Stat label="Invoices > 30 days" value={counts.invoices30} tone={counts.invoices30 ? 'crit' : 'good'} />
+        <Stat label="Approvals pending" value={counts.approvals} sub="with customers" href="/requests" tone={counts.approvals ? 'info' : 'neutral'} />
       </div>
 
       {canManage(me) && setups.data?.length ? (

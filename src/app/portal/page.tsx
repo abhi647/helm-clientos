@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/server'
 import { OpenSurveys } from '@/components/csat-open'
 import { YourTeam } from '@/components/your-team'
 import { ExecHome } from './exec-home'
+import { PortalMeters } from '@/components/portal-meters'
 
 export const metadata: Metadata = { title: 'Home' }
 
@@ -68,6 +69,7 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
           {nextMilestones[0] ? <GreetingChip>Next: <b>{nextMilestones[0].title}, {shortDate(nextMilestones[0].due_date)}</b></GreetingChip> : null}
           {contact ? <GreetingChip>Your contact: <b>{contact}</b></GreetingChip> : null}
         </>} />
+      <PortalMeters me={me} />
       <OpenSurveys me={me} />
 
       <div className="flex flex-wrap items-start gap-3.5">

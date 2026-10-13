@@ -4,7 +4,7 @@ import { deletePhase, deleteTask } from '@/app/_actions/delete'
 import { createTask, logTime, setBilledAs, setSpotlight, setTaskStatus, setTaskOwner } from '@/app/_actions/work'
 import { ActionButton, ActionForm, StatusSelect } from '@/components/forms'
 import { Thread } from '@/components/thread'
-import { Avatar, Chip, TaskStatusChip, Visibility, cn } from '@/components/ui'
+import { Avatar, Chip, StatusLegend, TASK_STRIPE, TaskStatusChip, Visibility, cn } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
 import { TASK_STATUS, isOverdue, shortDate, effort, effortShort } from '@/lib/format'
 import { EffortInput } from '@/components/effort-input'
@@ -75,6 +75,8 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
   const withCurrent = (v: string | null) => (v && !billedOptions.some((o) => o.value === v) ? [...billedOptions, { value: v, label: `${lineName.get(v) ?? 'Earlier line'} (earlier rate card)` }] : billedOptions)
   const statusOptions = (Object.keys(TASK_STATUS) as Enums<'task_status'>[]).map((v) => ({ value: v, label: TASK_STATUS[v] }))
 
+  // each row's left edge carries the colour of its state (see the legend)
+  const stripe = (t: (typeof all)[number]) => cn('border-l-[3px]', TASK_STRIPE[t.status !== 'done' && isOverdue(t.due_date) ? 'overdue' : t.status])
   // one plan row: a task (with its accordion arrow when it can open) or a subtask under it
     const cells = (t: (typeof all)[number], sub: boolean, toggle = false) => {
       const kids = sub ? [] : (subsOf.get(t.id) ?? []).filter((k) => !preview || k.visibility === 'shared')
@@ -142,6 +144,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
         </details>
       </div>
       {preview ? <p className="m-0 rounded-md bg-shared-bg px-2.5 py-1.5 text-xs font-medium text-link">Customer preview: this is what the customer sees. Internal tasks, effort and time are hidden.</p> : null}
+      <StatusLegend />
 
       <div className="flex flex-wrap items-start gap-3">
         <div className="card min-w-0 flex-[999_1_640px] overflow-x-auto">
@@ -163,9 +166,9 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                     <span className="flex items-center gap-2">
                       <span aria-hidden className="w-4 flex-none text-center text-[10px] text-muted transition-transform group-open/phase:rotate-90">▶</span>
                       <span>{phase.name}</span><span className="text-xs font-normal text-muted">{pts.length} tasks</span>
-                      <span className="h-1 w-14 overflow-hidden rounded-full bg-line"><span className="block h-full bg-info" style={{ width: `${pct}%` }} /></span>
+                      <span className="h-1.5 w-16 overflow-hidden rounded-full bg-line"><span className={cn('block h-full rounded-full', pct === 100 ? 'bg-good' : 'bg-info')} style={{ width: `${pct}%` }} /></span>
                     </span>
-                    <span className="flex items-center gap-1.5 text-xs font-normal text-muted">
+                    <span className="flex items-center gap-1.5 text-xs font-normal whitespace-nowrap text-muted">
                       {/* a phase's state comes from its tasks and subtasks */}
                       {(() => {
                         const work = inPhase.filter((t) => t.phase_id === phase.id)
@@ -188,12 +191,12 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                     // a task opens like a phase: its subtasks, then a line to add one
                     const toggle = !preview || kids.length > 0
                     const open = Boolean(q && shownKids.length) || (!!sel && (sel.id === t.id || sel.parent_id === t.id))
-                    if (!toggle) return <div key={t.id} className={cn('row', cols, sel?.id === t.id ? 'bg-selected' : 'hover:bg-head')}>{cells(t, false)}</div>
+                    if (!toggle) return <div key={t.id} className={cn('row', cols, stripe(t), sel?.id === t.id ? 'bg-selected' : 'hover:bg-head')}>{cells(t, false)}</div>
                     return (
                       <details key={t.id} open={open} className="group/task">
-                        <summary className={cn('row cursor-pointer list-none', cols, sel?.id === t.id ? 'bg-selected' : 'hover:bg-head')}>{cells(t, false, true)}</summary>
+                        <summary className={cn('row cursor-pointer list-none', cols, stripe(t), sel?.id === t.id ? 'bg-selected' : 'hover:bg-head')}>{cells(t, false, true)}</summary>
                         {shownKids.map((k) => (
-                          <div key={k.id} className={cn('row', cols, sel?.id === k.id ? 'bg-selected' : 'hover:bg-head')}>{cells(k, true)}</div>
+                          <div key={k.id} className={cn('row', cols, stripe(k), sel?.id === k.id ? 'bg-selected' : 'hover:bg-head')}>{cells(k, true)}</div>
                         ))}
                         {!preview ? (
                           <div className="row border-b border-line-soft py-1.5 pl-12">

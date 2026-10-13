@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Greeting, GreetingChip } from '@/components/shell/greeting'
-import { Card, Chip, Empty, Health, Progress, Stat } from '@/components/ui'
+import { Card, Chip, Empty, Health, Progress } from '@/components/ui'
+import { PortalMeters } from '@/components/portal-meters'
 import { daysFromToday, money, relativeTime, shortDate } from '@/lib/format'
 import type { Profile } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
@@ -9,13 +10,12 @@ import { YourTeam } from '@/components/your-team'
 /** Customer Executive home: is my engagement going to plan, and what needs a decision from me? */
 export async function ExecHome({ me, surveys }: { me: Profile; surveys?: React.ReactNode }) {
   const supabase = await createClient()
-  const [{ data: projects }, { data: progress }, { data: phases }, { data: tasks }, { data: approvals }, { data: actions }, { data: decisions }, { data: docs }, { data: updates }, { data: invoices }] = await Promise.all([
+  const [{ data: projects }, { data: progress }, { data: phases }, { data: tasks }, { data: approvals }, { data: decisions }, { data: docs }, { data: updates }, { data: invoices }] = await Promise.all([
     supabase.from('projects').select('id, name, health, end_date, pm:profiles!projects_pm_id_fkey(full_name)').eq('status', 'active').order('name'),
     supabase.from('project_progress').select('*'),
     supabase.from('phases').select('id, name, project_id, position').order('position'),
     supabase.from('tasks').select('id, title, status, due_date, phase_id, project_id, owner_side').order('due_date'),
     supabase.from('approvals').select('id, title, due_date, request_id, approver_id, approver:profiles!approvals_approver_id_fkey(full_name)').eq('status', 'pending').order('due_date'),
-    supabase.from('action_items').select('id, due_date, assignee_id').eq('status', 'open'),
     supabase.from('decisions').select('id, number, decision, decided_on').order('decided_on', { ascending: false }).limit(5),
     supabase.from('documents').select('id, name, created_at, version').order('created_at', { ascending: false }).limit(5),
     supabase.from('updates').select('project_id, published_at').eq('status', 'published').order('published_at', { ascending: false }),
@@ -27,10 +27,8 @@ export async function ExecHome({ me, surveys }: { me: Profile; surveys?: React.R
   const lastUpdate = new Map<string, string>()
   for (const u of updates ?? []) if (u.published_at && !lastUpdate.has(u.project_id)) lastUpdate.set(u.project_id, u.published_at)
   const onTrack = p.filter((x) => x.health === 'on_track').length
-  const lateOnOurSide = (actions ?? []).filter((a) => (daysFromToday(a.due_date) ?? 0) < 0).length
   const mine = (approvals ?? []).filter((a) => a.approver_id === me.id)
   const nextMilestone = t.find((x) => x.status !== 'done' && x.due_date && (daysFromToday(x.due_date) ?? -1) >= 0)
-  const overdueInv = (invoices ?? []).filter((i) => (daysFromToday(i.due_on) ?? 0) < 0)
   const first = me.full_name.split(' ')[0] ?? me.full_name
 
   return (
@@ -46,16 +44,9 @@ export async function ExecHome({ me, surveys }: { me: Profile; surveys?: React.R
           <GreetingChip><b className="font-mono">{onTrack} of {p.length}</b> on track</GreetingChip>
           {nextMilestone ? <GreetingChip>Next milestone: <b>{nextMilestone.title}, {shortDate(nextMilestone.due_date)}</b></GreetingChip> : null}
         </>} />
+      {/* the meters first; the quick check-in after them */}
+      <PortalMeters me={me} decisions={mine.length} />
       {surveys}
-
-      <Card flush className="overflow-x-auto">
-        <div className="flex min-w-[640px]">
-          <Stat label="Projects on track" value={`${onTrack}/${p.length}`} />
-          <Stat label="Decisions waiting on you" value={mine.length} tone={mine.length ? 'warn' : undefined} />
-          <Stat label="Overdue on your side" value={lateOnOurSide} tone={lateOnOurSide ? 'crit' : undefined} sub="across your team" />
-          {invoices ? <Stat label="Invoices overdue" value={overdueInv.length} tone={overdueInv.length ? 'crit' : undefined} /> : null}
-        </div>
-      </Card>
 
       <div className="flex flex-wrap items-start gap-3.5">
         <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-3.5">
