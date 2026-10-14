@@ -1,4 +1,4 @@
-// The core loops from the PRD, driven through the real UI with real magic-link sign-in (emails caught by Mailpit).
+// The core loops from the PRD, driven through the real UI with real email and password sign-in (emails caught by Mailpit).
 // Run: supabase start && npm run seed && npm run build && npm start, then npm run test:e2e
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
@@ -42,33 +42,34 @@ async function latestCode(email: string, after: number): Promise<string> {
   throw new Error(`No sign-in code for ${email}`)
 }
 
-async function signIn(page: Page, email: string) {
+const PASSWORD = process.env.SEED_PASSWORD || 'local-dev-only-password'
+
+async function signIn(page: Page, email: string, password = PASSWORD) {
   await page.context().clearCookies()
   await page.goto('/login')
-  const started = Date.now()
   await page.getByLabel('Work email').fill(email)
-  await page.getByRole('button', { name: 'Email me a sign-in link' }).click()
-  await expect(page.getByText('Check your inbox')).toBeVisible()
-  const link = await latestLink(email, started)
-  // a mail scanner (e.g. Microsoft Safe Links) opens the link first: that must not use it up
-  await page.request.get(link)
-  await page.goto(link)
-  await page.getByRole('button', { name: /^(Continue|Open your workspace)$/ }).click()
+  await page.getByLabel('Password', { exact: true }).fill(password)
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   // "/" redirects on to the right home
-  await page.waitForURL((u) => !u.pathname.startsWith('/auth') && u.pathname !== '/')
+  await page.waitForURL((u) => !u.pathname.startsWith('/login') && !u.pathname.startsWith('/auth') && u.pathname !== '/')
 }
 
 test.beforeAll(() => {
   execSync('node --env-file=.env.local scripts/seed.mjs', { stdio: 'ignore' })
 })
 
-test('unknown emails get the same answer and no link', async ({ page }) => {
+test('a wrong password says so; unknown emails get the same answer as real ones and no email', async ({ page }) => {
   await page.goto('/login')
+  await shot(page, '01-login')
+  await page.getByLabel('Work email').fill('omar@nesma.example.com')
+  await page.getByLabel('Password', { exact: true }).fill('not-the-password')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByText(/Wrong email or password/)).toBeVisible()
+  await page.getByRole('button', { name: 'Set or reset your password' }).click()
   await page.getByLabel('Work email').fill('stranger@nowhere.example.com')
-  await page.getByRole('button', { name: 'Email me a sign-in link' }).click()
+  await page.getByRole('button', { name: 'Email me a code' }).click()
   await expect(page.getByText('Check your inbox')).toBeVisible()
   await expect(page.getByText(/Helm is invite-only, so ask/)).toBeVisible()
-  await shot(page, '01-login')
 })
 
 test('customer team member: action centre', async ({ page }) => {
@@ -968,26 +969,87 @@ test('the installed app: manifest, worker and offline page load without signing 
   expect((await request.get('/brand/icon-192.png')).ok()).toBe(true)
 })
 
-test('sign in with the code from the email, and the session lasts 30 days', async ({ page }) => {
+test('first time or forgotten password: a code from the email, then a new password to sign in with; the session lasts 30 days', async ({ page }) => {
   const email = 'omar@nesma.example.com'
   await page.context().clearCookies()
   await page.goto('/login')
+  await page.getByRole('button', { name: 'Set or reset your password' }).click()
   const started = Date.now()
   await page.getByLabel('Work email').fill(email)
-  await page.getByRole('button', { name: 'Email me a sign-in link' }).click()
-  await expect(page.getByLabel('Or enter the code from the email')).toBeVisible()
+  await page.getByRole('button', { name: 'Email me a code' }).click()
+  await expect(page.getByLabel('Code from the email')).toBeVisible()
   await shot(page, '29-login-code')
   // a wrong code keeps the email and says so
-  await page.getByLabel('Or enter the code from the email').fill('000000')
-  await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.getByLabel('Code from the email').fill('000000')
+  await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByText('That code is wrong or has expired')).toBeVisible()   // not getByRole('alert'): Next adds a route announcer
   const code = await latestCode(email, started)
-  await page.getByLabel('Or enter the code from the email').fill(code)
-  await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.getByLabel('Code from the email').fill(code)
+  await page.getByRole('button', { name: 'Continue' }).click()
+  // signed in by code: a password comes first, wherever they were going
+  await expect(page).toHaveURL(/\/account\/password\?required=1/)
+  await page.goto('/portal/requests')
+  await expect(page).toHaveURL(/\/account\/password\?required=1/)
+  // too short: the browser stops it; two different passwords: Helm says so
+  await page.getByLabel('New password').fill('short')
+  await page.getByLabel('Type it again').fill('short')
+  await page.getByRole('button', { name: 'Save password and continue' }).click()
+  expect(await page.getByLabel('New password').evaluate((el) => (el as HTMLInputElement).checkValidity())).toBe(false)
+  await expect(page).toHaveURL(/\/account\/password\?required=1/)
+  await page.getByLabel('New password').fill('first long password')
+  await page.getByLabel('Type it again').fill('second long password')
+  await page.getByRole('button', { name: 'Save password and continue' }).click()
+  await expect(page.getByText('The two passwords are not the same.')).toBeVisible()
+  const fresh = 'a new e2e password 42'
+  await page.getByLabel('New password').fill(fresh)
+  await page.getByLabel('Type it again').fill(fresh)
+  await shot(page, '29b-set-password')
+  await page.getByRole('button', { name: 'Save password and continue' }).click()
+  await expect(page).toHaveURL(/\/portal\/requests$/)
+  await page.goto('/portal')
   await expect(page).toHaveURL(/\/portal$/)
   const auth = (await page.context().cookies()).filter((c) => c.name.startsWith('sb-') && c.name.includes('auth-token'))
   expect(auth.length).toBeGreaterThan(0)
   for (const c of auth) expect(c.expires * 1000 - Date.now()).toBeGreaterThan(29 * 24 * 3600 * 1000)
+  // the new password works and the old one no longer does
+  await signIn(page, email, fresh)
+  await expect(page).toHaveURL(/\/portal$/)
+  await page.context().clearCookies()
+  await page.goto('/login')
+  await page.getByLabel('Work email').fill(email)
+  await page.getByLabel('Password', { exact: true }).fill(PASSWORD)
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByText(/Wrong email or password/)).toBeVisible()
+  // and back to the seed password from the menu, for the tests after this one
+  await signIn(page, email, fresh)
+  await page.getByRole('link', { name: 'Change password' }).click()
+  await expect(page.getByRole('heading', { name: 'Change your password' })).toBeVisible()
+  await page.getByLabel('New password').fill(PASSWORD)
+  await page.getByLabel('Type it again').fill(PASSWORD)
+  await page.getByRole('button', { name: 'Save password and continue' }).click()
+  await page.waitForURL((u) => !u.pathname.startsWith('/account'))
+  await signIn(page, email)
+})
+
+test('the link in the email works too (a mail scanner cannot use it up), and also asks for a password first', async ({ page }) => {
+  const email = 'michel@nesma.example.com'
+  await page.context().clearCookies()
+  await page.goto('/login')
+  await page.getByRole('button', { name: 'Set or reset your password' }).click()
+  const started = Date.now()
+  await page.getByLabel('Work email').fill(email)
+  await page.getByRole('button', { name: 'Email me a code' }).click()
+  await expect(page.getByText('Check your inbox')).toBeVisible()
+  const link = await latestLink(email, started)
+  await page.request.get(link)   // e.g. Microsoft Safe Links opens it first
+  await page.goto(link)
+  await page.getByRole('button', { name: /^(Continue|Open your workspace)$/ }).click()
+  await expect(page).toHaveURL(/\/account\/password\?required=1/)
+  // keeping the same password is fine
+  await page.getByLabel('New password').fill(PASSWORD)
+  await page.getByLabel('Type it again').fill(PASSWORD)
+  await page.getByRole('button', { name: 'Save password and continue' }).click()
+  await expect(page).toHaveURL(/\/portal$/)
 })
 
 test.describe('on a phone', () => {

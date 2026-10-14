@@ -1,15 +1,15 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { sendMagicLink, type LoginState } from './actions'
+import { sendMagicLink, signInWithPassword, type LoginState, type PasswordState } from './actions'
 
 /** After the email is sent: open the link, or type the code from the same email (needed in the installed app). */
 function CodeForm({ email, next, error }: { email: string; next: string; error?: boolean }) {
   return (
     <div className="flex flex-col gap-3">
       <div role="status" className="rounded-md border border-line bg-head p-3 text-[13px] leading-relaxed">
-        <b>Check your inbox.</b> If <span className="font-medium">{email}</span> has access, an email with a sign-in link and a code is on its way.
+        <b>Check your inbox.</b> If <span className="font-medium">{email}</span> has access, an email with a 6-digit code is on its way. Enter it below, then choose your password.
         <span className="mt-1.5 block text-xs text-muted">
           Nothing after a few minutes? Check Junk. If you have not been invited yet, no email is sent: Helm is invite-only, so ask
           your Seven Billion contact (or your admin, if you work at Seven Billion) to invite you.
@@ -18,12 +18,12 @@ function CodeForm({ email, next, error }: { email: string; next: string; error?:
       <form action="/auth/code" method="post" className="flex flex-col gap-2.5">
         <input type="hidden" name="email" value={email} />
         <input type="hidden" name="next" value={next} />
-        <label htmlFor="code" className="label">Or enter the code from the email</label>
+        <label htmlFor="code" className="label">Code from the email</label>
         <input id="code" name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,12}" maxLength={12} autoFocus
           placeholder="123456" className="input h-11 text-center font-mono text-lg tracking-[.3em]" />
         {error ? <p role="alert" className="m-0 text-xs text-crit-ink">That code is wrong or has expired. Check the latest email, or send a new one.</p> : null}
-        <button type="submit" className="btn btn-primary h-10 text-sm">Sign in</button>
-        <a href={`/login?next=${encodeURIComponent(next)}`} className="text-center text-xs text-muted">Use a different email or send a new code</a>
+        <button type="submit" className="btn btn-primary h-10 text-sm">Continue</button>
+        <a href={`/login?next=${encodeURIComponent(next)}`} className="text-center text-xs text-muted">Back to sign in</a>
       </form>
     </div>
   )
@@ -41,9 +41,25 @@ function signInWith(provider: 'google' | 'azure', next: string) {
 }
 
 export function LoginForm({ next, codeFor, codeError }: { next: string; codeFor?: string; codeError?: boolean }) {
-  const [state, action, pending] = useActionState<LoginState, FormData>(sendMagicLink, { status: 'idle' })
+  const [reset, setReset] = useState(false)
+  const [sent, sendCode, sending] = useActionState<LoginState, FormData>(sendMagicLink, { status: 'idle' })
+  const [state, signIn, signingIn] = useActionState<PasswordState, FormData>(signInWithPassword, { status: 'idle' })
   if (codeFor) return <CodeForm email={codeFor} next={next} error={codeError} />
-  if (state.status === 'sent') return <CodeForm email={state.email!} next={next} />
+  if (sent.status === 'sent') return <CodeForm email={sent.email!} next={next} />
+  const sso = GOOGLE || MICROSOFT
+  if (reset) {
+    return (
+      <form action={sendCode} className="flex flex-col gap-2.5">
+        <input type="hidden" name="next" value={next} />
+        <p className="m-0 text-[13px] leading-relaxed">First time here, or forgot your password? We&apos;ll email you a 6-digit code, then you choose a password.</p>
+        <label htmlFor="reset-email" className="label">Work email</label>
+        <input id="reset-email" name="email" type="email" required autoComplete="email" autoFocus defaultValue={state.email} placeholder="you@company.com" className="input h-10 text-sm" />
+        {sent.status === 'error' ? <p role="alert" className="m-0 text-xs text-crit-ink">{sent.message}</p> : null}
+        <button type="submit" disabled={sending} className="btn btn-primary h-10 text-sm">{sending ? 'Sending…' : 'Email me a code'}</button>
+        <button type="button" onClick={() => setReset(false)} className="text-center text-xs text-muted">Back to sign in</button>
+      </form>
+    )
+  }
   return (
     <div className="flex flex-col gap-2.5">
       {GOOGLE ? (
@@ -58,17 +74,20 @@ export function LoginForm({ next, codeFor, codeError }: { next: string; codeFor?
           Continue with Microsoft
         </button>
       ) : null}
-      {GOOGLE || MICROSOFT ? <div className="my-1 flex items-center gap-2 text-[11px] text-muted"><span className="h-px flex-1 bg-line" />or with your work email<span className="h-px flex-1 bg-line" /></div> : null}
-      <form action={action} className="flex flex-col gap-2.5">
+      {sso ? <div className="my-1 flex items-center gap-2 text-[11px] text-muted"><span className="h-px flex-1 bg-line" />or with your email and password<span className="h-px flex-1 bg-line" /></div> : null}
+      <form action={signIn} className="flex flex-col gap-2.5">
         <input type="hidden" name="next" value={next} />
         <label htmlFor="email" className="label">Work email</label>
-        <input id="email" name="email" type="email" required autoComplete="email" autoFocus={!GOOGLE && !MICROSOFT} placeholder="you@company.com" className="input h-10 text-sm" />
+        <input id="email" name="email" type="email" required autoComplete="username" autoFocus={!sso} defaultValue={state.email} placeholder="you@company.com" className="input h-10 text-sm" />
+        <label htmlFor="password" className="label">Password</label>
+        <input id="password" name="password" type="password" required autoComplete="current-password" className="input h-10 text-sm" />
         {state.status === 'error' ? <p role="alert" className="m-0 text-xs text-crit-ink">{state.message}</p> : null}
-        <button type="submit" disabled={pending} className={GOOGLE || MICROSOFT ? 'btn h-10 text-sm' : 'btn btn-primary h-10 text-sm'}>{pending ? 'Sending…' : 'Email me a sign-in link'}</button>
+        <button type="submit" disabled={signingIn} className="btn btn-primary h-10 text-sm">{signingIn ? 'Signing in…' : 'Sign in'}</button>
       </form>
+      <button type="button" onClick={() => setReset(true)} className="text-center text-xs font-medium text-link">Set or reset your password</button>
       <p className="m-0 text-xs leading-relaxed text-muted">
-        No password needed. <b className="font-medium text-ink">Helm is invite-only:</b> sign in with the email address you were invited
-        with{GOOGLE || MICROSOFT ? ', or the Google or Microsoft account for that address' : ''}. If you don&apos;t have access yet, ask your Seven Billion contact.
+        <b className="font-medium text-ink">Helm is invite-only.</b> First time here? Use <i>Set or reset your password</i> with the email you were
+        invited with{sso ? ', or the Google or Microsoft account for that address' : ''}. No access yet? Ask your Seven Billion contact.
       </p>
     </div>
   )

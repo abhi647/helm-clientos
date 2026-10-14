@@ -2,7 +2,7 @@
 
 Helm is the client delivery workspace for Seven Billion. Internal teams run projects, requests, approvals and updates. Customers get a portal that shows only what has been shared with them.
 
-**Stack:** Next.js 16 (App Router, server actions) on **Vercel**, **Supabase** (Postgres + RLS, Auth magic links, Storage), **Resend** for notification emails, HubSpot and Zoho Books integrations.
+**Stack:** Next.js 16 (App Router, server actions) on **Vercel**, **Supabase** (Postgres + RLS, Auth with email and password, Storage), **Resend** for notification emails, HubSpot and Zoho Books integrations.
 
 ## How it is put together
 
@@ -10,7 +10,7 @@ Helm is the client delivery workspace for Seven Billion. Internal teams run proj
 |---|---|---|
 | Access control | `supabase/migrations/*_rls.sql` | RLS on every table (forced). Customers see only `shared` rows of their own company. Commercials, estimates, time and integration tables are staff-only or service-only. |
 | Workflows | `supabase/migrations/*_workflows.sql` | Triggers write events, action items, notifications and email-outbox rows. RPCs: `decide_approval`, `resubmit_approval`, `complete_action_item`, `set_request_status`, `publish_update`. Approval and request histories are append-only. |
-| Auth | `src/proxy.ts`, `src/app/auth/*`, `src/app/login` | Invite-only magic links (signups are disabled). Profiles are created from `app_metadata`, which only the server can write. |
+| Auth | `src/proxy.ts`, `src/app/auth/*`, `src/app/login` | Invite-only email and password sign-in, with an emailed code to set or reset the password (signups are disabled). Profiles are created from `app_metadata`, which only the server can write. |
 | Emails | `src/lib/email.ts`, `/api/cron/emails` | Transactional outbox: the database queues the email, the app sends it through Resend after the response (`after()`), with idempotency key `outbox-<id>`. A daily cron catches anything left over. Wording and layout are in `src/lib/email-copy.ts`: each email greets the person by first name, names their workspace, has a short line in Helm's voice for the kind of event ("Your call, Omar", "Green light", "Land ahoy"), a progress bar for requests, and a details box from the record (project, due date, effort, priority), showing only what that person may see. Each kind of event has its own colour banner with a wave edge, an icon, a P.S. and a sign-off; the PNG artwork is in `public/email/` and is rebuilt with `node scripts/email-art.mjs`. |
 | Files | `src/components/upload.tsx`, `/api/documents/[id]` | The browser uploads straight to a private Storage bucket (this avoids Vercel's request size limit). Downloads use short-lived signed URLs. |
 | HubSpot | `/api/webhooks/hubspot` | A deal moving to Closed Won becomes a pending engagement. The PM creates the project in one click from a template. |
@@ -63,8 +63,8 @@ docker run -d -p 3310:3310 clamav/clamav:stable   # optional: virus scanning (se
 npm run dev
 ```
 
-1. Sign in with a seeded email, for example `rahul@example.com` (PM), `abhijit@example.com` (CEO) or `michel@nesma.example.com` (customer).
-2. Open the magic link in Mailpit at http://127.0.0.1:54324.
+1. Sign in with a seeded email, for example `rahul@example.com` (PM), `abhijit@example.com` (CEO) or `michel@nesma.example.com` (customer), and the seed password (`SEED_PASSWORD`, default `local-dev-only-password`).
+2. *Set or reset your password* emails a code; read it in Mailpit at http://127.0.0.1:54324.
 
 | Command | What it does |
 |---|---|
@@ -93,6 +93,7 @@ CI (`.github/workflows/ci.yml`) runs lint, types, the database tests and the flo
    - Opening a link shows a "Continue" button; the link is only used when it is pressed. This stops email security scanners (Microsoft Safe Links and similar), which open every link first, from using it up.
    - Under **Authentication → Sign In / Providers → Email**, set "Email OTP Expiration" to `86400` (24 hours) so a late-arriving invite still works.
    - The sign-in email also carries a 6-digit code (`{{ .Token }}`). People using the installed app on a phone type the code instead of opening the link, because on iPhone a link opens in Safari, which doesn't share sign-in with the home-screen app.
+   - Under **Authentication → Sign In / Providers → Email**, set "Minimum password length" to `10` (the app asks for 10 too). On a paid plan you can also turn on "Prevent use of leaked passwords".
 6. In **Authentication → Emails → SMTP Settings**, send auth emails through Resend. Supabase's built-in sender is rate-limited and is for testing only.
 
    | Field | Value |
@@ -174,7 +175,7 @@ Run this once from your computer. It creates the organisation and emails you an 
 npm run bootstrap -- --email you@sevenbillion.co --name "Your Name"
 ```
 
-Open the email link and you're in. Everything else happens in the app:
+Open the email link, choose a password, and you're in. Everything else happens in the app:
 - **Admin:** invite colleagues, set roles or remove access, add customers and account owners, switch playbook rules, check security and integrations.
 - **Customers:** invite their people from each customer page.
 
@@ -186,7 +187,7 @@ To see Helm as each role, create one sign-in per role. All of them are "+" alias
 node --env-file=.env.production.local scripts/test-users.mjs --email you@gmail.com
 ```
 
-This creates admin, CEO, PM, consultant and finance staff, plus three customer users (an executive, a member, and a member with invoice access) under a separate customer, "Helm Test Co (test)", with one small project. Sign in at the login page with the 6-digit code. Run it again with `--remove` to delete them all.
+This creates admin, CEO, PM, consultant and finance staff, plus three customer users (an executive, a member, and a member with invoice access) under a separate customer, "Helm Test Co (test)", with one small project. Sign in at the login page with *Set or reset your password* (a code by email, then a password). Run it again with `--remove` to delete them all.
 
 ### 5. HubSpot (optional)
 
@@ -315,7 +316,7 @@ Access is enforced inside Postgres at two levels, so a bug in a page cannot leak
   - Form answers are visible to whoever submitted them and to the customer's executives.
   - CSAT answers are visible only to the person who was asked.
 
-- **Sign-in:** everyone signs in with an email link or 6-digit code, or with Google or Microsoft; there are no passwords and no authenticator app. Two-step protection comes from the person's Google or Microsoft account. Helm is invite-only (Supabase sign-ups are off). To require an authenticator app again, `private.staff_session_ok()` is the one place to change (see `supabase/migrations/*_no_staff_two_factor.sql`).
+- **Sign-in:** email and password (at least 10 characters), or Google or Microsoft. There is no authenticator app. People set their first password, or reset a forgotten one, with *Set or reset your password*: a 6-digit code (or the link) from an email signs them in, and Helm then asks for a new password before anything else (`src/proxy.ts`; `app_metadata.password_set_at` records when it was chosen). An invite works the same way. The key icon in the header changes the password. Supabase limits sign-in attempts per IP address. Helm is invite-only (Supabase sign-ups are off). To require an authenticator app again, `private.staff_session_ok()` is the one place to change (see `supabase/migrations/*_no_staff_two_factor.sql`).
 - **Instant lock-out:**
   - "Remove access" (Admin for staff, the customer page for customer users) blocks every database check from the person's next click, ends all their sessions and stops them signing in again.
   - Their name stays on history.

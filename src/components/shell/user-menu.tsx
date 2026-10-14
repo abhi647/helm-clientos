@@ -1,10 +1,10 @@
 import Link from 'next/link'
-import { Bell, LogOut, Search } from 'lucide-react'
+import { Bell, KeyRound, LogOut, Search } from 'lucide-react'
 import { Avatar } from '@/components/ui'
 import type { Profile } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
-/** Search, notifications (with unread count) and sign-out, shared by both shells. */
+/** Search, notifications (with unread count), password and sign-out, shared by both shells. */
 export async function UserMenu({ profile, base }: { profile: Profile; base: '' | '/portal' }) {
   const supabase = await createClient()
   const { count } = await supabase.from('notifications').select('id', { count: 'exact', head: true }).is('read_at', null)
@@ -21,6 +21,7 @@ export async function UserMenu({ profile, base }: { profile: Profile; base: '' |
         {count ? <span className="tabular absolute -top-0.5 -right-0.5 min-w-4 rounded-full bg-crit px-1 text-center font-mono text-[10px] font-semibold text-white">{count}</span> : null}
       </Link>
       <span title={`${profile.full_name} · ${profile.email}`}><Avatar name={profile.full_name} customer={profile.kind === 'customer'} size={28} /></span>
+      <Link href="/account/password" aria-label="Change password" title="Change password" className="flex size-8 items-center justify-center rounded-md text-ink hover:bg-head max-sm:hidden"><KeyRound className="size-4" aria-hidden /></Link>
       <form action="/auth/signout" method="post">
         <button type="submit" className="btn btn-ghost h-8 px-2" aria-label="Sign out" title="Sign out"><LogOut className="size-4" aria-hidden /></button>
       </form>
