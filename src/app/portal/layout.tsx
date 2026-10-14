@@ -9,7 +9,10 @@ import { BrandMark } from '@/components/brand'
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const me = await requireCustomer()
   const supabase = await createClient()
-  const { data: customer } = await supabase.from('customers').select('name').eq('id', me.customer_id!).single()
+  const [{ data: customer }, { count: hasHours }] = await Promise.all([
+    supabase.from('customers').select('name').eq('id', me.customer_id!).single(),
+    supabase.from('credit_plans').select('customer_id', { count: 'exact', head: true }),
+  ])
   return (
     <div className="min-h-screen">
       <header className="border-b border-line bg-white">
@@ -23,7 +26,7 @@ export default async function PortalLayout({ children }: { children: React.React
             { href: '/portal', label: 'Home', exact: true },
             ...(me.customer_role === 'customer_exec' ? [{ href: '/portal?view=actions', label: 'Team actions' }] : []),
             { href: '/portal/requests', label: 'Requests' }, { href: '/portal/meetings', label: 'Meetings' },
-            { href: '/portal/decisions', label: 'Decisions' }, { href: '/portal/documents', label: 'Documents' }, { href: '/portal/feedback', label: 'Feedback' }, ...(me.customer_role === 'customer_exec' || me.can_view_invoices ? [{ href: '/portal/billing', label: 'Billing' }] : []), ...(me.can_view_invoices ? [{ href: '/portal/invoices', label: 'Invoices' }] : []),
+            { href: '/portal/decisions', label: 'Decisions' }, { href: '/portal/documents', label: 'Documents' }, { href: '/portal/feedback', label: 'Feedback' }, ...(hasHours ? [{ href: '/portal/hours', label: 'Hours' }] : []), ...(me.customer_role === 'customer_exec' || me.can_view_invoices ? [{ href: '/portal/billing', label: 'Billing' }] : []), ...(me.can_view_invoices ? [{ href: '/portal/invoices', label: 'Invoices' }] : []),
           ]} /></div>
           <Link href="/portal/requests/new" className="btn btn-primary flex-none">+ <span className="max-sm:hidden">New </span>request</Link>
           <UserMenu profile={me} base="/portal" />

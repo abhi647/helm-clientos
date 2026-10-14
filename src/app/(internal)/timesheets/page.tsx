@@ -5,17 +5,17 @@ import { approveTime, returnTime, unapproveTime } from '@/app/_actions/work'
 import { ActionButton } from '@/components/forms'
 import { TimesheetForm, type TimeRow } from '@/components/timesheet'
 import { Card, Chip, Empty, PageHeader, Stat } from '@/components/ui'
-import { effort, isoDaysAgo, relativeTime, shortDate } from '@/lib/format'
+import { hrs, isoDaysAgo, relativeTime, shortDate } from '@/lib/format'
 import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { title: 'Timesheets' }
 
-const SELECT = 'id, days, worked_on, billable, note, approved_at, returned_at, returned_note, user_id, person:profiles!time_entries_user_id_fkey(full_name), approver:profiles!time_entries_approved_by_fkey(full_name), tasks!inner(title, project_id, projects!inner(name, pm_id, customers(name)))'
+const SELECT = 'id, hours, worked_on, billable, note, approved_at, returned_at, returned_note, user_id, person:profiles!time_entries_user_id_fkey(full_name), approver:profiles!time_entries_approved_by_fkey(full_name), tasks!inner(title, project_id, projects!inner(name, pm_id, customers(name)))'
 
 /**
- * Days logged by the team, waiting for the project's PM (or an admin or the CEO) to approve. Approved days are what
- * the billing statements are filled from; returned days go back to the person with a note.
+ * Hours logged by the team, waiting for the project's PM (or an admin or the CEO) to approve. Approved hours are what
+ * the billing statements are filled from; returned entries go back to the person with a note.
  */
 export default async function TimesheetsPage() {
   const me = await requireStaff()
@@ -34,18 +34,18 @@ export default async function TimesheetsPage() {
 
   type Entry = NonNullable<typeof waiting>[number]
   const where = (e: Entry) => `${e.tasks.projects.customers?.name ?? ''} · ${e.tasks.projects.name}`
-  const byPerson = new Map<string, { name: string; rows: TimeRow[]; days: number }>()
-  // a PM's own days wait for an admin or the CEO
+  const byPerson = new Map<string, { name: string; rows: TimeRow[]; hours: number }>()
+  // a PM's own hours wait for an admin or the CEO
   const own = mine ? (waiting ?? []).filter((e) => e.user_id === me.id) : []
   for (const e of waiting ?? []) {
     if (mine && e.user_id === me.id) continue
-    const p = byPerson.get(e.user_id) ?? { name: e.person?.full_name ?? 'Unknown', rows: [], days: 0 }
-    p.rows.push({ id: e.id, date: shortDate(e.worked_on), where: where(e), task: e.tasks.title, days: `${+Number(e.days).toFixed(2)}`, billable: e.billable, note: e.note })
-    p.days += Number(e.days)
+    const p = byPerson.get(e.user_id) ?? { name: e.person?.full_name ?? 'Unknown', rows: [], hours: 0 }
+    p.rows.push({ id: e.id, date: shortDate(e.worked_on), where: where(e), task: e.tasks.title, hours: `${+Number(e.hours).toFixed(2)}`, billable: e.billable, note: e.note })
+    p.hours += Number(e.hours)
     byPerson.set(e.user_id, p)
   }
   const people = [...byPerson.values()].sort((a, b) => a.name.localeCompare(b.name))
-  const waitingDays = people.reduce((s, p) => s + p.days, 0)
+  const waitingHours = people.reduce((s, p) => s + p.hours, 0)
   const oldest = (waiting ?? []).find((e) => !mine || e.user_id !== me.id)?.worked_on
 
   return (
@@ -53,17 +53,17 @@ export default async function TimesheetsPage() {
       <PageHeader title="Timesheets" meta={<span className="text-xs text-muted">{mine ? 'Your projects' : 'All projects'}</span>} />
       <div className="flex max-w-[1100px] flex-col gap-3 p-4">
         <div className="card grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))]">
-          <Stat label="Waiting for approval" value={effort(waitingDays)} sub={`${people.reduce((s, p) => s + p.rows.length, 0)} entries`} tone={waitingDays ? 'warn' : undefined} />
+          <Stat label="Waiting for approval" value={hrs(waitingHours)} sub={`${people.reduce((s, p) => s + p.rows.length, 0)} entries`} tone={waitingHours ? 'warn' : undefined} />
           <Stat label="Oldest waiting" value={oldest ? shortDate(oldest) : '–'} />
           <Stat label="Returned" value={returned?.length ?? 0} sub="waiting for the person" />
-          <Stat label="Approved, not billed" value={effort((approved ?? []).reduce((s, e) => s + Number(e.days), 0))} sub="last 14 days" />
+          <Stat label="Approved, not billed" value={hrs((approved ?? []).reduce((s, e) => s + Number(e.hours), 0))} sub="last 14 days" />
         </div>
         {people.length ? people.map((p) => (
-          <Card key={p.name} flush title={p.name} extra={`${effort(p.days)} waiting`}>
+          <Card key={p.name} flush title={p.name} extra={`${hrs(p.hours)} waiting`}>
             <TimesheetForm person={p.name} rows={p.rows} approve={approveTime} sendBack={returnTime} />
           </Card>
-        )) : <Card><Empty title="Nothing to approve">Days the team logs on your projects show here.</Empty></Card>}
-        {own.length ? <p className="m-0 text-xs text-muted">Your own {effort(own.reduce((s, e) => s + Number(e.days), 0))} on these projects wait for an admin or the CEO.</p> : null}
+        )) : <Card><Empty title="Nothing to approve">Hours the team logs on your projects show here.</Empty></Card>}
+        {own.length ? <p className="m-0 text-xs text-muted">Your own {hrs(own.reduce((s, e) => s + Number(e.hours), 0))} on these projects wait for an admin or the CEO.</p> : null}
 
         {returned?.length ? (
           <Card flush title="Returned" extra="The person deletes the entry and logs it again">
@@ -72,7 +72,7 @@ export default async function TimesheetsPage() {
                 <span className="truncate">{e.person?.full_name}</span>
                 <span className="font-mono text-xs">{shortDate(e.worked_on)}</span>
                 <span className="truncate text-xs text-muted">{where(e)} · {e.tasks.title}</span>
-                <span className="text-right font-mono text-xs">{+Number(e.days).toFixed(2)}</span>
+                <span className="text-right font-mono text-xs">{+Number(e.hours).toFixed(2)}</span>
                 <span className="truncate text-xs text-warn-ink" title={e.returned_note ?? ''}>{e.returned_note} · {relativeTime(e.returned_at!)}</span>
               </div>
             ))}
@@ -86,7 +86,7 @@ export default async function TimesheetsPage() {
                 <span className="truncate">{e.person?.full_name}</span>
                 <span className="font-mono text-xs">{shortDate(e.worked_on)}</span>
                 <span className="truncate text-xs text-muted">{where(e)} · {e.tasks.title}</span>
-                <span className="text-right font-mono text-xs">{+Number(e.days).toFixed(2)}</span>
+                <span className="text-right font-mono text-xs">{+Number(e.hours).toFixed(2)}</span>
                 <span className="truncate text-xs text-muted">{e.approver?.full_name ? `by ${e.approver.full_name}` : ''} {relativeTime(e.approved_at!)}</span>
                 <ActionButton run={unapproveTime.bind(null, e.id)} className="btn-ghost h-7 text-xs">Undo</ActionButton>
               </div>
@@ -94,8 +94,8 @@ export default async function TimesheetsPage() {
           </Card>
         ) : null}
         <p className="m-0 text-xs text-muted">
-          Approved billable days fill the day-rate lines of a project&apos;s billing statement, for the people named on each line
-          (Billing → rate card). <Chip tone="neutral">nb</Chip> marks days logged as not billable.{' '}
+          Approved billable hours fill the day-rate lines of a project&apos;s billing statement (8 hours make a day), for the people named on each line
+          (Billing → rate card), and count against the customer&apos;s hours credit. <Chip tone="neutral">nb</Chip> marks hours logged as not billable.{' '}
           <Link href="/my-work">My Work</Link> shows each person their own entries.
         </p>
       </div>

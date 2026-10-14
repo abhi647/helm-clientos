@@ -1,20 +1,22 @@
+import { creditBalance, creditLeft, creditTone } from '@/components/hours-credit'
 import { Stat } from '@/components/ui'
-import { daysFromToday, isoDaysAgo } from '@/lib/format'
+import { daysFromToday, hrs, isoDaysAgo } from '@/lib/format'
 import type { Profile } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
 /**
  * The customer's meters, first thing on their home page: how the projects are going, what waits on them, the
- * requests in flight and (for executives and anyone with invoice access) invoices. Each meter is green when all is
+ * requests in flight, the hours credit (when the customer has one) and, for anyone with invoice access, invoices. Each meter is green when all is
  * well, amber when something needs a look and red when it needs action, and opens the list behind it.
  */
 export async function PortalMeters({ me, decisions }: { me: Profile; decisions?: number }) {
   const supabase = await createClient()
-  const [{ data: projects }, { data: actions }, { data: requests }, { data: invoices }] = await Promise.all([
+  const [{ data: projects }, { data: actions }, { data: requests }, { data: invoices }, credit] = await Promise.all([
     supabase.from('projects').select('health').eq('status', 'active'),
     supabase.from('action_items').select('assignee_id, due_date').eq('status', 'open'),
     supabase.from('requests').select('status, delivered_at:updated_at').not('status', 'eq', 'cancelled'),
     me.can_view_invoices ? supabase.from('invoices').select('due_on').neq('status', 'paid') : Promise.resolve({ data: null }),
+    creditBalance(me.customer_id!),
   ])
   const p = projects ?? []
   const onTrack = p.filter((x) => x.health === 'on_track').length
@@ -36,6 +38,8 @@ export async function PortalMeters({ me, decisions }: { me: Profile; decisions?:
       <Stat label={decisions != null ? 'Decisions waiting on you' : 'Waiting on you'} value={mine} sub={mine ? 'to do' : 'all clear'} tone={mine ? 'warn' : 'good'} href="/portal?view=actions" />
       <Stat label="Overdue on your side" value={late} sub="across your team" tone={late ? 'crit' : 'good'} href="/portal?view=actions" />
       <Stat label="Requests in progress" value={open} sub={`${delivered} delivered in 30 days`} tone="info" href="/portal/requests" />
+      {credit ? <Stat label={credit.kind === 'monthly' ? 'Hours used this month' : 'Hours used'} value={hrs(credit.used)} sub={`of ${hrs(credit.available)} · ${creditLeft(credit)}`}
+        pct={Number(credit.available) > 0 ? (100 * Number(credit.used)) / Number(credit.available) : 100} tone={creditTone(credit)} href="/portal/hours" /> : null}
       {invoices ? <Stat label="Invoices overdue" value={overdueInv} sub={`${invoices.length} unpaid`} tone={overdueInv ? 'crit' : invoices.length ? 'info' : 'good'} href="/portal/invoices" /> : null}
     </div>
   )

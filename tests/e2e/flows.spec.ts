@@ -508,6 +508,57 @@ test('deleting: a task and a phase from the plan, then the whole project after t
   await expect(page.getByRole('link', { name: 'Settings' })).toHaveCount(0)
 })
 
+test('hours credit: finance sets a monthly plan, the customer sees the meter and what used the hours', async ({ page }) => {
+  // finance sets CBD Group on 20 hours a month and adds 5 extra hours
+  await signIn(page, 'finance@example.com')
+  await page.goto('/customers')
+  await page.getByRole('link', { name: /CBD Group/ }).click()
+  const card = page.locator('.card', { has: page.getByRole('heading', { name: 'Hours credit' }) })
+  await expect(card.getByText('No hours plan')).toBeVisible()
+  await card.locator('summary', { hasText: 'Set up hours credit' }).click()
+  await card.getByLabel('Hours plan').selectOption('monthly')
+  await card.getByLabel('Hours each month').fill('20')
+  await card.getByRole('button', { name: 'Save plan' }).click()
+  await expect(page.getByText('Hours credit saved.')).toBeVisible()
+  await card.locator('summary', { hasText: '+ Add extra hours' }).click()
+  await card.getByLabel('Hours to add').fill('5')
+  await card.getByLabel('Top-up note').fill('e2e PO 42')
+  await card.getByRole('button', { name: 'Add hours' }).click()
+  await expect(card.getByText('e2e PO 42')).toBeVisible()
+  await expect(card.getByText('of 25 h used')).toBeVisible()
+  await shot(page, '50-customer-hours-credit')
+
+  // the PM's team logs 6 hours and the PM approves them
+  await signIn(page, 'rahul@example.com')
+  await page.goto('/projects')
+  await page.getByRole('link', { name: 'Data Platform Implementation' }).click()
+  await page.getByRole('link', { name: 'Data model sign-off' }).first().click()
+  await page.locator('summary', { hasText: 'Log time' }).click()
+  await page.getByLabel('Hours worked').fill('6')
+  await page.getByLabel('Note', { exact: true }).fill('e2e credit hours')
+  await page.getByRole('button', { name: 'Log time' }).click()
+  await expect(page.getByText('6 h logged.')).toBeVisible()
+  // a PM's own hours go to an admin or the CEO
+  await signIn(page, 'abhijit@example.com')
+  await page.goto('/timesheets')
+  await page.locator('.card', { hasText: 'e2e credit hours' }).getByRole('button', { name: 'Approve ticked' }).click()
+  await expect(page.locator('.card', { hasText: 'Recently approved' }).getByText(/Data Platform Implementation/).first()).toBeVisible()
+
+  // the customer sees the hours on their home meters and on the Hours page
+  await signIn(page, 'lead@cbd.example.com')
+  await page.goto('/portal')
+  const meter = page.getByRole('link', { name: /Hours used this month/ })
+  await expect(meter).toContainText('6 h')
+  await expect(meter).toContainText('of 25 h · 19 h left')
+  await shot(page, '51-portal-hours-meter')
+  await meter.click()
+  await page.waitForURL(/\/portal\/hours$/)
+  await expect(page.getByRole('heading', { name: 'Hours', exact: true })).toBeVisible()
+  await expect(page.getByText('Data model sign-off')).toBeVisible()
+  await expect(page.getByText('e2e PO 42')).toBeVisible()
+  await shot(page, '52-portal-hours')
+})
+
 test('privacy and terms are public; the CEO exports a customer\'s data, then deletes the customer', async ({ page }) => {
   await page.context().clearCookies()
   await page.goto('/privacy')
@@ -638,21 +689,21 @@ test('billing (finance only): rate card approved by the customer, a statement ap
 
 test('time to billing: logged, returned and approved, then billed once on the statement', async ({ page }) => {
   page.on('dialog', (d) => d.accept())
-  // the consultant logs a full day and a half day on a task
+  // the consultant logs a full day (8 hours) and a half day (4 hours) on a task
   await signIn(page, 'sahil@example.com')
   await page.goto('/projects')
   await page.getByRole('link', { name: 'Management Reporting' }).click()
   await page.getByRole('link', { name: /: Build$/ }).first().click()
-  const log = async (days: string, note: string) => {
+  const log = async (hours: string, note: string) => {
     await page.locator('summary', { hasText: 'Log time' }).click()
-    await page.getByLabel('Days worked').fill(days)
+    await page.getByLabel('Hours worked').fill(hours)
     await page.getByLabel('Note', { exact: true }).fill(note)
     await page.getByRole('button', { name: 'Log time' }).click()
     await expect(page.getByText(/logged\.$/)).toBeVisible()
   }
-  await log('1', 'e2e full day')
+  await log('8', 'e2e full day')
   await page.reload()
-  await log('0.5', 'e2e half day')
+  await log('4', 'e2e half day')
   await page.goto('/my-work')
   await expect(page.locator('.card', { hasText: 'My time' }).locator('.row', { hasText: 'Management Reporting' }).getByText('Waiting', { exact: true })).toHaveCount(2)
 
@@ -754,7 +805,7 @@ test('billed as: the PM attaches rate card lines to a phase and a task by name, 
   await page.getByRole('link', { name: /: Plan$/ }).first().click()
   const panel = page.getByRole('complementary', { name: 'Task details' })
   await page.waitForLoadState('networkidle')
-  await expect(panel.getByText(/Uses the phase's line: Engineer|Days use the line the person is named on/)).toBeVisible()
+  await expect(panel.getByText(/Uses the phase's line: Engineer|Hours use the line the person is named on/)).toBeVisible()
   await panel.getByLabel('Task billed as').selectOption({ label: 'Engineer' })
   await page.waitForLoadState('networkidle')
   await page.reload()
@@ -763,7 +814,7 @@ test('billed as: the PM attaches rate card lines to a phase and a task by name, 
 
   // days on this task are approved and billed: the PM can no longer change its line
   await page.getByRole('link', { name: /: Build$/ }).first().click()
-  await expect(panel.getByText('1.5 days logged', { exact: false })).toBeVisible()
+  await expect(panel.getByText('12 h logged', { exact: false })).toBeVisible()
   await page.waitForLoadState('networkidle')
   await panel.getByLabel('Task billed as').selectOption({ label: 'Engineer' })
   await expect(panel.getByText(/only finance, an admin or the CEO can change what it is billed as/)).toBeVisible()
@@ -775,7 +826,7 @@ test('billed as: the PM attaches rate card lines to a phase and a task by name, 
   await page.getByRole('link', { name: 'Management Reporting' }).click()
   await page.getByRole('link', { name: 'Billing' }).click()
   const done = page.locator('.card', { has: page.getByRole('heading', { name: 'Work to bill' }) })
-  await expect(done.locator('.row', { hasText: 'Data Engineering: Plan' })).toContainText('no days logged')
+  await expect(done.locator('.row', { hasText: 'Data Engineering: Plan' })).toContainText('no hours logged')
   await shot(page, '47-done-not-billed')
 })
 
@@ -1055,3 +1106,4 @@ test.describe('on a phone, billing', () => {
     await shot(page, '38-phone-rates-approved-for-customer')
   })
 })
+

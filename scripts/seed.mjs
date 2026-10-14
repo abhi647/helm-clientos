@@ -93,7 +93,7 @@ async function main() {
   // demo time is entered as if by the consultant (the API lets staff log their own time only)
   await many('time_entries', [
     ['Kickoff', 4], ['KPI workshop', 14], ['Data assessment', 26], ['SAP connection', 44], ['Data mapping', 21], ['Wireframes', 12],
-  ].map(([title, hours]) => ({ task_id: byTitle[title].id, customer_id: nesma.id, user_id: title === 'Wireframes' || title.startsWith('K') ? rahul : sahil, days: Math.min(hours / 8, 3), worked_on: day(-3) })))
+  ].map(([title, hours]) => ({ task_id: byTitle[title].id, customer_id: nesma.id, user_id: title === 'Wireframes' || title.startsWith('K') ? rahul : sahil, hours: Math.min(hours, 24), worked_on: day(-3) })))
 
   await many('comments', [
     { customer_id: nesma.id, entity_type: 'task', entity_id: byTitle['Data mapping'].id, author_id: sahil, visibility: 'internal', body: 'Source API is unstable. Keep the fallback spike ready.' },

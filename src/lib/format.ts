@@ -63,6 +63,8 @@ export function effort(qty: number | null | undefined, unit = 'day'): string {
   const q = Number(qty)
   return `${+q.toFixed(2)} ${q === 1 ? unit : plural(unit)}`
 }
+/** Logged time: "1 h", "2.5 h" (8 hours make a day). */
+export const hrs = (h: number | null | undefined) => (h == null ? '–' : `${+Number(h).toFixed(2)} h`)
 /** Short form for dense tables: "2.5 d" for days, otherwise the full unit. */
 export const effortShort = (qty: number | null | undefined, unit = 'day') =>
   qty == null ? '' : unit === 'day' ? `${+Number(qty).toFixed(2)} d` : effort(qty, unit)

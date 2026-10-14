@@ -7,6 +7,7 @@ export const CUSTOMER_TABLES = [
   'approvals', 'approval_events', 'action_items', 'comments', 'documents', 'document_versions', 'meetings', 'meeting_actions',
   'decisions', 'updates', 'invoices', 'payments', 'activity', 'form_submissions', 'csat_surveys', 'feedback',
   'rate_cards', 'rate_card_lines', 'billing_statements', 'statement_lines', 'customer_contacts', 'project_deals',
+  'customer_billing', 'credit_plans', 'credit_topups', 'credit_alerts',
 ] as const
 
 /** Everything Helm holds about one customer, as JSON: for a data request or before closing an account. */

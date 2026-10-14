@@ -1,7 +1,7 @@
 'use server'
 
 import { z } from 'zod'
-import { effort } from '@/lib/format'
+import { effort, hrs } from '@/lib/format'
 import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { type ActionResult, dbFail, done, fail, formObject, optionalDate, uuid, visibility } from './shared'
@@ -102,7 +102,7 @@ export async function createTask(_prev: ActionResult | null, form: FormData): Pr
 
 const timeSchema = z.object({
   task_id: uuid,
-  days: z.coerce.number().positive('Enter the days worked.').max(3, 'Log at most 3 days at once.'),
+  hours: z.coerce.number().positive('Enter the hours worked.').max(24, 'Log at most 24 hours for a day.').multipleOf(0.25, 'Log hours in quarters (0.25, 0.5, 0.75).'),
   worked_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   billable: z.preprocess((v) => v === 'on' || v === 'true', z.boolean()),
   note: z.string().trim().max(500).optional(),
@@ -116,7 +116,7 @@ export async function logTime(_prev: ActionResult | null, form: FormData): Promi
   const { data: task } = await supabase.from('tasks').select('customer_id').eq('id', parsed.data.task_id).single()
   if (!task) return fail('Task not found.')
   const { error } = await supabase.from('time_entries').insert({ ...parsed.data, customer_id: task.customer_id, user_id: me.id, note: parsed.data.note || null })
-  return error ? dbFail(error) : done(`${effort(parsed.data.days)} logged.`)
+  return error ? dbFail(error) : done(`${hrs(parsed.data.hours)} logged.`)
 }
 
 /** Deletes your own day while nobody has approved or billed it (returned days are fixed this way). */

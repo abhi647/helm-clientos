@@ -7,10 +7,12 @@ import {
 import { ActionButton, ActionForm } from '@/components/forms'
 import { ActivityList, DocumentsPanel } from '@/components/project-parts'
 import { Avatar, Card, Chip, Empty, Health, PageHeader, Progress } from '@/components/ui'
-import { shortDate } from '@/lib/format'
+import { hrs, shortDate } from '@/lib/format'
 import { canManage, canSeeFinance, requireStaff } from '@/lib/session'
 import { zohoTaxOptions } from '@/lib/integrations/zoho'
 import { setCustomerTax } from '@/app/_actions/billing'
+import { addCreditTopup, deleteCreditTopup, setCreditPlan } from '@/app/_actions/credits'
+import { HoursMeter, creditBalance } from '@/components/hours-credit'
 import { createClient } from '@/lib/supabase/server'
 import type { CustomerInternalRow, DirectoryRow } from '@/lib/views'
 
@@ -37,6 +39,12 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
     supabase.from('customer_team').select('profile_id, role_label, person:profiles!customer_team_profile_id_fkey(full_name)').eq('customer_id', id).order('added_at'),
     supabase.from('profiles').select('id, full_name').eq('kind', 'internal').order('full_name'),
   ])
+  const [credit, { data: plan }, { data: topups }] = await Promise.all([
+    creditBalance(id),
+    supabase.from('credit_plans').select('kind, monthly_hours, rollover_cap, starts_on').eq('customer_id', id).maybeSingle(),
+    supabase.from('credit_topups').select('id, hours, added_on, note').eq('customer_id', id).order('added_on', { ascending: false }).limit(20),
+  ])
+  const today = new Date().toISOString().slice(0, 10)
   const onTeam = new Set((team ?? []).map((t) => t.profile_id))
   const addable = (staff ?? []).filter((s) => !onTeam.has(s.id))
   const hasAccess = new Set((people ?? []).map((u) => u.email?.toLowerCase()))
@@ -150,6 +158,61 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                       </ActionForm>
                       <ActionButton run={dismissContact.bind(null, x.id)} className="btn-ghost mt-1 h-6 px-2 text-xs">Not inviting</ActionButton>
                     </details>
+                  ))}
+                </div>
+              ) : null}
+            </Card>
+            <Card title="Hours credit" extra={plan ? (plan.kind === 'monthly' ? `${hrs(plan.monthly_hours)} a month` : 'Prepaid hours') : 'Not set'}>
+              {credit ? <HoursMeter b={credit} /> : <p className="m-0 text-xs text-muted">{plan ? 'No hours bought yet: add a block below.' : 'No hours plan. Work is billed from the rate card only.'}</p>}
+              {finance ? (
+                <>
+                  <details className="mt-3 border-t border-line-soft pt-3">
+                    <summary className="btn h-8 w-fit cursor-pointer list-none text-xs">{plan ? 'Change the plan' : 'Set up hours credit'}</summary>
+                    <div className="mt-2">
+                      <ActionForm action={setCreditPlan} submit="Save plan" resetOnSuccess={false} primary={false}>
+                        <input type="hidden" name="customer_id" value={c.id} />
+                        <label className="flex flex-col gap-1"><span className="label">Plan</span>
+                          <select name="kind" aria-label="Hours plan" className="input" defaultValue={plan?.kind ?? 'monthly'}>
+                            <option value="monthly">Monthly allowance</option>
+                            <option value="prepaid">Prepaid blocks</option>
+                            {plan ? <option value="none">No hours plan</option> : null}
+                          </select></label>
+                        <label className="flex flex-col gap-1"><span className="label">Hours each month (monthly)</span>
+                          <input type="number" name="monthly_hours" min={0} step={0.5} defaultValue={plan?.monthly_hours ?? ''} aria-label="Hours each month" className="input font-mono" /></label>
+                        <label className="flex flex-col gap-1"><span className="label">Most hours carried to next month</span>
+                          <input type="number" name="rollover_cap" min={0} step={0.5} defaultValue={plan ? (plan.rollover_cap ?? '') : 0} aria-label="Carry-over cap" placeholder="No cap" className="input font-mono" /></label>
+                        <label className="flex flex-col gap-1"><span className="label">Starts on</span>
+                          <input type="date" name="starts_on" required defaultValue={plan?.starts_on ?? `${today.slice(0, 8)}01`} aria-label="Plan starts on" className="input" /></label>
+                        <p className="m-0 text-xs text-muted">Monthly: unused hours carry over up to the cap (0 = none, empty = no cap). Prepaid: the blocks you add below are used up from the start date. Approved billable hours count; going over is allowed and shown.</p>
+                      </ActionForm>
+                    </div>
+                  </details>
+                  {plan ? (
+                    <details className="mt-3 border-t border-line-soft pt-3">
+                      <summary className="btn h-8 w-fit cursor-pointer list-none text-xs">{plan.kind === 'prepaid' ? '+ Add a block of hours' : '+ Add extra hours'}</summary>
+                      <div className="mt-2">
+                        <ActionForm action={addCreditTopup} submit="Add hours" primary={false}>
+                          <input type="hidden" name="customer_id" value={c.id} />
+                          <div className="flex gap-2">
+                            <input type="number" name="hours" min={0.5} step={0.5} required placeholder="Hours" aria-label="Hours to add" className="input w-24 font-mono" />
+                            <input type="date" name="added_on" required defaultValue={today} aria-label="Added on" className="input flex-1" />
+                          </div>
+                          <input name="note" placeholder="Note, e.g. PO or invoice number (optional)" aria-label="Top-up note" className="input" />
+                        </ActionForm>
+                      </div>
+                    </details>
+                  ) : null}
+                </>
+              ) : null}
+              {topups?.length ? (
+                <div className="mt-3 flex flex-col border-t border-line-soft pt-2 text-xs">
+                  {topups.map((t) => (
+                    <div key={t.id} className="flex items-center gap-2 py-1">
+                      <span className="font-mono text-muted">{shortDate(t.added_on)}</span>
+                      <span className="font-mono font-semibold">+{hrs(t.hours)}</span>
+                      <span className="min-w-0 flex-1 truncate text-muted">{t.note}</span>
+                      {finance ? <ActionButton run={deleteCreditTopup.bind(null, t.id)} className="btn-ghost h-6 px-2 text-xs" confirm="Remove these hours from the customer's credit?">Remove</ActionButton> : null}
+                    </div>
                   ))}
                 </div>
               ) : null}

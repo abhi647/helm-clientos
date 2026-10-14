@@ -6,7 +6,7 @@ import { ActionButton, ActionForm, StatusSelect } from '@/components/forms'
 import { Thread } from '@/components/thread'
 import { Avatar, Chip, StatusLegend, TASK_STRIPE, TaskStatusChip, Visibility, cn } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
-import { TASK_STATUS, isOverdue, shortDate, effort, effortShort } from '@/lib/format'
+import { TASK_STATUS, isOverdue, shortDate, effort, effortShort, hrs } from '@/lib/format'
 import { EffortInput } from '@/components/effort-input'
 import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
@@ -27,7 +27,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
     supabase.from('projects').select('id, customer_id, pm_id').eq('id', id).single(),
     supabase.from('phases').select('*').eq('project_id', id).order('position'),
     supabase.from('tasks').select('*, assignee:profiles!tasks_assignee_id_fkey(id, full_name, kind), task_estimates(estimate, unit), request:requests(id, number)').eq('project_id', id).order('position'),
-    supabase.from('time_entries').select('task_id, days').in('task_id', (await supabase.from('tasks').select('id').eq('project_id', id)).data?.map((t) => t.id) ?? []),
+    supabase.from('time_entries').select('task_id, hours').in('task_id', (await supabase.from('tasks').select('id').eq('project_id', id)).data?.map((t) => t.id) ?? []),
     supabase.from('comments').select('entity_id').eq('entity_type', 'task'),
     supabase.rpc('effort_units', { p_project: id }),   // the project's billing units: effort is estimated in these
     supabase.rpc('billing_lines', { p_project: id }),  // rate card line names (no rates) for "Billed as"
@@ -36,7 +36,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
   const people = (await supabase.from('profiles').select('id, full_name, kind').or(`kind.eq.internal,customer_id.eq.${project.customer_id}`).order('kind').order('full_name')).data ?? []
 
   const logged = new Map<string, number>()
-  for (const t of time ?? []) logged.set(t.task_id, (logged.get(t.task_id) ?? 0) + Number(t.days))
+  for (const t of time ?? []) logged.set(t.task_id, (logged.get(t.task_id) ?? 0) + Number(t.hours))
   const commentCount = new Map<string, number>()
   for (const c of comments ?? []) commentCount.set(c.entity_id, (commentCount.get(c.entity_id) ?? 0) + 1)
 
@@ -52,13 +52,13 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
   const inPhase = all.filter((t) => !preview || t.visibility === 'shared')
   const est = (t: (typeof all)[number]) => Number(t.task_estimates?.estimate ?? 0)
   const unitOf = (t: (typeof all)[number]) => t.task_estimates?.unit ?? 'day'
-  // days can be compared with days logged; estimates in a billed unit ("2 dashboards") are shown as they are
-  const estDays = (t: (typeof all)[number]) => (unitOf(t) === 'day' ? est(t) : 0)
+  // estimates in days are compared with hours logged (8 h a day); estimates in a billed unit ("2 dashboards") are shown as they are
+  const estHours = (t: (typeof all)[number]) => (unitOf(t) === 'day' ? est(t) * 8 : 0)
   const stats = {
     total: counted.length, done: counted.filter((t) => t.status === 'done').length,
     overdue: counted.filter((t) => t.status !== 'done' && isOverdue(t.due_date)).length,
     customer: counted.filter((t) => t.owner_side === 'customer' && t.status !== 'done').length,
-    est: all.reduce((a, t) => a + estDays(t), 0), logged: Array.from(logged.values()).reduce((a, b) => a + b, 0),
+    est: all.reduce((a, t) => a + estHours(t), 0), logged: Array.from(logged.values()).reduce((a, b) => a + b, 0),
   }
   const sel = sp.task ? all.find((t) => t.id === sp.task && (!preview || t.visibility === 'shared')) : undefined
   const selParent = sel?.parent_id ? all.find((t) => t.id === sel.parent_id) : undefined
@@ -98,12 +98,41 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
           <span className="flex min-w-0 items-center gap-1.5">{t.assignee ? <><Avatar name={t.assignee.full_name} customer={t.assignee.kind === 'customer'} /><span className="truncate">{t.assignee.full_name}</span></> : <span className="text-muted">Unassigned</span>}</span>
           <span className="font-mono text-xs text-muted">{shortDate(t.start_date)}</span>
           <span className={cn('font-mono text-xs', overdue && 'font-semibold text-crit-ink')}>{shortDate(t.due_date)}</span>
-          {!preview ? <><span className="truncate text-right font-mono text-xs" title={est(t) ? effort(est(t), unitOf(t)) : undefined}>{est(t) ? effortShort(est(t), unitOf(t)) : '–'}</span><span className={cn('text-right font-mono text-xs', estDays(t) && lg > estDays(t) && 'font-semibold text-warn-ink')}>{lg ? `${+lg.toFixed(2)} d` : '–'}</span></> : null}
+          {!preview ? <><span className="truncate text-right font-mono text-xs" title={est(t) ? effort(est(t), unitOf(t)) : undefined}>{est(t) ? effortShort(est(t), unitOf(t)) : '–'}</span><span className={cn('text-right font-mono text-xs', estHours(t) && lg > estHours(t) && 'font-semibold text-warn-ink')}>{lg ? hrs(lg) : '–'}</span></> : null}
           <span><Visibility value={t.visibility} /></span>
           <span aria-label={t.spotlight ? 'Spotlight' : undefined} className={t.spotlight ? 'text-ink' : 'text-[#d5dcdf]'}>★</span>
         </>
       )
     }
+
+  // a task row; a task opens like a phase: its subtasks, then a line to add one
+  const taskRow = (t: (typeof all)[number]) => {
+    const kids = (subsOf.get(t.id) ?? []).filter((k) => !preview || k.visibility === 'shared')
+    const shownKids = subsShown(t)
+    const toggle = !preview || kids.length > 0
+    const open = Boolean(q && shownKids.length) || (!!sel && (sel.id === t.id || sel.parent_id === t.id))
+    if (!toggle) return <div key={t.id} className={cn('row', cols, stripe(t), sel?.id === t.id ? 'bg-selected' : 'hover:bg-head')}>{cells(t, false)}</div>
+    return (
+      <details key={t.id} open={open} className="group/task">
+        <summary className={cn('row cursor-pointer list-none', cols, stripe(t), sel?.id === t.id ? 'bg-selected' : 'hover:bg-head')}>{cells(t, false, true)}</summary>
+        {shownKids.map((k) => (
+          <div key={k.id} className={cn('row', cols, stripe(k), sel?.id === k.id ? 'bg-selected' : 'hover:bg-head')}>{cells(k, true)}</div>
+        ))}
+        {!preview ? (
+          <div className="row border-b border-line-soft py-1.5 pl-12">
+            <ActionForm action={createTask} submit="Add" primary={false} className="flex-row flex-wrap items-center gap-1.5">
+              <input type="hidden" name="project_id" value={id} />
+              <input type="hidden" name="parent_id" value={t.id} />
+              <input type="hidden" name="visibility" value={t.visibility} />
+              <input name="title" required placeholder="+ Add subtask" aria-label={`New subtask of ${t.title}`} className="input h-7 w-64 text-xs" />
+              <select name="assignee_id" aria-label={`Owner of the new subtask of ${t.title}`} defaultValue={t.assignee_id ?? ''} className="input h-7 w-40 py-0 text-xs"><option value="">Unassigned</option>{people.map((p) => <option key={p.id} value={p.id}>{p.full_name}{p.kind === 'customer' ? ' (customer)' : ''}</option>)}</select>
+              <input type="date" name="due_date" aria-label={`Due date of the new subtask of ${t.title}`} className="input h-7 w-36 text-xs" />
+            </ActionForm>
+          </div>
+        ) : null}
+      </details>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-2.5 p-4">
@@ -121,7 +150,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
           <span><b className="font-mono text-good-ink">{stats.done}</b> done</span>
           <span><b className="font-mono text-crit-ink">{stats.overdue}</b> overdue</span>
           <span><b className="font-mono text-warn-ink">{stats.customer}</b> with customer</span>
-          {!preview ? <span><b className="font-mono text-ink">{+stats.logged.toFixed(2)} / {+stats.est.toFixed(2)} d</b> logged</span> : null}
+          {!preview ? <span><b className="font-mono text-ink">{+stats.logged.toFixed(2)} / {+stats.est.toFixed(2)} h</b> logged</span> : null}
         </div>
         <details className="relative ml-auto">
           <summary className="btn btn-primary list-none">+ Add task</summary>
@@ -185,34 +214,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                     {!preview ? <><span className="text-right font-mono text-xs">{effortPhase.reduce((a, t) => a + est(t), 0) || ''}</span><span className="text-right font-mono text-xs">{effortPhase.reduce((a, t) => a + (logged.get(t.id) ?? 0), 0) || ''}</span></> : null}
                     <span /><span />
                   </summary>
-                  {pts.map((t) => {
-                    const kids = (subsOf.get(t.id) ?? []).filter((k) => !preview || k.visibility === 'shared')
-                    const shownKids = subsShown(t)
-                    // a task opens like a phase: its subtasks, then a line to add one
-                    const toggle = !preview || kids.length > 0
-                    const open = Boolean(q && shownKids.length) || (!!sel && (sel.id === t.id || sel.parent_id === t.id))
-                    if (!toggle) return <div key={t.id} className={cn('row', cols, stripe(t), sel?.id === t.id ? 'bg-selected' : 'hover:bg-head')}>{cells(t, false)}</div>
-                    return (
-                      <details key={t.id} open={open} className="group/task">
-                        <summary className={cn('row cursor-pointer list-none', cols, stripe(t), sel?.id === t.id ? 'bg-selected' : 'hover:bg-head')}>{cells(t, false, true)}</summary>
-                        {shownKids.map((k) => (
-                          <div key={k.id} className={cn('row', cols, stripe(k), sel?.id === k.id ? 'bg-selected' : 'hover:bg-head')}>{cells(k, true)}</div>
-                        ))}
-                        {!preview ? (
-                          <div className="row border-b border-line-soft py-1.5 pl-12">
-                            <ActionForm action={createTask} submit="Add" primary={false} className="flex-row flex-wrap items-center gap-1.5">
-                              <input type="hidden" name="project_id" value={id} />
-                              <input type="hidden" name="parent_id" value={t.id} />
-                              <input type="hidden" name="visibility" value={t.visibility} />
-                              <input name="title" required placeholder="+ Add subtask" aria-label={`New subtask of ${t.title}`} className="input h-7 w-64 text-xs" />
-                              <select name="assignee_id" aria-label={`Owner of the new subtask of ${t.title}`} defaultValue={t.assignee_id ?? ''} className="input h-7 w-40 py-0 text-xs"><option value="">Unassigned</option>{people.map((p) => <option key={p.id} value={p.id}>{p.full_name}{p.kind === 'customer' ? ' (customer)' : ''}</option>)}</select>
-                              <input type="date" name="due_date" aria-label={`Due date of the new subtask of ${t.title}`} className="input h-7 w-36 text-xs" />
-                            </ActionForm>
-                          </div>
-                        ) : null}
-                      </details>
-                    )
-                  })}
+                  {pts.map(taskRow)}
                   {!preview ? (
                     <div className="row border-b border-line-soft py-1.5 pl-6">
                       <ActionForm action={createTask} submit="Add" primary={false} className="flex-row flex-wrap items-center gap-1.5">
@@ -228,6 +230,21 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                 </details>
               )
             })}
+            {(() => {
+              // tasks not in any phase (a phase deleted, or older projects): listed after the phases, never hidden
+              const loose = visible.filter((t) => !t.phase_id)
+              return loose.length ? (
+                <details open className="group/phase">
+                  <summary className={cn('row cursor-pointer list-none bg-head font-semibold', cols)}>
+                    <span className="flex items-center gap-2">
+                      <span aria-hidden className="w-4 flex-none text-center text-[10px] text-muted transition-transform group-open/phase:rotate-90">▶</span>
+                      <span>Not in a phase</span><span className="text-xs font-normal text-muted">{loose.length} tasks</span>
+                    </span>
+                  </summary>
+                  {loose.map(taskRow)}
+                </details>
+              ) : null
+            })()}
           </div>
           {!preview && canManage(me) && phases?.length ? (
             <details className="border-t border-line-soft">
@@ -267,12 +284,12 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                       <StatusSelect key={`bill-${sel.id}-${sel.rate_line_id ?? ''}`} label="Task billed as" value={sel.rate_line_id ?? ''} options={withCurrent(sel.rate_line_id)} onChange={setBilledAs.bind(null, 'task', sel.id)} />
                       {!sel.rate_line_id ? <span className="text-xs text-muted">{(() => {
                         const ph = phases?.find((p) => p.id === sel.phase_id)
-                        return ph?.rate_line_id ? `Uses the phase's line: ${lineName.get(ph.rate_line_id)}` : 'Days use the line the person is named on'
+                        return ph?.rate_line_id ? `Uses the phase's line: ${lineName.get(ph.rate_line_id)}` : 'Hours use the line the person is named on'
                       })()}</span> : null}
                     </span>
                   )}
                 </dd></> : null}
-                {!preview ? <><dt className="text-muted">Effort</dt><dd className="m-0 font-mono">{effort(logged.get(sel.id) ?? 0)} logged · estimate {est(sel) ? effort(est(sel), unitOf(sel)) : '–'}</dd></> : null}
+                {!preview ? <><dt className="text-muted">Effort</dt><dd className="m-0 font-mono">{hrs(logged.get(sel.id) ?? 0)} logged · estimate {est(sel) ? effort(est(sel), unitOf(sel)) : '–'}</dd></> : null}
               </dl>
               {sel.description ? <p className="m-0 text-[13px] leading-relaxed">{sel.description}</p> : null}
               {!preview ? (
@@ -316,7 +333,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                   <ActionForm action={logTime} submit="Log time" className="mt-2">
                     <input type="hidden" name="task_id" value={sel.id} />
                     <div className="flex gap-2">
-                      <span className="flex items-center gap-1.5"><input type="number" name="days" min={0.25} max={3} step={0.25} required placeholder="Days" aria-label="Days worked" className="input w-20 font-mono" /><span className="text-xs text-muted">days</span></span>
+                      <span className="flex items-center gap-1.5"><input type="number" name="hours" min={0.25} max={24} step={0.25} required placeholder="Hours" aria-label="Hours worked" className="input w-20 font-mono" /><span className="text-xs text-muted">hours</span></span>
                       <input type="date" name="worked_on" defaultValue={new Date().toISOString().slice(0, 10)} aria-label="Date" className="input flex-1" />
                     </div>
                     <label className="flex items-center gap-1.5 text-xs"><input type="checkbox" name="billable" defaultChecked /> Billable</label>

@@ -795,7 +795,7 @@ describe('time to billing', () => {
   })
 
   it('people log days unapproved; nobody approves their own days by writing the row', async () => {
-    const rows = [2, 3, 4, 5].map((d) => ({ task_id: task, customer_id: nesma, user_id: sahilId, days: 1, worked_on: day(d), billable: d !== 5 }))
+    const rows = [2, 3, 4, 5].map((d) => ({ task_id: task, customer_id: nesma, user_id: sahilId, hours: 8, worked_on: day(d), billable: d !== 5 }))
     const { data, error } = await sahil.from('time_entries').insert(rows).select('id')
     expect(error).toBeNull()
     entries = data!.map((r) => r.id)
@@ -815,7 +815,7 @@ describe('time to billing', () => {
     expect(told![0]).toMatchObject({ body: 'Log the 4th on the reporting task', link: '/my-work', needs_action: true })
     // a PM's own days go to an admin or the CEO
     const rahulId = (await service.from('profiles').select('id').eq('email', 'rahul@example.com').single()).data!.id
-    const { data: own } = await rahul.from('time_entries').insert({ task_id: task, customer_id: nesma, user_id: rahulId, days: 1, worked_on: day(6), billable: true }).select('id').single()
+    const { data: own } = await rahul.from('time_entries').insert({ task_id: task, customer_id: nesma, user_id: rahulId, hours: 8, worked_on: day(6), billable: true }).select('id').single()
     expect((await rahul.rpc('approve_time', { p_entries: [own!.id] })).error?.message).toMatch(/your own days are approved by an admin or the CEO/)
     expect((await (await asCeo()).rpc('approve_time', { p_entries: [own!.id] })).data).toBe(1)
     await service.from('time_entries').delete().eq('id', own!.id)
@@ -826,7 +826,7 @@ describe('time to billing', () => {
   it('approved days are locked; a returned day can be deleted and logged again', async () => {
     expect((await sahil.from('time_entries').delete().eq('id', entries[0]!).select('id')).data ?? []).toHaveLength(0)
     expect((await sahil.from('time_entries').delete().eq('id', entries[2]!).select('id')).data).toHaveLength(1)
-    const again = await sahil.from('time_entries').insert({ task_id: task, customer_id: nesma, user_id: sahilId, days: 0.5, worked_on: day(4), billable: true }).select('id').single()
+    const again = await sahil.from('time_entries').insert({ task_id: task, customer_id: nesma, user_id: sahilId, hours: 4, worked_on: day(4), billable: true }).select('id').single()
     expect(again.error).toBeNull()
     entries[2] = again.data!.id
     expect((await rahul.rpc('approve_time', { p_entries: [entries[2]!] })).data).toBe(1)
@@ -926,7 +926,7 @@ describe('deleting', () => {
     expect((await michel.rpc('delete_task', { p_task: task })).error?.message).toMatch(/not allowed/)
     expect((await rahul.rpc('delete_task', { p_task: task })).error).toBeNull()
     expect((await service.from('tasks').select('id').eq('id', task)).data).toHaveLength(0)
-    const { data: te } = await service.from('time_entries').insert({ task_id: busyTask, customer_id: nesma, user_id: await id('sahil@example.com'), days: 1, worked_on: '2026-12-01', approved_at: new Date().toISOString() }).select('id').single()
+    const { data: te } = await service.from('time_entries').insert({ task_id: busyTask, customer_id: nesma, user_id: await id('sahil@example.com'), hours: 8, worked_on: '2026-12-01', approved_at: new Date().toISOString() }).select('id').single()
     expect((await rahul.rpc('delete_task', { p_task: busyTask })).error?.message).toMatch(/approved or billed days are logged on this task \(1 days\)/)
     expect((await rahul.rpc('delete_phase', { p_phase: phase })).error?.message).toMatch(/approved or billed days are logged in this phase/)
     await service.from('time_entries').delete().eq('id', te!.id)
@@ -1124,7 +1124,7 @@ describe('subtasks', () => {
   it('deleting a task takes its subtasks, unless days on a subtask are approved', async () => {
     const { data: sub } = await service.from('tasks').select('id').eq('parent_id', task).limit(1).single()
     const sahilId = (await service.from('profiles').select('id').eq('email', 'sahil@example.com').single()).data!.id
-    const { data: te } = await service.from('time_entries').insert({ task_id: sub!.id, customer_id: nesma, user_id: sahilId, days: 0.5, worked_on: '2026-12-02', approved_at: new Date().toISOString() }).select('id').single()
+    const { data: te } = await service.from('time_entries').insert({ task_id: sub!.id, customer_id: nesma, user_id: sahilId, hours: 4, worked_on: '2026-12-02', approved_at: new Date().toISOString() }).select('id').single()
     expect((await rahul.rpc('delete_task', { p_task: task })).error?.message).toMatch(/approved or billed days are logged on this task \(0.5 days\)/)
     await service.from('time_entries').delete().eq('id', te!.id)
     expect((await rahul.rpc('delete_task', { p_task: task })).error).toBeNull()
@@ -1205,7 +1205,7 @@ describe('billed as: rate card lines on phases and tasks', () => {
   })
 
   it('days bill on the task\'s line (subtasks through their task), else the phase\'s, else the person\'s; done tasks fill unit lines', async () => {
-    const log = (task: string, d: number, days: number) => ({ task_id: task, customer_id: nesma, user_id: sahilId, days, worked_on: day(d), billable: true, approved_at: new Date().toISOString() })
+    const log = (task: string, d: number, days: number) => ({ task_id: task, customer_id: nesma, user_id: sahilId, hours: days * 8, worked_on: day(d), billable: true, approved_at: new Date().toISOString() })
     await service.from('time_entries').insert([log(taskA, 1, 1), log(sub, 1, 0.5), log(taskB, 2, 0.75), log(taskC, 3, 0.25)])
     await service.from('tasks').update({ status: 'done', completed_at: `${day(5)}T10:00:00Z` }).eq('id', taskD)
     const { data: st, error } = await finance.rpc('create_statement', { p_project: project, p_start: day(1), p_end: day(31) })
@@ -1288,7 +1288,7 @@ describe('statements from ticked tasks', () => {
     const t = (x: string) => tasks.find((r) => r.title === x)!.id
     built = t('Built'); partly = t('Partly'); monthly = t('January report'); notDone = t('Not done report')
     sub = (await service.from('tasks').insert({ project_id: project, customer_id: nesma, parent_id: built, title: 'Built part' }).select('id').single()).data!.id
-    const log = (task: string, d: number, days: number, approved = true) => ({ task_id: task, customer_id: nesma, user_id: sahilId, days, worked_on: day(d), billable: true, approved_at: approved ? new Date().toISOString() : null })
+    const log = (task: string, d: number, days: number, approved = true) => ({ task_id: task, customer_id: nesma, user_id: sahilId, hours: days * 8, worked_on: day(d), billable: true, approved_at: approved ? new Date().toISOString() : null })
     await service.from('time_entries').insert([log(built, 2, 1), log(sub, 3, 0.5), log(partly, 4, 0.75), log(partly, 5, 0.25, false)])
   })
   afterAll(async () => {
@@ -1327,5 +1327,88 @@ describe('statements from ticked tasks', () => {
     expect((await michel.from('customer_billing').select('zoho_tax_id')).data ?? []).toHaveLength(0)
     expect((await finance.from('customer_billing').upsert({ customer_id: nesma, zoho_tax_id: '1', zoho_tax_exemption_id: '2' })).error).not.toBeNull()
     await service.from('customer_billing').delete().eq('customer_id', nesma)
+  })
+})
+
+describe('hours credit', () => {
+  let project: string, shared: string, internal: string, sahilId: string
+  const entries: string[] = []
+  const now = new Date()
+  const month = (back: number, d = 10) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - back, d)).toISOString().slice(0, 10)
+  const balance = async (c: SupabaseClient = cbdLead) => (await c.rpc('credit_balance', { p_customer: cbd })).data?.[0]
+  // logged by Sahil, approved by the PM (that is when hours count)
+  const work = async (hours: number, worked_on: string, { task = shared, billable = true } = {}) => {
+    const { data } = await service.from('time_entries').insert({ task_id: task, customer_id: cbd, user_id: sahilId, hours, worked_on, billable }).select('id').single()
+    entries.push(data!.id)
+    expect((await rahul.rpc('approve_time', { p_entries: [data!.id] })).data).toBe(1)
+  }
+
+  beforeAll(async () => {
+    project = (await service.from('projects').select('id').eq('name', 'Data Platform Implementation').single()).data!.id
+    shared = (await service.from('tasks').select('id').eq('title', 'Data model sign-off').single()).data!.id
+    internal = (await service.from('tasks').insert({ project_id: project, customer_id: cbd, title: 'Internal pipeline refactor', visibility: 'internal' }).select('id').single()).data!.id
+    sahilId = await idOf('sahil@example.com')
+  })
+  afterAll(async () => {
+    await service.from('time_entries').delete().in('id', entries)
+    await service.from('tasks').delete().eq('id', internal)
+    await service.from('credit_plans').delete().eq('customer_id', cbd)
+    await service.from('credit_topups').delete().eq('customer_id', cbd)
+  })
+
+  it('time is logged in hours; days follow (8 hours a day)', async () => {
+    const { data, error } = await sahil.from('time_entries').insert({ task_id: shared, customer_id: cbd, user_id: sahilId, hours: 3, worked_on: month(0, 1), billable: true }).select('id, days').single()
+    expect(error).toBeNull()
+    expect(Number(data!.days)).toBe(0.375)
+    expect((await sahil.from('time_entries').insert({ task_id: shared, customer_id: cbd, user_id: sahilId, hours: 25, worked_on: month(0, 1) })).error).not.toBeNull()
+    expect((await sahil.from('time_entries').update({ days: 2 } as never).eq('id', data!.id)).error).not.toBeNull()
+    await service.from('time_entries').delete().eq('id', data!.id)
+  })
+
+  it('finance sets the plan; the team and the customer read it; nobody else', async () => {
+    expect((await rahul.from('credit_plans').insert({ customer_id: cbd, kind: 'monthly', monthly_hours: 10 })).error).not.toBeNull()
+    expect((await finance.from('credit_plans').insert({ customer_id: cbd, kind: 'monthly', monthly_hours: 10, rollover_cap: 5, starts_on: month(2, 1) })).error).toBeNull()
+    expect((await finance.from('credit_plans').insert({ customer_id: nesma, kind: 'monthly' })).error).not.toBeNull()   // monthly needs hours
+    expect((await cbdLead.from('credit_plans').select('kind')).data).toEqual([{ kind: 'monthly' }])
+    expect((await michel.from('credit_plans').select('kind')).data ?? []).toHaveLength(0)
+    expect((await cbdLead.from('credit_topups').insert({ customer_id: cbd, hours: 100 })).error).not.toBeNull()
+    expect(await balance(michel)).toBeUndefined()
+    expect((await rahul.rpc('credit_balance', { p_customer: cbd })).data?.[0]?.kind).toBe('monthly')
+  })
+
+  it('monthly: unused hours carry over up to the cap; top-ups add to their month', async () => {
+    await work(4, month(2), { task: internal })      // 6 unused, capped at 5
+    await work(12, month(1))                          // 5 + 10 - 12 = 3 carried
+    await work(5, month(1, 11), { billable: false })  // not billable: does not count
+    expect((await finance.from('credit_topups').insert({ customer_id: cbd, hours: 2, added_on: month(0, 1), note: 'PO 77' })).error).toBeNull()
+    await work(6, month(0, 2))
+    expect(await balance()).toMatchObject({ kind: 'monthly', allowance: 10, carried: 3, topups: 2, available: 15, used: 6, remaining: 9, used_pct: 40 })
+  })
+
+  it('the customer and the team are told at 75% and 100%; going over is allowed and shown', async () => {
+    await work(6, month(0, 3))   // 12 of 15
+    expect((await notificationsFor('lead@cbd.example.com', 'credit')).map((n) => n.title)).toEqual(['You have used 75% of your hours'])
+    expect((await notificationsFor('finance@example.com', 'credit')).map((n) => n.title)).toEqual(['CBD Group: 75% of hours used'])
+    await work(4, month(0, 4))   // 16 of 15
+    const b = await balance()
+    expect(b).toMatchObject({ used: 16, remaining: -1 })
+    expect((await notificationsFor('lead@cbd.example.com', 'credit')).map((n) => n.title).sort()).toEqual(['You have used 75% of your hours', 'Your hours are used up'])
+    expect((await notificationsFor('michel@nesma.example.com', 'credit'))).toHaveLength(0)
+  })
+
+  it('the customer sees what used the hours, without internal task names', async () => {
+    type Usage = { worked_on: string; hours: number; project: string; work: string; person: string }
+    const data = (await cbdLead.rpc('credit_usage', { p_customer: cbd, p_from: month(2, 1), p_to: month(0, 28) })).data as Usage[] | null
+    expect(data!.reduce((s, r) => s + Number(r.hours), 0)).toBe(32)
+    expect(data!.find((r) => r.worked_on === month(2))).toMatchObject({ work: 'Internal work', person: 'Sahil', project: 'Data Platform Implementation' })
+    expect(data!.some((r) => r.work === 'Data model sign-off')).toBe(true)
+    expect((await michel.rpc('credit_usage', { p_customer: cbd, p_from: month(2, 1), p_to: month(0, 28) })).data ?? []).toHaveLength(0)
+  })
+
+  it('prepaid: blocks bought, used from the start date', async () => {
+    expect((await finance.from('credit_plans').update({ kind: 'prepaid', monthly_hours: null, rollover_cap: null }).eq('customer_id', cbd)).error).toBeNull()
+    expect(await balance()).toMatchObject({ kind: 'prepaid', available: 2, used: 32, remaining: -30 })
+    await finance.from('credit_topups').insert({ customer_id: cbd, hours: 40, note: 'Block of 40' })
+    expect(await balance()).toMatchObject({ available: 42, used: 32, remaining: 10, used_pct: 76.2 })
   })
 })

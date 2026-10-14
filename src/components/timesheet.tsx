@@ -5,7 +5,7 @@ import type { ActionResult } from '@/app/_actions/shared'
 
 type FormAction = (prev: ActionResult | null, form: FormData) => Promise<ActionResult>
 
-export type TimeRow = { id: string; date: string; where: string; task: string; days: string; billable: boolean; note: string | null }
+export type TimeRow = { id: string; date: string; where: string; task: string; hours: string; billable: boolean; note: string | null }
 
 /** One person's waiting entries: tick some (or all), then approve, or return them with a note. */
 export function TimesheetForm({ person, rows, approve, sendBack }: { person: string; rows: TimeRow[]; approve: FormAction; sendBack: FormAction }) {
@@ -32,7 +32,7 @@ export function TimesheetForm({ person, rows, approve, sendBack }: { person: str
         <div className="min-w-[680px]">
           <div className="row row-head grid-cols-[28px_80px_minmax(0,1fr)_minmax(0,1fr)_64px_minmax(0,1fr)]">
             <input type="checkbox" aria-label={`Tick all of ${person}'s entries`} defaultChecked onChange={(e) => tickAll(e.target.checked)} />
-            <span>Date</span><span>Project</span><span>Task</span><span className="text-right">Days</span><span>Note</span>
+            <span>Date</span><span>Project</span><span>Task</span><span className="text-right">Hours</span><span>Note</span>
           </div>
           {rows.map((r) => (
             <label key={r.id} className="row cursor-pointer grid-cols-[28px_80px_minmax(0,1fr)_minmax(0,1fr)_64px_minmax(0,1fr)] hover:bg-head">
@@ -40,7 +40,7 @@ export function TimesheetForm({ person, rows, approve, sendBack }: { person: str
               <span className="font-mono text-xs">{r.date}</span>
               <span className="truncate text-xs text-muted">{r.where}</span>
               <span className="truncate">{r.task}</span>
-              <span className="text-right font-mono text-xs">{r.days}{r.billable ? '' : <span className="ml-1 text-muted" title="Not billable">nb</span>}</span>
+              <span className="text-right font-mono text-xs">{r.hours}{r.billable ? '' : <span className="ml-1 text-muted" title="Not billable">nb</span>}</span>
               <span className="truncate text-xs text-muted">{r.note}</span>
             </label>
           ))}

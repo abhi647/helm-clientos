@@ -117,7 +117,7 @@ export function ReadyToBill({ tasks, currency, projectId, canCreate }: { tasks: 
         ? <span className="text-xs">{t.lineLabel} · {+t.unbilledDays.toFixed(2)} approved days (in Unbilled work)</span>
         : t.waitingDays
           ? <span className="text-xs text-warn-ink">{t.lineLabel} · {+t.waitingDays.toFixed(2)} days waiting for approval in Timesheets</span>
-          : <span className="text-xs text-warn-ink">{t.lineLabel} · no days logged: day-rate work is billed from logged, approved days</span>
+          : <span className="text-xs text-warn-ink">{t.lineLabel} · no hours logged: day-rate work is billed from approved hours (8 h a day)</span>
     }
     if (!t.onLiveCard) return <span className="text-xs text-warn-ink">{t.lineLabel} is not on the approved rate card</span>
     if (!t.done) return <span className="text-xs text-warn-ink">{t.lineLabel} · counts once the task is Done</span>

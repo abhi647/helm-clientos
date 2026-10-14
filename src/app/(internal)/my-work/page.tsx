@@ -4,7 +4,7 @@ import { deleteTime, setTaskStatus } from '@/app/_actions/work'
 import { ActionButton, StatusSelect } from '@/components/forms'
 import { Card, Chip, Empty, PageHeader, Stat, TaskStatusChip, Visibility, cn } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
-import { TASK_STATUS, daysFromToday, effort, isoDaysAgo, shortDate, effortShort } from '@/lib/format'
+import { TASK_STATUS, daysFromToday, hrs, isoDaysAgo, shortDate, effortShort } from '@/lib/format'
 import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
@@ -18,9 +18,9 @@ export default async function MyWork() {
     .select('id, title, status, due_date, visibility, project_id, parent:parent_id(title), projects(name, customers(name)), task_estimates(estimate, unit)')
     .eq('assignee_id', me.id).neq('status', 'done').order('due_date', { ascending: true, nullsFirst: false })
   const tasks = data ?? []
-  // my days: the last 30, plus anything older still waiting or returned
+  // my time: the last 30 days, plus anything older still waiting or returned
   const { data: time } = await supabase.from('time_entries')
-    .select('id, task_id, days, worked_on, billable, approved_at, returned_note, statement_id, tasks(title, project_id, projects(name))')
+    .select('id, task_id, hours, worked_on, billable, approved_at, returned_note, statement_id, tasks(title, project_id, projects(name))')
     .eq('user_id', me.id).or(`worked_on.gte.${isoDaysAgo(30).slice(0, 10)},approved_at.is.null`)
     .order('worked_on', { ascending: false }).limit(200)
   const returned = (time ?? []).filter((e) => !e.approved_at && e.returned_note)
@@ -70,7 +70,7 @@ export default async function MyWork() {
                 <div key={e.id} className={cn('row grid-cols-[70px_minmax(0,1fr)_60px_minmax(0,1.2fr)_70px]', e.returned_note && !e.approved_at && 'bg-warn-bg/40')}>
                   <span className="font-mono text-xs">{shortDate(e.worked_on)}</span>
                   <Link href={`/projects/${e.tasks?.project_id}?task=${e.task_id}`} className="truncate text-ink no-underline hover:underline">{e.tasks?.projects?.name} · {e.tasks?.title}</Link>
-                  <span className="text-right font-mono text-xs">{effortShort(Number(e.days))}{e.billable ? '' : ' nb'}</span>
+                  <span className="text-right font-mono text-xs">{hrs(Number(e.hours))}{e.billable ? '' : ' nb'}</span>
                   <span className="truncate text-xs">
                     {e.statement_id ? <Chip tone="good">Billed</Chip> : e.approved_at ? <Chip tone="info">Approved</Chip>
                       : e.returned_note ? <span className="text-warn-ink"><Chip tone="warn">Returned</Chip> {e.returned_note}</span> : <Chip>Waiting</Chip>}
@@ -81,7 +81,7 @@ export default async function MyWork() {
             </div>
           ) : <p className="m-0 p-3 text-xs text-muted">No time logged in the last 30 days. Open a task to log time.</p>}
         </Card>
-        <p className="m-0 text-xs text-muted">Your PM approves your days each week; approved days are locked. A returned entry says what to fix: delete it and log it again. {time?.length ? `${effort((time ?? []).filter((e) => !e.approved_at && !e.returned_note).reduce((s, e) => s + Number(e.days), 0))} waiting for approval.` : ''}</p>
+        <p className="m-0 text-xs text-muted">Your PM approves your hours each week; approved hours are locked. A returned entry says what to fix: delete it and log it again. {time?.length ? `${hrs((time ?? []).filter((e) => !e.approved_at && !e.returned_note).reduce((s, e) => s + Number(e.hours), 0))} waiting for approval.` : ''}</p>
         <p className="m-0 text-xs text-muted">Open a task to read its requirement and discussion, log time, or mark it ready for review. <TaskStatusChip status="in_review" /> tells the PM it is ready.</p>
       </div>
     </>

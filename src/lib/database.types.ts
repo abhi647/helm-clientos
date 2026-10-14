@@ -372,6 +372,105 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"credit_alerts": {
+                  Row: {
+                    "customer_id": string,"level": number,"period_start": string,"sent_at": string
+                  }
+                  Insert: {
+                    "customer_id": string,"level": number,"period_start": string,"sent_at"?: string
+                  }
+                  Update: {
+                    "customer_id"?: string,"level"?: number,"period_start"?: string,"sent_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "credit_alerts_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_alerts_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"credit_plans": {
+                  Row: {
+                    "customer_id": string,"kind": string,"monthly_hours": number | null,"rollover_cap": number | null,"starts_on": string,"updated_at": string,"updated_by": string | null
+                  }
+                  Insert: {
+                    "customer_id": string,"kind": string,"monthly_hours"?: number | null,"rollover_cap"?: number | null,"starts_on"?: string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Update: {
+                    "customer_id"?: string,"kind"?: string,"monthly_hours"?: number | null,"rollover_cap"?: number | null,"starts_on"?: string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "credit_plans_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: true
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_plans_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: true
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_plans_updated_by_fkey"
+      columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_plans_updated_by_fkey"
+      columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"credit_topups": {
+                  Row: {
+                    "added_by": string | null,"added_on": string,"created_at": string,"customer_id": string,"hours": number,"id": string,"note": string
+                  }
+                  Insert: {
+                    "added_by"?: string | null,"added_on"?: string,"created_at"?: string,"customer_id": string,"hours": number,"id"?: string,"note"?: string
+                  }
+                  Update: {
+                    "added_by"?: string | null,"added_on"?: string,"created_at"?: string,"customer_id"?: string,"hours"?: number,"id"?: string,"note"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "credit_topups_added_by_fkey"
+      columns: ["added_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_topups_added_by_fkey"
+      columns: ["added_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_topups_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credit_topups_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"csat_surveys": {
                   Row: {
                     "answered_at": string | null,"comment": string,"customer_id": string,"expires_at": string,"id": string,"kind": Database["public"]['Enums']["csat_kind"],"period": string | null,"project_id": string | null,"recipient_id": string,"request_id": string | null,"score": number | null,"sent_at": string
@@ -1808,13 +1907,13 @@ isOneToOne: false
                   ]
                 },"time_entries": {
                   Row: {
-                    "approved_at": string | null,"approved_by": string | null,"billable": boolean,"created_at": string,"customer_id": string,"days": number,"id": string,"note": string | null,"returned_at": string | null,"returned_note": string | null,"statement_id": string | null,"task_id": string,"user_id": string,"worked_on": string
+                    "approved_at": string | null,"approved_by": string | null,"billable": boolean,"created_at": string,"customer_id": string,"days": number | null,"hours": number,"id": string,"note": string | null,"returned_at": string | null,"returned_note": string | null,"statement_id": string | null,"task_id": string,"user_id": string,"worked_on": string
                   }
                   Insert: {
-                    "approved_at"?: string | null,"approved_by"?: string | null,"billable"?: boolean,"created_at"?: string,"customer_id": string,"days": number,"id"?: string,"note"?: string | null,"returned_at"?: string | null,"returned_note"?: string | null,"statement_id"?: string | null,"task_id": string,"user_id": string,"worked_on"?: string
+                    "approved_at"?: string | null,"approved_by"?: string | null,"billable"?: boolean,"created_at"?: string,"customer_id": string,"days"?: never,"hours": number,"id"?: string,"note"?: string | null,"returned_at"?: string | null,"returned_note"?: string | null,"statement_id"?: string | null,"task_id": string,"user_id": string,"worked_on"?: string
                   }
                   Update: {
-                    "approved_at"?: string | null,"approved_by"?: string | null,"billable"?: boolean,"created_at"?: string,"customer_id"?: string,"days"?: number,"id"?: string,"note"?: string | null,"returned_at"?: string | null,"returned_note"?: string | null,"statement_id"?: string | null,"task_id"?: string,"user_id"?: string,"worked_on"?: string
+                    "approved_at"?: string | null,"approved_by"?: string | null,"billable"?: boolean,"created_at"?: string,"customer_id"?: string,"days"?: never,"hours"?: number,"id"?: string,"note"?: string | null,"returned_at"?: string | null,"returned_note"?: string | null,"statement_id"?: string | null,"task_id"?: string,"user_id"?: string,"worked_on"?: string
                   }
                   Relationships: [
                     {
@@ -2071,6 +2170,16 @@ isOneToOne: false
                            },
 "create_task_from_meeting_action":
 { Args: { "p_action": string,"p_phase"?: string }; Returns: string
+                           },
+"credit_balance":
+{ Args: { "p_customer": string }; Returns: {
+              "allowance": number,"available": number,"carried": number,"kind": string,"period_end": string,"period_start": string,"remaining": number,"topups": number,"used": number,"used_pct": number
+            }[]
+                           },
+"credit_usage":
+{ Args: { "p_customer": string,"p_from": string,"p_to": string }; Returns: {
+              "hours": number,"person": string,"project": string,"work": string,"worked_on": string
+            }[]
                            },
 "decide_approval":
 { Args: { "p_approval": string,"p_comment"?: string,"p_decision": Database["public"]['Enums']["approval_action"] }; Returns: undefined
