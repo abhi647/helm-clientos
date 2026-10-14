@@ -4,7 +4,6 @@ import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
-import * as OTPAuth from 'otpauth'
 
 const MAILPIT = process.env.MAILPIT_URL ?? 'http://127.0.0.1:54324'
 const SHOTS = process.env.E2E_SCREENSHOTS
@@ -43,9 +42,6 @@ async function latestCode(email: string, after: number): Promise<string> {
   throw new Error(`No sign-in code for ${email}`)
 }
 
-// authenticator secrets of staff who set up two-step sign-in during this run
-const totp = new Map<string, string>()
-
 async function signIn(page: Page, email: string) {
   await page.context().clearCookies()
   await page.goto('/login')
@@ -58,20 +54,8 @@ async function signIn(page: Page, email: string) {
   await page.request.get(link)
   await page.goto(link)
   await page.getByRole('button', { name: /^(Continue|Open your workspace)$/ }).click()
-  // "/" redirects on to the right home (or to /mfa for staff)
+  // "/" redirects on to the right home
   await page.waitForURL((u) => !u.pathname.startsWith('/auth') && u.pathname !== '/')
-  if (!page.url().includes('/mfa')) return
-  // staff: set up the authenticator the first time, then enter the current code
-  const heading = page.getByRole('heading', { name: /Set up two-step sign-in|Enter your code/ })
-  await expect(heading).toBeVisible()
-  if ((await heading.textContent())?.startsWith('Set up')) {
-    totp.set(email, (await page.getByTestId('totp-secret').textContent())!.trim())
-    await shot(page, '00-mfa-setup')
-  }
-  const code = new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(totp.get(email)!) }).generate()
-  await page.getByLabel('6-digit code').fill(code)
-  await page.getByRole('button', { name: /Turn on and continue|Continue/ }).click()
-  await page.waitForURL((u) => !u.pathname.startsWith('/mfa'))
 }
 
 test.beforeAll(() => {
@@ -1107,3 +1091,13 @@ test.describe('on a phone, billing', () => {
   })
 })
 
+
+test('Google or Microsoft with an account nobody invited lands back on sign-in with a clear message; staff need no authenticator', async ({ page }) => {
+  await page.goto('/auth/confirm?error=access_denied&error_description=Signups+not+allowed+for+this+instance')
+  await page.waitForURL(/\/login\?error=not-invited/)
+  await expect(page.getByText('That account has no access to Helm yet')).toBeVisible()
+  await signIn(page, 'sahil@example.com')
+  await expect(page).toHaveURL(/\/home/)
+  await page.goto('/mfa')
+  await expect(page).not.toHaveURL(/\/mfa/)
+})

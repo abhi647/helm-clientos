@@ -6,8 +6,8 @@ export const metadata: Metadata = { title: 'Sign in', robots: { index: false, fo
 
 /**
  * Landing for email links. Mail scanners load this page but never press the button, so the link stays valid.
- * The button is a full-page post to /auth/confirm (not a server action), so the redirects that follow, such as
- * staff going to /mfa, show in the address bar.
+ * The button is a full-page post to /auth/confirm (not a server action), so the redirects that follow show in the
+ * address bar.
  */
 export default async function ContinuePage({ searchParams }: { searchParams: Promise<{ token_hash?: string; type?: string; next?: string }> }) {
   const { token_hash, type, next } = await searchParams

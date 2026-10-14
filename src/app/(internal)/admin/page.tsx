@@ -46,8 +46,6 @@ export default async function Admin() {
   const { data: auth } = await createAdminClient().auth.admin.listUsers({ perPage: 1000 })
   const removed = new Set((staff ?? []).filter((p) => p.access_revoked_at).map((p) => p.id))
   const lastSeen = new Map((auth?.users ?? []).map((u) => [u.id, u.last_sign_in_at]))
-  const withMfa = new Set((auth?.users ?? []).filter((u) => (u.factors ?? []).some((f) => f.status === 'verified')).map((u) => u.id))
-  const noMfa = (staff ?? []).filter((p) => !p.access_revoked_at && !withMfa.has(p.id))
   const { count: blocked } = await supabase.from('documents').select('id', { count: 'exact', head: true }).in('scan_status', ['infected', 'rejected'])
   const { count: unscanned } = await supabase.from('documents').select('id', { count: 'exact', head: true }).in('scan_status', ['pending', 'not_scanned'])
   const enabled = new Map((rules ?? []).map((r) => [r.key, r.enabled]))
@@ -130,9 +128,9 @@ export default async function Admin() {
           </Card>
           <Card flush title="Security">
             <div className="row grid-cols-[minmax(0,1fr)_96px] py-1.5">
-              <span className="flex min-w-0 flex-col"><span className="font-medium">Two-step sign-in for staff</span>
-                <span className="text-xs text-muted">{noMfa.length ? `Not set up yet: ${noMfa.map((p) => p.full_name).join(', ')}. They are asked at their next sign-in.` : 'Everyone on the team has an authenticator app.'}</span></span>
-              <span className="text-right"><Chip tone="good">Required</Chip></span>
+              <span className="flex min-w-0 flex-col"><span className="font-medium">Sign-in</span>
+                <span className="text-xs text-muted">Email link or code{process.env.NEXT_PUBLIC_GOOGLE_SIGNIN === 'true' ? ', Google' : ''}{process.env.NEXT_PUBLIC_MICROSOFT_SIGNIN === 'true' ? ', Microsoft' : ''}. Invite-only: only people invited here can sign in, whichever way they choose.</span></span>
+              <span className="text-right"><Chip tone="good">Invite-only</Chip></span>
             </div>
             <div className="row grid-cols-[minmax(0,1fr)_96px] py-1.5">
               <span className="flex min-w-0 flex-col"><span className="font-medium">Virus scanning</span>

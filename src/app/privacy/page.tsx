@@ -16,7 +16,7 @@ export default function Privacy() {
         <li><b>Your account:</b> your name, work email, your company and your role in Helm.</li>
         <li><b>Your work with us:</b> requests, comments, approvals, files you upload, forms, ratings and feedback, and a history of who did what and when.</li>
         <li><b>Billing records:</b> agreed rates, statements and invoice details, for the people your company allows to see them.</li>
-        <li><b>Sign-in:</b> a sign-in cookie that keeps you signed in for up to 30 days, and the time of your last sign-in. Seven Billion staff also use an authenticator app.</li>
+        <li><b>Sign-in:</b> a sign-in cookie that keeps you signed in for up to 30 days, and the time of your last sign-in.</li>
       </ul>
       <p>Helm has no advertising and no analytics trackers.</p>
 

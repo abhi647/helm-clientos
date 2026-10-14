@@ -2,7 +2,6 @@
 // Run: npm run test:db   (needs `supabase start`; reseeds the local database first)
 import { execSync } from 'node:child_process'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import * as OTPAuth from 'otpauth'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { applyPlan } from '@/lib/backfill-apply'
 import { planImport } from '@/lib/backfill-plan'
@@ -15,19 +14,11 @@ const PASSWORD = process.env.SEED_PASSWORD || 'local-dev-only-password'
 const opts = { auth: { persistSession: false, autoRefreshToken: false } }
 
 const service = createClient(url, secret, opts)
-/** Signs in. Staff also complete two-step sign-in (TOTP), as the database requires for staff data. */
-async function as(email: string, { mfa = true }: { mfa?: boolean } = {}): Promise<SupabaseClient> {
+/** Signs in (email and password are for tests only; people use an email link, a code, Google or Microsoft). */
+async function as(email: string): Promise<SupabaseClient> {
   const c = createClient(url, anonKey, opts)
   const { error } = await c.auth.signInWithPassword({ email, password: PASSWORD })
   if (error) throw new Error(`${email}: ${error.message}`)
-  const staff = email.endsWith('@example.com') && !email.includes('nesma') && !email.includes('cbd')
-  if (staff && mfa) {
-    const { data: f, error: e1 } = await c.auth.mfa.enroll({ factorType: 'totp', friendlyName: `test-${Date.now()}-${Math.random()}` })
-    if (e1 || !f) throw new Error(`${email}: enroll ${e1?.message}`)
-    const code = new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(f.totp.secret) }).generate()
-    const { error: e2 } = await c.auth.mfa.challengeAndVerify({ factorId: f.id, code })
-    if (e2) throw new Error(`${email}: verify ${e2.message}`)
-  }
   return c
 }
 
@@ -38,7 +29,6 @@ const CUSTOMER_TABLES = ['customers', 'projects', 'phases', 'tasks', 'requests',
 const STAFF_ONLY = ['project_commercials', 'task_estimates', 'time_entries', 'automation_rules', 'customer_contacts', 'project_deals']
 const SERVICE_ONLY = ['email_outbox', 'integration_events']
 
-// the CEO signs in once: a second sign-in cannot enrol another authenticator without the first
 let ceoClient: Promise<SupabaseClient> | undefined
 const asCeo = () => (ceoClient ??= as('abhijit@example.com'))
 
@@ -494,14 +484,12 @@ describe('restricted fields are never returned', () => {
 })
 
 // ---------------------------------------------------------------- go-live security
-describe('staff two-step sign-in', () => {
-  it('a staff session without the authenticator code sees no staff data', async () => {
-    const plain = await as('sahil@example.com', { mfa: false })
-    expect((await plain.from('tasks').select('id').eq('visibility', 'internal')).data).toHaveLength(0)
-    expect((await plain.from('directory').select('id')).data).toHaveLength(0)
-    expect((await plain.from('customers').select('id')).data).toHaveLength(0)
-    // and the same person after two-step sign-in does
-    expect((await sahil.from('tasks').select('id').eq('visibility', 'internal')).data!.length).toBeGreaterThan(0)
+describe('staff sign-in', () => {
+  it('a plain staff session sees staff data (no authenticator step); a customer still sees none of it', async () => {
+    const plain = await as('sahil@example.com')
+    expect((await plain.from('tasks').select('id').eq('visibility', 'internal')).data!.length).toBeGreaterThan(0)
+    expect((await plain.from('directory').select('id')).data!.length).toBeGreaterThan(0)
+    expect((await michel.from('tasks').select('id').eq('visibility', 'internal')).data).toHaveLength(0)
   })
 })
 

@@ -65,13 +65,12 @@ npm run dev
 
 1. Sign in with a seeded email, for example `rahul@example.com` (PM), `abhijit@example.com` (CEO) or `michel@nesma.example.com` (customer).
 2. Open the magic link in Mailpit at http://127.0.0.1:54324.
-3. Staff accounts then set up two-step sign-in: scan the QR code with any authenticator app, or type the setup key.
 
 | Command | What it does |
 |---|---|
 | `npm run typecheck` / `npm run lint` | TypeScript and ESLint |
-| `npm run test:db` | 79 row, field, two-step, lock-out, file, playbook and CSAT tests against the local database |
-| `npm run test:e2e` | 18 Playwright flows, including phone-width checks (staff complete two-step sign-in; set `CLAMAV_HOST` to run the virus-scan flow) (needs `npm run build && npm start` first). Set `PW_CHROMIUM_PATH` to use a pre-installed Chromium. |
+| `npm run test:db` | Row, field, lock-out, file, playbook and CSAT tests against the local database |
+| `npm run test:e2e` | 18 Playwright flows, including phone-width checks (set `CLAMAV_HOST` to run the virus-scan flow) (needs `npm run build && npm start` first). Set `PW_CHROMIUM_PATH` to use a pre-installed Chromium. |
 
 CI (`.github/workflows/ci.yml`) runs lint, types, the database tests and the flows on every push to `main` and on every pull request. It uses a throwaway local Supabase and a ClamAV service.
 | `npm run db:types` | Regenerate `src/lib/database.types.ts` after a migration |
@@ -103,18 +102,27 @@ CI (`.github/workflows/ci.yml`) runs lint, types, the database tests and the flo
    | User | `resend` |
    | Password | your Resend API key |
 
-7. Optional: **Google sign-in for your team**.
-   - In Google Cloud, create an OAuth client with the redirect URI `https://<ref>.supabase.co/auth/v1/callback`.
-   - Enable the Google provider in **Authentication → Sign In / Providers**.
-   - Set `NEXT_PUBLIC_GOOGLE_SIGNIN=true`.
+7. Recommended: **Continue with Google / Microsoft** (one click, for staff and customers). Both work on the free Supabase plan.
+   - **Google**: in Google Cloud → APIs & Services → Credentials, create an *OAuth client ID* (Web application) with the
+     authorised redirect URI `https://<ref>.supabase.co/auth/v1/callback`; on the consent screen, set the app to *External*
+     and publish it. In Supabase → **Authentication → Sign In / Providers → Google**, turn it on and paste the client ID and
+     secret. In Vercel set `NEXT_PUBLIC_GOOGLE_SIGNIN=true`.
+   - **Microsoft**: in Azure → Microsoft Entra ID → App registrations → *New registration*, choose *Accounts in any
+     organizational directory and personal Microsoft accounts*, redirect URI (Web) `https://<ref>.supabase.co/auth/v1/callback`.
+     Under *Certificates & secrets* create a client secret; under *Token configuration* add the optional claim `xms_edov`
+     (ID token) so Supabase can trust the email address. In Supabase → **Providers → Azure**, turn it on and paste the
+     Application (client) ID and the secret value; leave the tenant URL empty (any organization). In Vercel set
+     `NEXT_PUBLIC_MICROSOFT_SIGNIN=true`.
+   - Redeploy on Vercel after setting the variables (they are read at build time).
 
-   Sign-ups stay off, so only people you have invited can sign in with Google.
+   Sign-ups stay off, so only people you have invited can sign in, whichever way they choose. Someone invited as
+   `name@company.com` signs in with the Google or Microsoft account for that same address; it is linked to their Helm
+   account automatically. Anyone else is sent back to the sign-in page with "That account has no access to Helm yet".
 
 ### Staying signed in, and the phone app
 
 - **Sessions last 30 days and renew while in use.** The sign-in cookie lives 30 days (`src/lib/supabase/session-cookie.ts`), and each visit refreshes it. Someone who opens Helm at least once a month never signs in again on that device; after 30 days away they sign in once more. Removing someone in Admin still cuts them off at once, because every request checks their access in the database.
 - Leave **Authentication → Sessions** at its defaults (JWT expiry 3600 s; refresh tokens don't expire). On a paid plan you can set "Inactivity timeout" to 30 days as a server-side backstop.
-- Staff still enter their authenticator code at each new sign-in, not on every visit.
 - **Install it as an app.** iPhone: open Helm in Safari → Share → *Add to Home Screen*. Android/Chrome/Edge: menu → *Install app*. It opens full-screen with the Helm icon (`src/app/manifest.ts`). The service worker (`public/sw.js`) only caches the app's static files and shows an offline page when there is no signal; it never stores pages or customer data on the device.
 - On phones, the staff sidebar becomes a menu button, the portal tabs scroll sideways, and wide tables scroll inside their cards.
 
@@ -166,7 +174,7 @@ Run this once from your computer. It creates the organisation and emails you an 
 npm run bootstrap -- --email you@sevenbillion.co --name "Your Name"
 ```
 
-Open the email link, set up two-step sign-in with an authenticator app, and you're in. Everything else happens in the app:
+Open the email link and you're in. Everything else happens in the app:
 - **Admin:** invite colleagues, set roles or remove access, add customers and account owners, switch playbook rules, check security and integrations.
 - **Customers:** invite their people from each customer page.
 
@@ -178,7 +186,7 @@ To see Helm as each role, create one sign-in per role. All of them are "+" alias
 node --env-file=.env.production.local scripts/test-users.mjs --email you@gmail.com
 ```
 
-This creates admin, CEO, PM, consultant and finance staff, plus three customer users (an executive, a member, and a member with invoice access) under a separate customer, "Helm Test Co (test)", with one small project. Sign in at the login page with the 6-digit code. Staff set up an authenticator app the first time. Run it again with `--remove` to delete them all.
+This creates admin, CEO, PM, consultant and finance staff, plus three customer users (an executive, a member, and a member with invoice access) under a separate customer, "Helm Test Co (test)", with one small project. Sign in at the login page with the 6-digit code. Run it again with `--remove` to delete them all.
 
 ### 5. HubSpot (optional)
 
@@ -307,7 +315,7 @@ Access is enforced inside Postgres at two levels, so a bug in a page cannot leak
   - Form answers are visible to whoever submitted them and to the customer's executives.
   - CSAT answers are visible only to the person who was asked.
 
-- **Two-step sign-in for staff:** every Seven Billion sign-in needs an authenticator-app code (TOTP). The database enforces it as well as the app: a staff session without the code sees no staff data at all. Customers sign in with an email link.
+- **Sign-in:** everyone signs in with an email link or 6-digit code, or with Google or Microsoft; there are no passwords and no authenticator app. Two-step protection comes from the person's Google or Microsoft account. Helm is invite-only (Supabase sign-ups are off). To require an authenticator app again, `private.staff_session_ok()` is the one place to change (see `supabase/migrations/*_no_staff_two_factor.sql`).
 - **Instant lock-out:**
   - "Remove access" (Admin for staff, the customer page for customer users) blocks every database check from the person's next click, ends all their sessions and stops them signing in again.
   - Their name stays on history.
@@ -319,13 +327,13 @@ Access is enforced inside Postgres at two levels, so a bug in a page cannot leak
   - Staff can archive files, which hides them from the customer.
   - Requests have their own file area.
 
-`tests/rls.test.ts` checks every one of these rules (79 tests). It signs in as customers, as staff (with a real TOTP code), as staff without two-step sign-in, and as anonymous callers.
+`tests/rls.test.ts` checks every one of these rules It signs in as customers, as staff and as anonymous callers.
 
 ### Before real customers: go-live checklist
 
 | | Where | What |
 |---|---|---|
-| 1 | Supabase → Authentication → Multi-Factor | Confirm **TOTP (authenticator app)** is enabled. The app asks each staff member to set it up at their next sign-in, and Admin → Security lists anyone who hasn't yet. |
+| 1 | Supabase → Authentication → Sign In / Providers | Turn on Google and/or Microsoft (Azure) and set `NEXT_PUBLIC_GOOGLE_SIGNIN` / `NEXT_PUBLIC_MICROSOFT_SIGNIN` (see *Going live → Supabase*, step 7). Keep **Allow new users to sign up** off. |
 | 2 | Hosting for ClamAV | Run the official `clamav/clamav` Docker image on a private network (Fly.io, Railway, a small VM). Set `CLAMAV_HOST`, then set `REQUIRE_VIRUS_SCAN=true` so nothing opens unscanned. Don't expose port 3310 publicly; restrict it to Vercel's egress or a private network. |
 | 3 | Supabase → Database → Backups | Turn on **Point-in-Time Recovery** (Pro plan add-on), which allows restoring to any second in the retention window. Daily backups alone can lose up to a day. |
 | 4 | Supabase project region | Pick the region at creation; it can't be moved later. Mumbai (`ap-south-1`) is next to Vercel `bom1`. If a customer's contract requires their data to stay in a specific country or region, check Supabase's region list before creating the project. |

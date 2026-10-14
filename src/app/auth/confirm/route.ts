@@ -31,10 +31,12 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) return NextResponse.redirect(new URL(next, origin))
   }
+  // Google or Microsoft with an account nobody invited: sign-ups are off, so the provider sends back an error
+  if (searchParams.get('error')) return NextResponse.redirect(new URL('/login?error=not-invited', origin))
   return NextResponse.redirect(new URL('/login?error=link-expired', origin))
 }
 
-/** The button on /auth/continue: uses the one-time email link. A full-page post, so later redirects (e.g. to /mfa) show in the address bar. */
+/** The button on /auth/continue: uses the one-time email link. A full-page post, so later redirects show in the address bar. */
 export async function POST(request: NextRequest) {
   const form = await request.formData()
   const token_hash = String(form.get('token_hash') ?? '')

@@ -9,6 +9,7 @@ export const metadata: Metadata = { title: 'Sign in' }
 const ERRORS: Record<string, string> = {
   'no-access': 'You are signed in, but your account has not been given access yet. Contact your Seven Billion team.',
   'link-expired': 'That sign-in link has expired or was already used. Request a new one below.',
+  'not-invited': 'That account has no access to Helm yet. Use the email address you were invited with, or ask your Seven Billion contact to invite you.',
 }
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string; email?: string }> }) {

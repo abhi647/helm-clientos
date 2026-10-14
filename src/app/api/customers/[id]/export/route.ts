@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { exportCustomer } from '@/lib/customer-data'
-import { getAal, getProfile } from '@/lib/session'
+import { getProfile } from '@/lib/session'
 import { logError } from '@/lib/system-log'
 
 /** Admin or CEO: download everything Helm holds about one customer, as JSON. */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const me = await getProfile()
-  if (!me || me.kind !== 'internal' || !['admin', 'ceo'].includes(me.internal_role ?? '') || (await getAal()) !== 'aal2') {
+  if (!me || me.kind !== 'internal' || !['admin', 'ceo'].includes(me.internal_role ?? '')) {
     return NextResponse.json({ error: 'Only an admin or the CEO can export customer data.' }, { status: 403 })
   }
   const { id } = await params
