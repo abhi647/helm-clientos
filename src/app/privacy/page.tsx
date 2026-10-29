@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: 'Privacy' }
 // A plain statement of what Helm does with personal data. Have it reviewed against your contracts before relying on it.
 export default function Privacy() {
   return (
-    <LegalPage title="Privacy" updated="7 October 2026">
+    <LegalPage title="Privacy" updated="29 October 2026">
       <p>Helm is the workspace Seven Billion Analytics uses to run projects with its customers. This page explains what
         Helm keeps about you, why, who helps us run it, and what you can ask for. Where your company has a contract with
         Seven Billion, that contract (including any data processing terms) takes precedence over this page.</p>
@@ -39,14 +39,21 @@ export default function Privacy() {
       </ul>
       <p>Uploaded files are checked for viruses before anyone can open them.</p>
 
+      <h2>AI tools you connect</h2>
+      <p>You can connect Helm to an AI tool such as Claude or ChatGPT (see <a href="/connect">Use Helm from AI tools</a>).
+        The tool signs in as you, after you allow it, and can only see and change what you can in Helm. Helm sends it
+        data only in answer to what you ask it, and keeps no copy of your conversations. The AI provider handles that
+        data under its own terms and privacy policy. You can remove a tool&apos;s access at any time from its connector
+        settings.</p>
+
       <h2>How long</h2>
       <p>While your company works with Seven Billion, and afterwards for as long as your contract or the law requires.
         Encrypted backups are kept for 30 days and system logs for 90 days.</p>
 
       <h2>What you can ask for</h2>
       <p>You can ask for a copy of the data Helm holds about you or your company, for corrections, or for it to be
-        deleted when it is no longer needed. Contact the Seven Billion team you work with, or the contact named in your
-        contract. Seven Billion can export a full copy of a customer&apos;s data and delete it completely.</p>
+        deleted when it is no longer needed. Write to <a href="mailto:abhijit@sevenbillion.co">abhijit@sevenbillion.co</a>, contact
+        the Seven Billion team you work with, or the contact named in your contract. Seven Billion can export a full copy of a customer&apos;s data and delete it completely.</p>
 
       <h2>Security</h2>
       <p>Data is encrypted in transit, access is limited by role and checked by the database itself, staff sign in with
