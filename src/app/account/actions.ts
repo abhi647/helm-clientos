@@ -3,8 +3,10 @@
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { logError } from '@/lib/system-log'
 
-export type SetPasswordState = { status: 'idle' | 'error'; message?: string }
+// 'code': Supabase wants the 6-digit code it just emailed before it changes the password (secure password change)
+export type SetPasswordState = { status: 'idle' | 'error' | 'code'; message?: string }
 
 const safeNext = (n: unknown) => (typeof n === 'string' && n.startsWith('/') && !n.startsWith('//') && !n.startsWith('/account/password') ? n : '/')
 
@@ -21,9 +23,22 @@ export async function setPassword(_prev: SetPasswordState, form: FormData): Prom
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-  const { error } = await supabase.auth.updateUser({ password })
-  if (error && !/different from the old/i.test(error.message)) {
-    return { status: 'error', message: /weak|pwned|leaked/i.test(error.message) ? 'That password is too easy to guess. Choose another.' : 'The password could not be saved. Please try again.' }
+  const nonce = String(form.get('nonce') ?? '').replace(/\s+/g, '') || undefined
+  const { error } = await supabase.auth.updateUser({ password, nonce })
+  if (error && error.code !== 'same_password' && !/different from the old/i.test(error.message)) {
+    // secure password change: Supabase only changes it with a code it emails first
+    if (error.code === 'reauthentication_needed' || error.code === 'reauthentication_not_valid' || /reauthenticat|nonce/i.test(error.message)) {
+      if (nonce) return { status: 'code', message: 'That code is wrong or has expired. Check the latest email, or reload the page to get a new one.' }
+      const { error: sendError } = await supabase.auth.reauthenticate()
+      if (sendError) { await logError('auth', sendError, { step: 'reauthenticate' }, 'warn'); return { status: 'error', message: 'We could not email you a confirmation code. Please try again in a minute.' } }
+      return { status: 'code' }
+    }
+    await logError('auth', error, { step: 'set password', code: error.code ?? null }, 'warn')
+    const why = error.code === 'weak_password' || /weak|pwned|leaked|characters/i.test(error.message) ? 'That password is too easy to guess, or does not meet the rules. Choose another.'
+      : error.code === 'session_not_found' || error.code === 'session_expired' || error.status === 401 ? 'Your sign-in has expired. Sign in again, then set your password.'
+      : error.status === 429 ? 'Too many attempts. Please wait a few minutes and try again.'
+      : `The password could not be saved: ${error.message}`
+    return { status: 'error', message: why }
   }
   if (!(await recordSignInSet(user))) return { status: 'error', message: 'The password was saved, but we could not finish. Please try again.' }
   redirect(safeNext(form.get('next')))
