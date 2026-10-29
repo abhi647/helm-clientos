@@ -9,6 +9,8 @@ export const metadata: Metadata = { title: 'Sign in' }
 const ERRORS: Record<string, string> = {
   'no-access': 'You are signed in, but your account has not been given access yet. Contact your Seven Billion team.',
   'link-expired': 'That sign-in link has expired or was already used. Request a new one below.',
+  'wrong-password': 'Wrong email or password. First time here, or forgot it? Use “Set or reset your password” below, or sign in with a passkey.',
+  'too-many': 'Too many attempts. Please wait a few minutes and try again.',
   'not-invited': 'That account has no access to Helm yet. Use the email address you were invited with, or ask your Seven Billion contact to invite you.',
 }
 

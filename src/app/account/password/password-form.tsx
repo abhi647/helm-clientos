@@ -3,11 +3,13 @@
 import { useActionState } from 'react'
 import { setPassword, type SetPasswordState } from '@/app/account/actions'
 
-export function PasswordForm({ next }: { next: string }) {
+export function PasswordForm({ next, email }: { next: string; email: string }) {
   const [state, action, pending] = useActionState<SetPasswordState, FormData>(setPassword, { status: 'idle' })
   return (
     <form action={action} className="flex flex-col gap-2.5">
       <input type="hidden" name="next" value={next} />
+      {/* password managers save a new password against the username next to it: without this they don't offer to */}
+      <input type="email" name="username" value={email} readOnly autoComplete="username" tabIndex={-1} aria-hidden className="sr-only" />
       <label htmlFor="password" className="label">New password</label>
       <input id="password" name="password" type="password" required minLength={10} maxLength={72} autoComplete="new-password" autoFocus className="input h-10 text-sm" />
       <label htmlFor="confirm" className="label">Type it again</label>

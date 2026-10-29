@@ -2,7 +2,8 @@
 
 import { useActionState, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { sendMagicLink, signInWithPassword, type LoginState, type PasswordState } from './actions'
+import { PasskeySignIn } from '@/components/passkeys'
+import { sendMagicLink, type LoginState } from './actions'
 
 /** After the email is sent: open the link, or type the code from the same email (needed in the installed app). */
 function CodeForm({ email, next, error }: { email: string; next: string; error?: boolean }) {
@@ -43,7 +44,7 @@ function signInWith(provider: 'google' | 'azure', next: string) {
 export function LoginForm({ next, codeFor, codeError }: { next: string; codeFor?: string; codeError?: boolean }) {
   const [reset, setReset] = useState(false)
   const [sent, sendCode, sending] = useActionState<LoginState, FormData>(sendMagicLink, { status: 'idle' })
-  const [state, signIn, signingIn] = useActionState<PasswordState, FormData>(signInWithPassword, { status: 'idle' })
+  const [signingIn, setSigningIn] = useState(false)
   if (codeFor) return <CodeForm email={codeFor} next={next} error={codeError} />
   if (sent.status === 'sent') return <CodeForm email={sent.email!} next={next} />
   const sso = GOOGLE || MICROSOFT
@@ -53,7 +54,7 @@ export function LoginForm({ next, codeFor, codeError }: { next: string; codeFor?
         <input type="hidden" name="next" value={next} />
         <p className="m-0 text-[13px] leading-relaxed">First time here, or forgot your password? We&apos;ll email you a 6-digit code, then you choose a password.</p>
         <label htmlFor="reset-email" className="label">Work email</label>
-        <input id="reset-email" name="email" type="email" required autoComplete="email" autoFocus defaultValue={state.email} placeholder="you@company.com" className="input h-10 text-sm" />
+        <input id="reset-email" name="email" type="email" required autoComplete="email" autoFocus placeholder="you@company.com" className="input h-10 text-sm" />
         {sent.status === 'error' ? <p role="alert" className="m-0 text-xs text-crit-ink">{sent.message}</p> : null}
         <button type="submit" disabled={sending} className="btn btn-primary h-10 text-sm">{sending ? 'Sending…' : 'Email me a code'}</button>
         <button type="button" onClick={() => setReset(false)} className="text-center text-xs text-muted">Back to sign in</button>
@@ -74,14 +75,15 @@ export function LoginForm({ next, codeFor, codeError }: { next: string; codeFor?
           Continue with Microsoft
         </button>
       ) : null}
-      {sso ? <div className="my-1 flex items-center gap-2 text-[11px] text-muted"><span className="h-px flex-1 bg-line" />or with your email and password<span className="h-px flex-1 bg-line" /></div> : null}
-      <form action={signIn} className="flex flex-col gap-2.5">
+      <PasskeySignIn next={next} />
+      <div className="my-1 flex items-center gap-2 text-[11px] text-muted"><span className="h-px flex-1 bg-line" />or with your email and password<span className="h-px flex-1 bg-line" /></div>
+      {/* a full-page post (src/app/auth/password), so browsers recognise the sign-in and offer to save the password */}
+      <form action="/auth/password" method="post" onSubmit={() => setSigningIn(true)} className="flex flex-col gap-2.5">
         <input type="hidden" name="next" value={next} />
         <label htmlFor="email" className="label">Work email</label>
-        <input id="email" name="email" type="email" required autoComplete="username" autoFocus={!sso} defaultValue={state.email} placeholder="you@company.com" className="input h-10 text-sm" />
+        <input id="email" name="email" type="email" required autoComplete="username webauthn" autoFocus={!sso} placeholder="you@company.com" className="input h-10 text-sm" />
         <label htmlFor="password" className="label">Password</label>
         <input id="password" name="password" type="password" required autoComplete="current-password" className="input h-10 text-sm" />
-        {state.status === 'error' ? <p role="alert" className="m-0 text-xs text-crit-ink">{state.message}</p> : null}
         <button type="submit" disabled={signingIn} className="btn btn-primary h-10 text-sm">{signingIn ? 'Signing in…' : 'Sign in'}</button>
       </form>
       <button type="button" onClick={() => setReset(true)} className="text-center text-xs font-medium text-link">Set or reset your password</button>
