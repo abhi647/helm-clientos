@@ -12,6 +12,18 @@ type ZohoInvoice = {
 
 const HIDDEN = new Set(['draft', 'void'])
 
+/** Every Zoho Books scope Helm uses. The refresh token must be made with all of them (README → Zoho Books). */
+export const ZOHO_SCOPES = 'ZohoBooks.invoices.READ,ZohoBooks.invoices.CREATE,ZohoBooks.customerpayments.READ,ZohoBooks.contacts.READ,ZohoBooks.settings.READ'
+
+/**
+ * Zoho's answer to a request the refresh token has no scope for: HTTP 401, or code 57 ("You are not authorized to
+ * perform this operation"). Retrying never helps, so say which permission is missing and how to fix it.
+ */
+export function zohoAccessProblem(status: number, json: { code?: number; message?: string } | null, scope: string): string | null {
+  if (status !== 401 && status !== 403 && json?.code !== 57 && json?.code !== 14) return null
+  return `Zoho refused (${json?.message ?? `HTTP ${status}`}). The Zoho connection is missing the ${scope} permission: make a new refresh token with the scopes ${ZOHO_SCOPES} and put it in ZOHO_REFRESH_TOKEN.`
+}
+
 /** Zoho's API host for the data centre: zoho.in → www.zohoapis.in, zoho.com → www.zohoapis.com, zoho.eu → www.zohoapis.eu */
 export const apiBase = () => `https://www.zohoapis.${env().ZOHO_DOMAIN.replace(/^zoho\./, '')}`
 
@@ -46,8 +58,8 @@ export async function syncZohoInvoices(): Promise<{ fetched: number; upserted: n
     const url = new URL(`${apiBase()}/books/v3/invoices`)
     url.search = new URLSearchParams({ organization_id: e.ZOHO_ORGANIZATION_ID, page: String(page), per_page: '200', sort_column: 'date', sort_order: 'D' }).toString()
     const res = await fetch(url, { headers: { Authorization: `Zoho-oauthtoken ${token}` }, cache: 'no-store' })
-    if (!res.ok) throw new Error(`Zoho invoices request failed: ${res.status}`)
-    const json = (await res.json()) as { invoices: ZohoInvoice[]; page_context?: { has_more_page?: boolean } }
+    const json = (await res.json().catch(() => null)) as { code?: number; message?: string; invoices: ZohoInvoice[]; page_context?: { has_more_page?: boolean } } | null
+    if (!res.ok || !json?.invoices) throw new Error(zohoAccessProblem(res.status, json, 'ZohoBooks.invoices.READ') ?? `Zoho invoices request failed: ${json?.message ?? res.status}`)
     invoices.push(...json.invoices)
     if (!json.page_context?.has_more_page) break
   }
@@ -95,8 +107,8 @@ async function syncPayments(token: string, byZoho: Map<string, string>): Promise
     const url = new URL(`${apiBase()}/books/v3/customerpayments`)
     url.search = new URLSearchParams({ organization_id: e.ZOHO_ORGANIZATION_ID, page: String(page), per_page: '200', sort_column: 'date', sort_order: 'D' }).toString()
     const res = await fetch(url, { headers: { Authorization: `Zoho-oauthtoken ${token}` }, cache: 'no-store' })
-    if (!res.ok) throw new Error(`Zoho payments request failed: ${res.status}`)
-    const json = (await res.json()) as { customerpayments: ZohoPayment[]; page_context?: { has_more_page?: boolean } }
+    const json = (await res.json().catch(() => null)) as { code?: number; message?: string; customerpayments: ZohoPayment[]; page_context?: { has_more_page?: boolean } } | null
+    if (!res.ok || !json?.customerpayments) throw new Error(zohoAccessProblem(res.status, json, 'ZohoBooks.customerpayments.READ') ?? `Zoho payments request failed: ${json?.message ?? res.status}`)
     payments.push(...json.customerpayments)
     if (!json.page_context?.has_more_page) break
   }
@@ -130,7 +142,10 @@ export async function zohoTaxOptions(): Promise<{ taxes: { id: string; name: str
       const url = new URL(`${apiBase()}/books/v3/${path}`)
       url.search = new URLSearchParams({ organization_id: e.ZOHO_ORGANIZATION_ID }).toString()
       const res = await fetch(url, { headers: { Authorization: `Zoho-oauthtoken ${token}` }, next: { revalidate: 600 } })
-      return (await res.json()) as Record<string, unknown>
+      const json = (await res.json().catch(() => null)) as (Record<string, unknown> & { code?: number; message?: string }) | null
+      // a refused request is an error, not "no taxes": an empty list silently blocked every invoice
+      if (!res.ok || !json || json.code !== 0) throw new Error(zohoAccessProblem(res.status, json, 'ZohoBooks.settings.READ') ?? `Zoho could not list taxes: ${json?.message ?? res.status}`)
+      return json
     }
     const [t, x] = await Promise.all([get('settings/taxes'), get('settings/taxexemptions')])
     const taxes = ((t.taxes ?? []) as { tax_id: string; tax_name: string; tax_percentage: number; status?: string }[])
@@ -232,8 +247,8 @@ export async function createZohoInvoice(statementIds: string[]): Promise<DraftRe
       headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-    const json = (await res.json()) as { code?: number; message?: string; invoice?: { invoice_id: string; invoice_number: string; currency_code?: string } }
-    if (!res.ok || json.code !== 0 || !json.invoice) return release(`Zoho refused the invoice: ${json.message ?? res.status}`)
+    const json = ((await res.json().catch(() => null)) ?? {}) as { code?: number; message?: string; invoice?: { invoice_id: string; invoice_number: string; currency_code?: string } }
+    if (!res.ok || json.code !== 0 || !json.invoice) return release(zohoAccessProblem(res.status, json, 'ZohoBooks.invoices.CREATE') ?? `Zoho refused the invoice: ${json.message ?? res.status}`)
     const warn = currency && json.invoice.currency_code && json.invoice.currency_code !== currency
       ? `Zoho used ${json.invoice.currency_code}, but the rate card is in ${currency}. Check the draft before sending.` : null
     await db.from('billing_statements').update({
