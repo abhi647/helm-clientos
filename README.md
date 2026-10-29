@@ -199,7 +199,11 @@ This creates admin, CEO, PM, consultant and finance staff, plus three customer u
 ### 6. Zoho Books (optional)
 
 1. In the [Zoho API console](https://api-console.zoho.in), create a Self Client.
-2. Generate a code with scopes `ZohoBooks.invoices.READ,ZohoBooks.invoices.CREATE,ZohoBooks.customerpayments.READ` and exchange it for a refresh token. `invoices.CREATE` is only used to create **draft** invoices from approved billing statements.
+2. Generate a code with scopes `ZohoBooks.invoices.READ,ZohoBooks.invoices.CREATE,ZohoBooks.customerpayments.READ,ZohoBooks.contacts.READ,ZohoBooks.settings.READ` and exchange it for a refresh token.
+   - `invoices.CREATE` is only used to create **draft** invoices from approved billing statements.
+   - `contacts.READ` checks a Zoho customer id when you link a customer, and the customer's currency before invoicing.
+   - `settings.READ` lists your GST taxes and exemptions for each customer.
+   - Without one of them, Helm names the missing scope in the error.
 3. Set the `ZOHO_*` variables. `ZOHO_DOMAIN` is the data centre, for example `zoho.in`.
 4. Invoices and payments received are matched to customers by Zoho customer id, falling back to the customer name.
    - Draft and void invoices are never imported.

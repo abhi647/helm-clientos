@@ -14,8 +14,9 @@ import { createClient } from '@/lib/supabase/server'
 export const metadata: Metadata = { title: 'System health' }
 
 const JOBS: { job: string; name: string; every: string; staleAfterMin: number }[] = [
-  { job: 'emails', name: 'Emails, surveys and file scans', every: 'every 10 minutes', staleAfterMin: 60 },
-  { job: 'zoho-sync', name: 'Zoho Books invoices and payments', every: 'hourly', staleAfterMin: 180 },
+  // as scheduled in vercel.json (daily: the Hobby plan runs crons once a day). Stale after a missed run plus slack.
+  { job: 'emails', name: 'Emails, surveys and file scans', every: 'daily at 08:45 IST', staleAfterMin: 26 * 60 },
+  { job: 'zoho-sync', name: 'Zoho Books invoices and payments', every: 'daily at 08:15 IST', staleAfterMin: 26 * 60 },
 ]
 
 /** Admin and CEO: are emails going out, are the background jobs running, and what went wrong recently. */
