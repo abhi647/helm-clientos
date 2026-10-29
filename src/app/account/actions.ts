@@ -34,10 +34,11 @@ export async function setPassword(_prev: SetPasswordState, form: FormData): Prom
       return { status: 'code' }
     }
     await logError('auth', error, { step: 'set password', code: error.code ?? null }, 'warn')
-    const why = error.code === 'weak_password' || /weak|pwned|leaked|characters/i.test(error.message) ? 'That password is too easy to guess, or does not meet the rules. Choose another.'
-      : error.code === 'session_not_found' || error.code === 'session_expired' || error.status === 401 ? 'Your sign-in has expired. Sign in again, then set your password.'
+    const why = error.code === 'insufficient_aal' ? 'Supabase wants this sign-in confirmed with the authenticator app on your account, which Helm no longer uses. Ask your Helm admin to remove that authenticator from your account in Supabase, then try again (insufficient_aal).'
+      : error.code === 'weak_password' || /weak|pwned|leaked|characters/i.test(error.message) ? 'That password is too easy to guess, or does not meet the rules. Choose another.'
+      : error.code === 'session_not_found' || error.code === 'session_expired' ? 'Your sign-in has expired. Sign in again, then set your password.'
       : error.status === 429 ? 'Too many attempts. Please wait a few minutes and try again.'
-      : `The password could not be saved: ${error.message}`
+      : `The password could not be saved: ${error.message}${error.code ? ` (${error.code})` : ''}`
     return { status: 'error', message: why }
   }
   if (!(await recordSignInSet(user))) return { status: 'error', message: 'The password was saved, but we could not finish. Please try again.' }
