@@ -2,22 +2,56 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { deleteTime, setTaskStatus } from '@/app/_actions/work'
 import { ActionButton, StatusSelect } from '@/components/forms'
-import { Card, Chip, Empty, PageHeader, Stat, TaskStatusChip, Visibility, cn } from '@/components/ui'
+import { Avatar, Card, Chip, Empty, PageHeader, Stat, TaskStatusChip, Visibility, cn } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
-import { TASK_STATUS, daysFromToday, hrs, isoDaysAgo, shortDate, effortShort } from '@/lib/format'
-import { requireStaff } from '@/lib/session'
+import { TASK_STATUS, daysFromToday, hrs, isOverdue, isoDaysAgo, shortDate, effortShort } from '@/lib/format'
+import { canManage, requireStaff } from '@/lib/session'
+import { TaskBoard } from '@/components/task-board'
+import { TaskFilters, TaskTable, ViewSwitch, asSort, asStatus, asView, sortRows, statusFilterOptions } from '@/components/task-views'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { title: 'My Work' }
 
-/** The consultant's home: only their tasks, with context one click away. No portfolio metrics. */
-export default async function MyWork() {
+type Search = { view?: string; who?: string; project?: string; status?: string; sort?: string }
+
+/**
+ * The consultant's home: their open tasks, with context one click away. No portfolio metrics.
+ * List groups by when work is due; Board is a status kanban; Table sorts. PMs and admins can look at a colleague's
+ * work (or everyone's) with the person filter.
+ */
+export default async function MyWork({ searchParams }: { searchParams: Promise<Search> }) {
+  const sp = await searchParams
   const me = await requireStaff()
+  const manager = canManage(me)
+  const view = asView(sp.view)
+  const statusF = asStatus(sp.status)
+  const sort = asSort(sp.sort)
+  // whose work: me by default; managers can pick a colleague or 'all'
+  const who = manager && sp.who ? sp.who : me.id
   const supabase = await createClient()
-  const { data } = await supabase.from('tasks')
-    .select('id, title, status, due_date, visibility, project_id, parent:parent_id(title), projects(name, customers(name)), task_estimates(estimate, unit)')
-    .eq('assignee_id', me.id).neq('status', 'done').order('due_date', { ascending: true, nullsFirst: false })
-  const tasks = data ?? []
+  let query = supabase.from('tasks')
+    .select('id, title, status, due_date, start_date, visibility, project_id, assignee_id, assignee:profiles!tasks_assignee_id_fkey(full_name, kind), parent:parent_id(title), projects(name, customers(name)), task_estimates(estimate, unit)')
+    .neq('status', 'done').order('due_date', { ascending: true, nullsFirst: false }).limit(1000)
+  if (who !== 'all') query = query.eq('assignee_id', who)
+  const { data } = await query
+  const staff = manager ? (await supabase.from('profiles').select('id, full_name').eq('kind', 'internal').order('full_name')).data ?? [] : []
+  const everything = data ?? []
+  const projectOptions = [...new Map(everything.map((t) => [t.project_id, `${t.projects?.customers?.name ?? ''} · ${t.projects?.name ?? ''}`])).entries()]
+    .sort((a, b) => a[1].localeCompare(b[1])).map(([value, label]) => ({ value, label }))
+  const tasks = everything.filter((t) => (!sp.project || t.project_id === sp.project) && (!statusF || t.status === statusF))
+  const link = (patch: Partial<Search>) => {
+    const next = new URLSearchParams(Object.entries({ ...sp, ...patch }).filter(([, v]) => v) as [string, string][])
+    const q = next.toString()
+    return `/my-work${q ? `?${q}` : ''}`
+  }
+  const flat = tasks.map((t) => ({
+    id: t.id, title: t.title, href: `/projects/${t.project_id}?task=${t.id}`, status: t.status, overdue: isOverdue(t.due_date),
+    parent: t.parent?.title ?? null, context: `${t.projects?.customers?.name ?? ''} · ${t.projects?.name ?? ''}`,
+    owner: t.assignee ? { name: t.assignee.full_name, customer: t.assignee.kind === 'customer' } : null,
+    start: t.start_date ? shortDate(t.start_date) : null, due: t.due_date ? shortDate(t.due_date) : null, dueIso: t.due_date,
+    effort: t.task_estimates?.estimate ? effortShort(t.task_estimates.estimate, t.task_estimates.unit) : null,
+  }))
+  const whose = who === me.id ? null : who === 'all' ? 'Everyone' : staff.find((p) => p.id === who)?.full_name ?? 'Colleague'
   // my time: the last 30 days, plus anything older still waiting or returned
   const { data: time } = await supabase.from('time_entries')
     .select('id, task_id, hours, worked_on, billable, approved_at, returned_note, statement_id, tasks(title, project_id, projects(name))')
@@ -41,19 +75,30 @@ export default async function MyWork() {
 
   return (
     <>
-      <PageHeader title="My Work" meta={<span className="text-xs text-muted">{tasks.length} open tasks</span>} />
+      <PageHeader title="My Work" meta={<span className="text-xs text-muted">{tasks.length} open tasks{whose ? ` · ${whose}` : ''}</span>} />
       <div className="flex flex-col gap-3 p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <ViewSwitch current={view} href={(v) => link({ view: v === 'list' ? undefined : v })} />
+          <TaskFilters keep={{ view: sp.view, sort: sp.sort }} fields={[
+            ...(manager ? [{ name: 'who', label: 'Person', value: sp.who ?? '', options: [{ value: '', label: 'My work' }, { value: 'all', label: 'Everyone' },
+              ...staff.filter((p) => p.id !== me.id).map((p) => ({ value: p.id, label: p.full_name }))] }] : []),
+            { name: 'project', label: 'Project', value: sp.project ?? '', options: [{ value: '', label: 'All projects' }, ...projectOptions] },
+            { name: 'status', label: 'Status', value: statusF ?? '', options: statusFilterOptions.filter((o) => o.value !== 'done') },
+          ]} />
+        </div>
         <div className="card grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))]">
           <Stat label="Today" value={n('today')} /><Stat label="Overdue" value={n('overdue')} tone={n('overdue') ? 'crit' : undefined} />
           <Stat label="Waiting on customer" value={n('waiting')} tone={n('waiting') ? 'warn' : undefined} /><Stat label="This week" value={n('week')} />
         </div>
-        {tasks.length ? groups.filter((g) => g.tasks.length).map((g) => (
+        {view === 'board' ? <TaskBoard cards={flat} setStatus={setTaskStatus} hideEmptyDone />
+          : view === 'table' ? <TaskTable rows={sortRows(flat, sort)} sort={sort} sortHref={(k) => link({ sort: k === 'due' ? undefined : k })} setStatus={setTaskStatus} contextLabel="Project" />
+          : tasks.length ? groups.filter((g) => g.tasks.length).map((g) => (
           <Card key={g.key} flush title={g.title} extra={`${g.tasks.length}`} className="overflow-x-auto">
             <div className="min-w-[760px]">
               {g.tasks.map((t) => (
                 <div key={t.id} className="row grid-cols-[minmax(0,1fr)_200px_70px_60px_150px_84px] hover:bg-head">
                   <Link href={`/projects/${t.project_id}?task=${t.id}`} className="truncate font-medium text-ink no-underline hover:underline">{t.parent ? <span className="font-normal text-muted">{t.parent.title} › </span> : null}{t.title}</Link>
-                  <span className="truncate text-xs text-muted">{t.projects?.customers?.name} · {t.projects?.name}</span>
+                  <span className="flex min-w-0 items-center gap-1.5 truncate text-xs text-muted">{whose && t.assignee ? <><Avatar name={t.assignee.full_name} size={16} /><span className="truncate text-ink">{t.assignee.full_name}</span> · </> : null}<span className="truncate">{t.projects?.customers?.name} · {t.projects?.name}</span></span>
                   <span className={cn('font-mono text-xs', g.key === 'overdue' && 'font-semibold text-crit-ink')}>{shortDate(t.due_date)}</span>
                   <span className="text-right font-mono text-xs text-muted">{t.task_estimates?.estimate ? effortShort(t.task_estimates.estimate, t.task_estimates.unit) : ''}</span>
                   <StatusSelect label={`Status of ${t.title}`} value={t.status} options={statusOptions} onChange={setTaskStatus.bind(null, t.id)} />
@@ -62,7 +107,7 @@ export default async function MyWork() {
               ))}
             </div>
           </Card>
-        )) : <Card><Empty title="Nothing assigned to you">Enjoy the quiet, or pick up a request.</Empty></Card>}
+        )) : <Card><Empty title={sp.project || statusF ? 'No tasks match these filters' : whose ? 'No open tasks' : 'Nothing assigned to you'}>{sp.project || statusF ? 'Clear a filter to see more.' : 'Enjoy the quiet, or pick up a request.'}</Empty></Card>}
         <Card flush title="My time" extra={returned.length ? <Chip tone="warn">{returned.length} returned to you</Chip> : 'Last 30 days, and anything waiting'} className="overflow-x-auto">
           {time?.length ? (
             <div className="min-w-[640px]">

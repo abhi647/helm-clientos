@@ -8,12 +8,14 @@ import { Avatar, Chip, StatusLegend, TASK_STRIPE, TaskStatusChip, Visibility, cn
 import type { Enums } from '@/lib/database.types'
 import { TASK_STATUS, isOverdue, shortDate, effort, effortShort, hrs } from '@/lib/format'
 import { EffortInput } from '@/components/effort-input'
+import { TaskBoard } from '@/components/task-board'
+import { TaskFilters, TaskTable, ViewSwitch, asSort, asStatus, asView, sortRows, statusFilterOptions } from '@/components/task-views'
 import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { title: 'Project plan' }
 
-type Search = { task?: string; preview?: string; open?: string; q?: string; created?: string }
+type Search = { task?: string; preview?: string; open?: string; q?: string; created?: string; view?: string; who?: string; status?: string; sort?: string }
 
 export default async function Plan({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Search> }) {
   const { id } = await params
@@ -22,6 +24,10 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
   const preview = sp.preview === '1'
   const openOnly = sp.open === '1'
   const q = (sp.q ?? '').trim().toLowerCase()
+  const view = asView(sp.view)
+  const statusF = asStatus(sp.status)
+  // owner filter: '' anyone, 'me', 'none' (unassigned) or a person's id
+  const who = sp.who ?? ''
   const supabase = await createClient()
   const [{ data: project }, { data: phases }, { data: tasks }, { data: time }, { data: comments }, { data: units }, { data: lines }] = await Promise.all([
     supabase.from('projects').select('id, customer_id, pm_id').eq('id', id).single(),
@@ -41,7 +47,9 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
   for (const c of comments ?? []) commentCount.set(c.entity_id, (commentCount.get(c.entity_id) ?? 0) + 1)
 
   const all = tasks ?? []
+  const whoMatches = (t: (typeof all)[number]) => !who || (who === 'me' ? t.assignee_id === me.id : who === 'none' ? !t.assignee_id : t.assignee_id === who)
   const shown = (t: (typeof all)[number]) => (!preview || t.visibility === 'shared') && (!openOnly || t.status !== 'done') && (!q || t.title.toLowerCase().includes(q))
+    && whoMatches(t) && (!statusF || t.status === statusF)
   const subsOf = new Map<string, typeof all>()
   for (const t of all) if (t.parent_id) subsOf.set(t.parent_id, [...(subsOf.get(t.parent_id) ?? []), t])
   const subsShown = (t: (typeof all)[number]) => (subsOf.get(t.id) ?? []).filter(shown)
@@ -134,6 +142,18 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
     )
   }
 
+  // Board and Table: every matching task and subtask, flat, with its phase as context
+  const sort = asSort(sp.sort)
+  const phaseName = new Map((phases ?? []).map((p) => [p.id, p.name]))
+  const parentTitle = new Map(all.map((t) => [t.id, t.title]))
+  const flat = view === 'list' ? [] : all.filter(shown).map((t) => ({
+    id: t.id, title: t.title, href: link({ task: t.id }), status: t.status, overdue: t.status !== 'done' && isOverdue(t.due_date), selected: sel?.id === t.id,
+    parent: t.parent_id ? parentTitle.get(t.parent_id) ?? null : null, context: t.phase_id ? phaseName.get(t.phase_id) ?? null : 'Not in a phase',
+    owner: t.assignee ? { name: t.assignee.full_name, customer: t.assignee.kind === 'customer' } : null,
+    start: t.start_date ? shortDate(t.start_date) : null, due: t.due_date ? shortDate(t.due_date) : null, dueIso: t.due_date,
+    effort: !preview && est(t) ? effortShort(est(t), unitOf(t)) : null, logged: !preview && logged.get(t.id) ? hrs(logged.get(t.id)!) : null,
+  }))
+
   return (
     <div className="flex flex-col gap-2.5 p-4">
       {sp.created ? <p role="status" className="m-0 rounded-md bg-good-bg px-3 py-2 text-xs font-medium text-good-ink">Project created from the template. Assign the customer tasks, then share the portal.</p> : null}
@@ -141,8 +161,17 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
         <form className="flex h-[30px] items-center rounded-md border border-[#d5dcdf] bg-white px-2">
           {preview ? <input type="hidden" name="preview" value="1" /> : null}
           {openOnly ? <input type="hidden" name="open" value="1" /> : null}
+          {sp.view ? <input type="hidden" name="view" value={sp.view} /> : null}
+          {sp.who ? <input type="hidden" name="who" value={sp.who} /> : null}
+          {sp.status ? <input type="hidden" name="status" value={sp.status} /> : null}
           <input name="q" defaultValue={sp.q} aria-label="Filter tasks" placeholder="Filter tasks" className="w-40 border-0 bg-transparent text-[13px] outline-none" />
         </form>
+        <ViewSwitch current={view} href={(v) => link({ view: v === 'list' ? undefined : v })} />
+        <TaskFilters keep={{ view: sp.view, q: sp.q, open: sp.open, preview: sp.preview, task: sp.task, sort: sp.sort }} fields={[
+          { name: 'who', label: 'Owner', value: who, options: [{ value: '', label: 'Any owner' }, { value: 'me', label: 'Me' }, { value: 'none', label: 'Unassigned' },
+            ...people.filter((p) => p.id !== me.id).map((p) => ({ value: p.id, label: `${p.full_name}${p.kind === 'customer' ? ' (customer)' : ''}` }))] },
+          { name: 'status', label: 'Status', value: statusF ?? '', options: statusFilterOptions },
+        ]} />
         <Link href={link({ open: openOnly ? undefined : '1' })} className={cn('btn', openOnly && 'border-brand bg-selected font-semibold')}>Open only</Link>
         <Link href={link({ preview: preview ? undefined : '1', task: undefined })} className={cn('btn', preview && 'border-brand bg-selected font-semibold')}>{preview ? 'Exit customer preview' : 'Customer preview'}</Link>
         <div className="ml-2 flex flex-wrap gap-3 text-xs text-muted">
@@ -176,7 +205,13 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
       <StatusLegend />
 
       <div className="flex flex-wrap items-start gap-3">
-        <div className="card min-w-0 flex-[999_1_640px] overflow-x-auto">
+        {view !== 'list' ? (
+          <div className="min-w-0 flex-[999_1_640px]">
+            {view === 'board' ? <TaskBoard cards={flat.map((r) => ({ ...r, start: undefined, logged: undefined }))} setStatus={setTaskStatus} />
+              : <TaskTable rows={sortRows(flat, sort)} sort={sort} sortHref={(k) => link({ sort: k === 'due' ? undefined : k })} setStatus={setTaskStatus} contextLabel="Phase" showEffort={!preview} />}
+          </div>
+        ) : null}
+        <div className={cn('card min-w-0 flex-[999_1_640px] overflow-x-auto', view !== 'list' && 'hidden')}>
           <div className="min-w-[860px]">
             <div className={cn('row row-head', cols)}>
               <span>Task</span><span>Status</span><span>Owner</span><span>Start</span><span>Due</span>
