@@ -210,6 +210,22 @@ This creates admin, CEO, PM, consultant and finance staff, plus three customer u
    - Finance can also press **Sync now**.
 5. For billing statements, set each customer's **Zoho customer id** in Admin → Customers. Optionally put a Zoho **item id** on a rate card line so Zoho applies that item's tax and HSN/SAC code.
 
+### 7. Helm in Claude, ChatGPT and other AI tools (MCP)
+
+Helm is an MCP server at `https://<your-domain>/api/mcp`. People connect it in their AI tool and sign in with their Helm account. The AI then acts as them: Row Level Security decides what it sees and changes, exactly as in the app.
+
+- **Tools.** The team can read projects, tasks, requests, approvals and updates, and create or update tasks, log time, comment, raise requests and move request stages. Customers can read their company's work, comment and raise requests. Nothing deletes, decides approvals, bills or changes settings. See `src/lib/mcp/tools.ts`.
+- **Setup (once).** In Supabase → Authentication → **OAuth Server**:
+  1. Enable it.
+  2. Set the Authorization Path to `/oauth/consent`.
+  3. Allow dynamic client registration, which Claude and ChatGPT use to register themselves.
+  4. Switch the project's JWT signing keys to asymmetric (Project Settings → JWT Keys) if they are not already.
+- **Connect.** Add a custom connector with the URL above:
+  - Claude: Settings → Connectors
+  - ChatGPT: Settings → Connectors
+  - Claude Code: `claude mcp add --transport http helm https://<your-domain>/api/mcp`
+  - People approve it on `/oauth/consent`, and can remove access from the tool.
+
 ### Import from HubSpot & Zoho (Admin → Import)
 
 A one-off backfill, which is also safe to re-run later. Admin and CEO only.

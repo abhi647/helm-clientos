@@ -3,7 +3,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { SESSION_COOKIE } from '@/lib/supabase/session-cookie'
 
 const EMAILED = ['otp', 'magiclink', 'invite', 'email/signup', 'recovery', 'email_change']
-const PUBLIC_PATHS = ['/login', '/auth', '/api/webhooks', '/api/cron', '/api/health', '/privacy', '/terms']
+// /api/mcp checks its own bearer token (AI tools); /.well-known is OAuth discovery for them
+const PUBLIC_PATHS = ['/login', '/auth', '/api/webhooks', '/api/cron', '/api/health', '/api/mcp', '/.well-known', '/privacy', '/terms']
 
 /** Refreshes the Supabase session on every request and sends signed-out visitors to the login page. */
 export async function proxy(request: NextRequest) {
