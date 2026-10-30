@@ -25,10 +25,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <BrandLockup size={34} by />
           </div>
           <h1 className="m-0 mb-1 text-xl font-semibold">Sign in</h1>
-          <p className="mt-0 mb-5 text-[13px] text-muted">Projects, requests, approvals and updates, in one place.</p>
+          <p className="mt-0 mb-5 text-[13px] text-muted-foreground">Projects, requests, approvals and updates, in one place.</p>
           {error && ERRORS[error] && !badCode ? <p role="alert" className="mb-4 rounded-md bg-warn-bg p-2.5 text-xs text-warn-ink">{ERRORS[error]}</p> : null}
           <LoginForm next={next ?? '/'} codeFor={badCode ? email : undefined} codeError={badCode} />
-          <p className="mt-8 mb-0 text-xs text-muted"><Link href="/privacy" className="text-muted">Privacy</Link> · <Link href="/terms" className="text-muted">Terms of use</Link></p>
+          <p className="mt-8 mb-0 text-xs text-muted-foreground"><Link href="/privacy" className="text-muted-foreground">Privacy</Link> · <Link href="/terms" className="text-muted-foreground">Terms of use</Link></p>
         </div>
       </div>
       <div className="relative hidden lg:block">

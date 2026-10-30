@@ -21,9 +21,9 @@ export default async function PortalFeedbackItem({ params, searchParams }: { par
       <Link href="/portal/feedback" className="text-[13px]">← Feedback</Link>
       {sent ? <p role="status" className="m-0 rounded-md bg-good-bg px-3 py-2 text-[13px] font-medium text-good-ink">Thank you. {sent} was sent to your account owner.</p> : null}
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="m-0 text-lg font-semibold"><span className="font-mono text-muted">{f.number}</span> {f.projects?.name ?? 'Seven Billion in general'}</h1>
+        <h1 className="m-0 text-lg font-semibold"><span className="font-mono text-muted-foreground">{f.number}</span> {f.projects?.name ?? 'Seven Billion in general'}</h1>
         <FeedbackKindChip kind={f.kind} /><FeedbackStatusChip status={f.status} />
-        <span className="text-xs text-muted">{f.from?.full_name} · {relativeTime(f.created_at)}</span>
+        <span className="text-xs text-muted-foreground">{f.from?.full_name} · {relativeTime(f.created_at)}</span>
       </div>
       <Card><p className="m-0 text-[14px] leading-relaxed whitespace-pre-wrap">{f.body}</p></Card>
       <Card title="Conversation"><Thread entityType="feedback" entityId={f.id} customerId={f.customer_id} me={me} /></Card>

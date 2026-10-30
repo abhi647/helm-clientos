@@ -24,7 +24,7 @@ export function UpdateCard({ u, projectName }: {
         {sections.map(([title, body, warn]) => (
           <div key={title} className="contents">
             <dt className={warn ? 'label pt-0.5 text-warn-ink' : 'label pt-0.5'}>{title}</dt>
-            <dd className={warn && body ? 'm-0 font-medium text-warn-ink' : 'm-0'}>{lines(body).length ? lines(body).join(' · ') : <span className="text-muted">Nothing this week</span>}</dd>
+            <dd className={warn && body ? 'm-0 font-medium text-warn-ink' : 'm-0'}>{lines(body).length ? lines(body).join(' · ') : <span className="text-muted-foreground">Nothing this week</span>}</dd>
           </div>
         ))}
       </dl>
@@ -103,7 +103,7 @@ export async function ActivityList({ customerId, projectId, limit = 60 }: { cust
     <ol className="m-0 flex list-none flex-col p-0">
       {(data ?? []).map((a) => (
         <li key={a.id} className="row grid-cols-[90px_minmax(0,1fr)_84px]">
-          <span className="font-mono text-xs text-muted">{relativeTime(a.created_at)}</span>
+          <span className="font-mono text-xs text-muted-foreground">{relativeTime(a.created_at)}</span>
           <span className="truncate">{a.summary}</span>
           <span><Visibility value={a.visibility} /></span>
         </li>

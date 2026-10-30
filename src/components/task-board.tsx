@@ -60,17 +60,17 @@ export function TaskBoard({ cards, setStatus, hideEmptyDone }: {
               className={cn('flex w-[260px] flex-none flex-col rounded-md border border-line bg-head', over === status && 'border-brand bg-selected')}>
               <header className="flex items-center gap-2 px-2.5 py-2 text-xs font-semibold">
                 <span aria-hidden className={cn('h-3 border-l-[3px]', TASK_STRIPE[status])} />
-                {TASK_STATUS[status]}<span className="font-mono font-normal text-muted">{list.length}</span>
+                {TASK_STATUS[status]}<span className="font-mono font-normal text-muted-foreground">{list.length}</span>
               </header>
               <div className="flex min-h-16 flex-col gap-1.5 px-1.5 pb-1.5">
                 {list.map((c) => (
                   <article key={c.id} draggable onDragStart={(e) => { e.dataTransfer.setData('text/plain', c.id); e.dataTransfer.effectAllowed = 'move' }}
                     className={cn('flex cursor-grab flex-col gap-1.5 rounded-md border border-line border-l-[3px] bg-white p-2 text-[13px] active:cursor-grabbing',
                       TASK_STRIPE[c.overdue ? 'overdue' : c.status], c.selected && 'ring-2 ring-brand')}>
-                    {c.parent ? <span className="truncate text-[11px] text-muted">{c.parent} ›</span> : null}
-                    <Link href={c.href} className={cn('font-medium no-underline hover:underline', c.status === 'done' ? 'text-muted' : 'text-ink')}>{c.title}</Link>
-                    {c.context ? <span className="truncate text-[11px] text-muted">{c.context}</span> : null}
-                    <span className="flex items-center gap-1.5 text-xs text-muted">
+                    {c.parent ? <span className="truncate text-[11px] text-muted-foreground">{c.parent} ›</span> : null}
+                    <Link href={c.href} scroll={false} className={cn('font-medium no-underline hover:underline', c.status === 'done' ? 'text-muted-foreground' : 'text-ink')}>{c.title}</Link>
+                    {c.context ? <span className="truncate text-[11px] text-muted-foreground">{c.context}</span> : null}
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       {c.owner ? <><Avatar name={c.owner.name} customer={c.owner.customer} size={18} /><span className="truncate">{c.owner.name}</span></> : <span>Unassigned</span>}
                       <span className="ml-auto flex-none font-mono">{c.effort ? `${c.effort} · ` : ''}<span className={cn(c.overdue && 'font-semibold text-crit-ink')}>{c.due ?? ''}</span></span>
                     </span>

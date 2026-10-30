@@ -1,6 +1,8 @@
+import { ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { Greeting, GreetingChip } from '@/components/shell/greeting'
-import { Card, Chip, Empty, Health, Progress } from '@/components/ui'
+import { Card, Chip, Empty, Health } from '@/components/ui'
+import { ProgressRing } from '@/components/viz'
 import { PortalMeters } from '@/components/portal-meters'
 import { daysFromToday, money, relativeTime, shortDate } from '@/lib/format'
 import type { Profile } from '@/lib/session'
@@ -51,17 +53,32 @@ export async function ExecHome({ me, surveys }: { me: Profile; surveys?: React.R
       <div className="flex flex-wrap items-start gap-3.5">
         <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-3.5">
           <Card flush className="overflow-x-auto" title="Engagement status">
-            <div className="min-w-[700px]">
+            {/* phones: one card per project */}
+            <ul className="m-0 list-none divide-y divide-line-soft p-0 sm:hidden">
+              {p.map((x) => (
+                <li key={x.id}>
+                  <Link href={`/portal/projects/${x.id}`} className="flex items-center gap-3 px-4 py-3.5 text-ink no-underline active:bg-head">
+                    <ProgressRing value={prog.get(x.id) ?? 0} size={44} />
+                    <span className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span className="truncate font-semibold">{x.name}</span>
+                      <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><Health health={x.health} />ends {shortDate(x.end_date)}</span>
+                    </span>
+                    <ChevronRight aria-hidden className="size-4 flex-none text-muted-foreground" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <div className="min-w-[700px] max-sm:hidden">
               <div className="row row-head grid-cols-[minmax(0,1fr)_130px_110px_150px_110px_60px]"><span>Project</span><span>Status</span><span>Progress</span><span>Now</span><span>Last update</span><span /></div>
               {p.length ? p.map((x) => {
                 const now = (phases ?? []).filter((ph) => ph.project_id === x.id).find((ph) => t.some((k) => k.phase_id === ph.id && k.status !== 'done'))
                 return (
                   <div key={x.id} className="row min-h-[46px] grid-cols-[minmax(0,1fr)_130px_110px_150px_110px_60px] text-[14px]">
-                    <span className="flex min-w-0 flex-col"><span className="truncate font-semibold">{x.name}</span><span className="truncate text-xs text-muted">PM {x.pm?.full_name ?? '–'} · ends {shortDate(x.end_date)}</span></span>
+                    <span className="flex min-w-0 flex-col"><span className="truncate font-semibold">{x.name}</span><span className="truncate text-xs text-muted-foreground">PM {x.pm?.full_name ?? '–'} · ends {shortDate(x.end_date)}</span></span>
                     <Health health={x.health} className="text-[13px]" />
-                    <Progress value={prog.get(x.id) ?? 0} width={50} />
+                    <ProgressRing value={prog.get(x.id) ?? 0} size={38} />
                     <span className="truncate text-[13px]">{now?.name ?? 'Wrapping up'}</span>
-                    <span className="text-xs text-muted">{lastUpdate.has(x.id) ? relativeTime(lastUpdate.get(x.id)!) : '–'}</span>
+                    <span className="text-xs text-muted-foreground">{lastUpdate.has(x.id) ? relativeTime(lastUpdate.get(x.id)!) : '–'}</span>
                     <Link href={`/portal/projects/${x.id}`} className="text-right text-[13px] font-medium">Open</Link>
                   </div>
                 )
@@ -71,12 +88,12 @@ export async function ExecHome({ me, surveys }: { me: Profile; surveys?: React.R
 
           <Card flush title="Waiting for a decision" extra={<Link href="/portal/requests">All requests</Link>}>
             {(approvals ?? []).length ? (approvals ?? []).map((a) => (
-              <div key={a.id} className="row min-h-10 grid-cols-[minmax(0,1fr)_150px_70px_140px] text-[14px]">
-                <span className="truncate font-medium">{a.title}</span>
-                <span className="truncate text-[13px] text-muted">{a.approver_id === me.id ? 'You' : a.approver?.full_name}</span>
-                <span className="font-mono text-xs">{shortDate(a.due_date)}</span>
-                <span className="text-right">{a.approver_id === me.id
-                  ? <Link href={a.request_id ? `/portal/requests/${a.request_id}` : `/portal/approvals/${a.id}`} className="btn btn-primary">Review & approve</Link>
+              <div key={a.id} className="row min-h-10 grid-cols-[minmax(0,1fr)_150px_70px_140px] text-[14px] max-sm:grid-cols-1 max-sm:gap-y-2 max-sm:py-3.5">
+                <span className="truncate font-medium max-sm:whitespace-normal">{a.title}</span>
+                <span className="truncate text-[13px] text-muted-foreground max-sm:hidden">{a.approver_id === me.id ? 'You' : a.approver?.full_name}</span>
+                <span className="font-mono text-xs max-sm:text-muted-foreground"><span className="sm:hidden">{a.approver_id === me.id ? 'You' : a.approver?.full_name} · due </span>{shortDate(a.due_date)}</span>
+                <span className="text-right max-sm:text-left">{a.approver_id === me.id
+                  ? <Link href={a.request_id ? `/portal/requests/${a.request_id}` : `/portal/approvals/${a.id}`} className="btn btn-primary max-sm:w-full">Review & approve</Link>
                   : <Chip tone="warn">With your team</Chip>}</span>
               </div>
             )) : <Empty title="No open approvals" />}
@@ -87,13 +104,13 @@ export async function ExecHome({ me, surveys }: { me: Profile; surveys?: React.R
           <YourTeam />
           <Card flush title="Recent decisions" extra={<Link href="/portal/decisions">Decision log</Link>}>
             {(decisions ?? []).length ? (decisions ?? []).map((d) => (
-              <div key={d.id} className="row grid-cols-[64px_minmax(0,1fr)] py-1.5"><span className="font-mono text-xs text-muted">{d.number}</span><span className="leading-snug">{d.decision}</span></div>
+              <div key={d.id} className="row grid-cols-[64px_minmax(0,1fr)] py-1.5"><span className="font-mono text-xs text-muted-foreground">{d.number}</span><span className="leading-snug">{d.decision}</span></div>
             )) : <Empty title="No decisions yet" />}
           </Card>
           <Card flush title="Latest deliverables" extra={<Link href="/portal/documents">All documents</Link>}>
             {(docs ?? []).length ? (docs ?? []).map((d) => (
               <a key={d.id} href={`/api/documents/${d.id}`} className="row grid-cols-[minmax(0,1fr)_70px] text-ink no-underline hover:bg-head">
-                <span className="truncate">{d.name} <span className="font-mono text-xs text-muted">v{d.version}</span></span><span className="text-xs text-muted">{relativeTime(d.created_at)}</span>
+                <span className="truncate">{d.name} <span className="font-mono text-xs text-muted-foreground">v{d.version}</span></span><span className="text-xs text-muted-foreground">{relativeTime(d.created_at)}</span>
               </a>
             )) : <Empty title="No documents yet" />}
           </Card>

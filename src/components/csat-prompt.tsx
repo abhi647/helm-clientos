@@ -21,9 +21,9 @@ export function CsatPrompt({ surveyId, question, compact }: { surveyId: string; 
         {[1, 2, 3, 4, 5].map((s) => (
           <button key={s} type="button" role="radio" aria-checked={score === s} aria-label={`${s}: ${SCORE_LABEL[s]}`} onClick={() => setScore(s)}
             className={cn('flex h-[52px] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border bg-white px-1 text-ink',
-              score === s ? 'border-ink bg-head shadow-[inset_0_0_0_1px_#0F2A30]' : 'border-[#d5dcdf] hover:bg-head')}>
+              score === s ? 'border-ink bg-head shadow-[inset_0_0_0_1px_var(--color-primary)]' : 'border-control hover:bg-head')}>
             <span className="font-mono text-[15px] font-semibold">{s}</span>
-            <span className="text-[10px] leading-tight text-muted">{SCORE_LABEL[s]}</span>
+            <span className="text-[10px] leading-tight text-muted-foreground">{SCORE_LABEL[s]}</span>
           </button>
         ))}
       </div>

@@ -55,7 +55,7 @@ export default function Connect() {
       <p><b>Read</b> (everyone, limited to what you can see):</p>
       <ul>{READS.map(([n, d]) => <li key={n}><code>{n}</code>: {d}</li>)}</ul>
       <p><b>Change</b>:</p>
-      <ul>{WRITES.map(([n, d, who]) => <li key={n}><code>{n}</code>: {d} <span className="text-muted">({who})</span></li>)}</ul>
+      <ul>{WRITES.map(([n, d, who]) => <li key={n}><code>{n}</code>: {d} <span className="text-muted-foreground">({who})</span></li>)}</ul>
       <p>The connector cannot delete anything, decide approvals, create statements or invoices, or change settings.
         Do those in Helm itself.</p>
 

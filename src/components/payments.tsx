@@ -16,11 +16,11 @@ export async function PaymentsCard({ customerId, staff }: { customerId?: string;
           <div className={`row row-head ${cols}`}><span>Date</span>{staff ? <span>Customer</span> : null}<span>Invoice</span><span className="text-right">Amount</span><span>Mode</span></div>
           {data.map((p) => (
             <div key={p.id} className={`row ${cols}`}>
-              <span className="font-mono text-xs text-muted">{shortDate(p.paid_on)}</span>
+              <span className="font-mono text-xs text-muted-foreground">{shortDate(p.paid_on)}</span>
               {staff ? <span className="truncate">{p.customers?.name}</span> : null}
               <span className="truncate font-mono text-xs">{p.invoices?.number ?? '–'}</span>
               <span className="text-right font-mono text-xs">{money(p.amount, p.currency)}</span>
-              <span className="truncate text-xs text-muted">{p.mode ?? '–'}</span>
+              <span className="truncate text-xs text-muted-foreground">{p.mode ?? '–'}</span>
             </div>
           ))}
         </div>

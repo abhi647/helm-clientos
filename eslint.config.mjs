@@ -5,6 +5,15 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // Vendored component source (shadcn/ui and the overtrue/ui registry): kept close to upstream so updates stay easy
+  {
+    files: ["src/components/ui/**", "src/components/overtrue/**"],
+    rules: {
+      "react-hooks/preserve-manual-memoization": "off",
+      "react-hooks/exhaustive-deps": "off",
+      "@next/next/no-img-element": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

@@ -45,7 +45,7 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
       <div className="card flex flex-col gap-2.5 px-3.5 py-3">
         <Link href={`${base}/requests`} className="text-xs font-medium">← Requests</Link>
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-          <span className="font-mono text-xs text-muted">{r.number}</span>
+          <span className="font-mono text-xs text-muted-foreground">{r.number}</span>
           <h1 className="m-0 text-[17px] font-semibold">{r.title}</h1>
           <RequestStatusChip status={r.status} />
           <Visibility value="shared" />
@@ -55,7 +55,7 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
           <div><dt className="label">Project</dt><dd className="m-0">{r.projects ? (staff ? <Link href={`/projects/${r.projects.id}`}>{r.projects.name}</Link> : r.projects.name) : '–'}</dd></div>
           <div><dt className="label">Type</dt><dd className="m-0">{label(r.type)}</dd></div>
           <div><dt className="label">Priority</dt><dd className="m-0"><PriorityText priority={r.priority} /></dd></div>
-          <div><dt className="label">Requested</dt><dd className="m-0">{r.requester?.full_name ?? r.customers?.name ?? 'Your company'} · <span className="font-mono">{shortDate(r.created_at)}</span>{r.raiser ? <span className="block text-xs text-muted">Logged by {r.raiser.full_name} on their behalf</span> : null}</dd></div>
+          <div><dt className="label">Requested</dt><dd className="m-0">{r.requester?.full_name ?? r.customers?.name ?? 'Your company'} · <span className="font-mono">{shortDate(r.created_at)}</span>{r.raiser ? <span className="block text-xs text-muted-foreground">Logged by {r.raiser.full_name} on their behalf</span> : null}</dd></div>
           <div><dt className="label">Owner</dt><dd className="m-0">{r.owner?.full_name ?? 'Not assigned yet'}</dd></div>
           <div><dt className="label">Wanted by</dt><dd className="m-0 font-mono">{shortDate(r.desired_date)}</dd></div>
         </dl>
@@ -66,10 +66,10 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
             return (
               <li key={s} className="flex flex-none items-center gap-1.5" aria-current={now ? 'step' : undefined}>
                 <span aria-hidden className={cn('size-2.5 rounded-full', done ? 'bg-info-ink' : now ? 'border-[3px] border-info bg-white' : 'border-[1.5px] border-[#b9c4c8] bg-white')} />
-                <span className={cn('text-xs whitespace-nowrap', now && 'font-semibold', !done && !now && 'text-muted')}>
-                  {label(s)}{reached.get(s) ? <span className="font-mono text-muted"> · {shortDate(reached.get(s))}</span> : null}
+                <span className={cn('text-xs whitespace-nowrap', now && 'font-semibold', !done && !now && 'text-muted-foreground')}>
+                  {label(s)}{reached.get(s) ? <span className="font-mono text-muted-foreground"> · {shortDate(reached.get(s))}</span> : null}
                 </span>
-                {i < REQUEST_STATUS_ORDER.length - 1 ? <span aria-hidden className={cn('mx-1 h-px w-4', done ? 'bg-info-ink' : 'bg-[#d5dcdf]')} /> : null}
+                {i < REQUEST_STATUS_ORDER.length - 1 ? <span aria-hidden className={cn('mx-1 h-px w-4', done ? 'bg-info-ink' : 'bg-control')} /> : null}
               </li>
             )
           })}
@@ -97,7 +97,7 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
                 {linked.map((t) => (
                   <li key={t.id} className="flex flex-wrap items-center gap-2">
                     {staff ? <Link href={`/projects/${t.project_id}?task=${t.id}`} className="font-medium">{t.title}</Link> : <span className="font-medium">{t.title}</span>}
-                    <span className="text-xs text-muted">{label(t.status)}{t.assignee ? ` · ${t.assignee.full_name}` : ''}</span>
+                    <span className="text-xs text-muted-foreground">{label(t.status)}{t.assignee ? ` · ${t.assignee.full_name}` : ''}</span>
                     {staff ? <Visibility value={t.visibility} /> : null}
                   </li>
                 ))}
@@ -108,7 +108,7 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
           {/* a request goes on the plan once; more work on it becomes subtasks of that task */}
           {staff && !!linked?.length && !['delivered', 'cancelled'].includes(r.status) ? (
             <div className="flex flex-col gap-2">
-              <p className="m-0 text-xs text-muted">This request is on the plan. To split the work, open its task and add subtasks.</p>
+              <p className="m-0 text-xs text-muted-foreground">This request is on the plan. To split the work, open its task and add subtasks.</p>
               {linked.every((t) => t.visibility === 'internal') ? (
                 <ActionForm action={requestToTask} submit="Share the task with the customer" primary={false}>
                   <input type="hidden" name="request_id" value={r.id} />
@@ -150,12 +150,12 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
               <div className="flex items-center gap-2"><span className="label">Approval · {approval.kind}</span><span className="ml-auto"><ApprovalStatusChip status={approval.status} /></span></div>
               <div className="text-[14px] font-semibold">{approval.title}</div>
               <dl className="m-0 grid grid-cols-[96px_minmax(0,1fr)] gap-y-1 text-[13px]">
-                <dt className="text-muted">Effort</dt><dd className="m-0 font-mono">{effort(approval.effort, approval.effort_unit)}</dd>
-                <dt className="text-muted">Target</dt><dd className="m-0 font-mono">{shortDate(approval.target_date)}</dd>
-                <dt className="text-muted">Version</dt><dd className="m-0 font-mono">v{approval.version}</dd>
-                <dt className="text-muted">Approver</dt><dd className="m-0">{approval.approver?.full_name}</dd>
+                <dt className="text-muted-foreground">Effort</dt><dd className="m-0 font-mono">{effort(approval.effort, approval.effort_unit)}</dd>
+                <dt className="text-muted-foreground">Target</dt><dd className="m-0 font-mono">{shortDate(approval.target_date)}</dd>
+                <dt className="text-muted-foreground">Version</dt><dd className="m-0 font-mono">v{approval.version}</dd>
+                <dt className="text-muted-foreground">Approver</dt><dd className="m-0">{approval.approver?.full_name}</dd>
               </dl>
-              <p className="m-0 text-xs leading-relaxed text-muted whitespace-pre-wrap">{approval.summary}</p>
+              <p className="m-0 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">{approval.summary}</p>
               {canDecide ? <DecisionForm action={decideApproval} approvalId={approval.id} /> : null}
               {staff && approval.status === 'pending' ? <p className="m-0 text-xs font-medium text-warn-ink">Waiting for {approval.approver?.full_name} · requested {relativeTime(approval.created_at)}</p> : null}
               {staff && canManage(me) && approval.status === 'pending' ? (
@@ -177,8 +177,8 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
                 <span className="label">History</span>
                 {(approval.approval_events ?? []).sort((a, b) => a.id - b.id).map((e) => (
                   <div key={e.id} className="text-xs leading-snug">
-                    <b>{label(e.action)}</b> · v{e.version} · {e.actor?.full_name ?? 'Seven Billion'} · <span className="font-mono text-muted">{shortDate(e.created_at)}</span>
-                    {e.comment ? <><br /><span className="text-muted">“{e.comment}”</span></> : null}
+                    <b>{label(e.action)}</b> · v{e.version} · {e.actor?.full_name ?? 'Seven Billion'} · <span className="font-mono text-muted-foreground">{shortDate(e.created_at)}</span>
+                    {e.comment ? <><br /><span className="text-muted-foreground">“{e.comment}”</span></> : null}
                   </div>
                 ))}
               </div>
@@ -211,7 +211,7 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
           {staff && canManage(me) ? (
             <details className="rounded-md border border-crit-bg bg-white p-2.5">
               <summary className="cursor-pointer text-xs font-semibold text-crit-ink">Delete this request</summary>
-              <p className="mt-2 mb-2 text-xs text-muted">Removes it for the customer too, with its timeline, comments, estimates and to-dos. Tasks made from it stay on the plan. To close it but keep the record, move it to Cancelled instead.</p>
+              <p className="mt-2 mb-2 text-xs text-muted-foreground">Removes it for the customer too, with its timeline, comments, estimates and to-dos. Tasks made from it stay on the plan. To close it but keep the record, move it to Cancelled instead.</p>
               <ActionButton run={deleteRequest.bind(null, r.id)} className="text-crit-ink" confirm={`Delete ${r.number} for good? This cannot be undone.`}>Delete for good</ActionButton>
             </details>
           ) : null}
@@ -219,7 +219,7 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
           <Card title="Timeline">
             <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
               {(events ?? []).map((e) => (
-                <li key={e.id} className="text-xs leading-snug"><b>{label(e.status)}</b> · {e.actor?.full_name ?? 'Seven Billion'} · <span className="font-mono text-muted">{shortDate(e.created_at)}</span>{e.note ? <><br /><span className="text-muted">{e.note}</span></> : null}</li>
+                <li key={e.id} className="text-xs leading-snug"><b>{label(e.status)}</b> · {e.actor?.full_name ?? 'Seven Billion'} · <span className="font-mono text-muted-foreground">{shortDate(e.created_at)}</span>{e.note ? <><br /><span className="text-muted-foreground">{e.note}</span></> : null}</li>
               ))}
             </ol>
           </Card>

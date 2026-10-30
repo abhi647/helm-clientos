@@ -50,9 +50,9 @@ export default async function TimesheetsPage() {
 
   return (
     <>
-      <PageHeader title="Timesheets" meta={<span className="text-xs text-muted">{mine ? 'Your projects' : 'All projects'}</span>} />
+      <PageHeader title="Timesheets" meta={<span className="text-xs text-muted-foreground">{mine ? 'Your projects' : 'All projects'}</span>} />
       <div className="flex max-w-[1100px] flex-col gap-3 p-4">
-        <div className="card grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))]">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
           <Stat label="Waiting for approval" value={hrs(waitingHours)} sub={`${people.reduce((s, p) => s + p.rows.length, 0)} entries`} tone={waitingHours ? 'warn' : undefined} />
           <Stat label="Oldest waiting" value={oldest ? shortDate(oldest) : '–'} />
           <Stat label="Returned" value={returned?.length ?? 0} sub="waiting for the person" />
@@ -63,7 +63,7 @@ export default async function TimesheetsPage() {
             <TimesheetForm person={p.name} rows={p.rows} approve={approveTime} sendBack={returnTime} />
           </Card>
         )) : <Card><Empty title="Nothing to approve">Hours the team logs on your projects show here.</Empty></Card>}
-        {own.length ? <p className="m-0 text-xs text-muted">Your own {hrs(own.reduce((s, e) => s + Number(e.hours), 0))} on these projects wait for an admin or the CEO.</p> : null}
+        {own.length ? <p className="m-0 text-xs text-muted-foreground">Your own {hrs(own.reduce((s, e) => s + Number(e.hours), 0))} on these projects wait for an admin or the CEO.</p> : null}
 
         {returned?.length ? (
           <Card flush title="Returned" extra="The person deletes the entry and logs it again">
@@ -71,7 +71,7 @@ export default async function TimesheetsPage() {
               <div key={e.id} className="row grid-cols-[140px_80px_minmax(0,1fr)_64px_minmax(0,1.4fr)] max-sm:grid-cols-1">
                 <span className="truncate">{e.person?.full_name}</span>
                 <span className="font-mono text-xs">{shortDate(e.worked_on)}</span>
-                <span className="truncate text-xs text-muted">{where(e)} · {e.tasks.title}</span>
+                <span className="truncate text-xs text-muted-foreground">{where(e)} · {e.tasks.title}</span>
                 <span className="text-right font-mono text-xs">{+Number(e.hours).toFixed(2)}</span>
                 <span className="truncate text-xs text-warn-ink" title={e.returned_note ?? ''}>{e.returned_note} · {relativeTime(e.returned_at!)}</span>
               </div>
@@ -85,15 +85,15 @@ export default async function TimesheetsPage() {
               <div key={e.id} className="row grid-cols-[140px_80px_minmax(0,1fr)_64px_minmax(0,0.8fr)_auto] max-sm:grid-cols-1">
                 <span className="truncate">{e.person?.full_name}</span>
                 <span className="font-mono text-xs">{shortDate(e.worked_on)}</span>
-                <span className="truncate text-xs text-muted">{where(e)} · {e.tasks.title}</span>
+                <span className="truncate text-xs text-muted-foreground">{where(e)} · {e.tasks.title}</span>
                 <span className="text-right font-mono text-xs">{+Number(e.hours).toFixed(2)}</span>
-                <span className="truncate text-xs text-muted">{e.approver?.full_name ? `by ${e.approver.full_name}` : ''} {relativeTime(e.approved_at!)}</span>
+                <span className="truncate text-xs text-muted-foreground">{e.approver?.full_name ? `by ${e.approver.full_name}` : ''} {relativeTime(e.approved_at!)}</span>
                 <ActionButton run={unapproveTime.bind(null, e.id)} className="btn-ghost h-7 text-xs">Undo</ActionButton>
               </div>
             ))}
           </Card>
         ) : null}
-        <p className="m-0 text-xs text-muted">
+        <p className="m-0 text-xs text-muted-foreground">
           Approved billable hours fill the day-rate lines of a project&apos;s billing statement (8 hours make a day), for the people named on each line
           (Billing → rate card), and count against the customer&apos;s hours credit. <Chip tone="neutral">nb</Chip> marks hours logged as not billable.{' '}
           <Link href="/my-work">My Work</Link> shows each person their own entries.

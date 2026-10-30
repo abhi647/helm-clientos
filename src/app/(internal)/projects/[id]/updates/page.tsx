@@ -18,7 +18,7 @@ export default async function Updates({ params }: { params: Promise<{ id: string
   return (
     <div className="flex max-w-[980px] flex-col gap-3 p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="m-0 text-xs text-muted">The draft is filled from the plan: completed and in-progress shared tasks, customer dependencies and what is due next. Edit, then publish. The customer team is emailed.</p>
+        <p className="m-0 text-xs text-muted-foreground">The draft is filled from the plan: completed and in-progress shared tasks, customer dependencies and what is due next. Edit, then publish. The customer team is emailed.</p>
         {!drafts.length ? <span className="ml-auto"><ActionButton primary run={startWeeklyUpdate.bind(null, id)}>Create this week’s update</ActionButton></span> : null}
       </div>
       {drafts.map((d) => (

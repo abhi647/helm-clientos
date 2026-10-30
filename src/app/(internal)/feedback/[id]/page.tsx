@@ -22,11 +22,11 @@ export default async function FeedbackItem({ params }: { params: Promise<{ id: s
   const { data: staff } = await supabase.from('profiles').select('id, full_name').eq('kind', 'internal').order('full_name')
   return (
     <>
-      <PageHeader title={<><span className="font-mono text-muted">{f.number}</span> Feedback from {f.from?.full_name ?? f.customers?.name}</>}
-        meta={<><FeedbackKindChip kind={f.kind} /><FeedbackStatusChip status={f.status} /><span className="text-xs text-muted">{relativeTime(f.created_at)}</span></>}
+      <PageHeader title={<><span className="font-mono text-muted-foreground">{f.number}</span> Feedback from {f.from?.full_name ?? f.customers?.name}</>}
+        meta={<><FeedbackKindChip kind={f.kind} /><FeedbackStatusChip status={f.status} /><span className="text-xs text-muted-foreground">{relativeTime(f.created_at)}</span></>}
         actions={<FeedbackControls id={f.id} status={f.status} ownerId={f.owner_id ?? ''} people={(staff ?? []).map((p) => ({ id: p.id, name: p.full_name }))} />}>
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-muted">
-          <Link href="/feedback" className="text-muted no-underline hover:text-ink">CSAT & feedback</Link><span>/</span><span className="text-ink">{f.number}</span>
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Link href="/feedback" className="text-muted-foreground no-underline hover:text-ink">CSAT & feedback</Link><span>/</span><span className="text-ink">{f.number}</span>
         </nav>
       </PageHeader>
       <div className="flex flex-wrap items-start gap-3 p-4">
@@ -40,12 +40,12 @@ export default async function FeedbackItem({ params }: { params: Promise<{ id: s
         </div>
         <Card className="min-w-0 flex-[1_1_300px]" title="Details">
           <dl className="m-0 grid grid-cols-[96px_minmax(0,1fr)] gap-y-2 text-[13px]">
-            <dt className="text-muted">Customer</dt><dd className="m-0"><Link href={`/customers/${f.customers?.id}`}>{f.customers?.name}</Link></dd>
-            <dt className="text-muted">Project</dt><dd className="m-0">{f.projects ? <Link href={`/projects/${f.projects.id}`}>{f.projects.name}</Link> : '–'}</dd>
-            <dt className="text-muted">Source</dt><dd className="m-0">{f.source === 'csat' ? 'Low CSAT score (automatic follow-up)' : 'Sent from the portal'}</dd>
-            {f.csat?.score ? <><dt className="text-muted">Score</dt><dd className="m-0"><ScoreChip score={f.csat.score} /></dd></> : null}
+            <dt className="text-muted-foreground">Customer</dt><dd className="m-0"><Link href={`/customers/${f.customers?.id}`}>{f.customers?.name}</Link></dd>
+            <dt className="text-muted-foreground">Project</dt><dd className="m-0">{f.projects ? <Link href={`/projects/${f.projects.id}`}>{f.projects.name}</Link> : '–'}</dd>
+            <dt className="text-muted-foreground">Source</dt><dd className="m-0">{f.source === 'csat' ? 'Low CSAT score (automatic follow-up)' : 'Sent from the portal'}</dd>
+            {f.csat?.score ? <><dt className="text-muted-foreground">Score</dt><dd className="m-0"><ScoreChip score={f.csat.score} /></dd></> : null}
           </dl>
-          <p className="mt-3 mb-0 text-xs text-muted">Moving it to Acknowledged, Actioned or Closed tells the customer.</p>
+          <p className="mt-3 mb-0 text-xs text-muted-foreground">Moving it to Acknowledged, Actioned or Closed tells the customer.</p>
         </Card>
       </div>
     </>

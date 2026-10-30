@@ -4,7 +4,7 @@ import { scanDocument } from '@/lib/scan'
 import { createClient } from '@/lib/supabase/server'
 
 const page = (status: number, title: string, body: string) =>
-  new NextResponse(`<!doctype html><meta charset="utf-8"><title>${title}</title><body style="font:14px system-ui;margin:48px;color:#0F2A30"><h1 style="font-size:18px">${title}</h1><p>${body}</p><p><a href="javascript:history.back()">Go back</a></p>`,
+  new NextResponse(`<!doctype html><meta charset="utf-8"><title>${title}</title><body style="font:14px system-ui;margin:48px;color:#202020"><h1 style="font-size:18px">${title}</h1><p>${body}</p><p><a href="javascript:history.back()">Go back</a></p>`,
     { status, headers: { 'content-type': 'text/html; charset=utf-8' } })
 
 /**

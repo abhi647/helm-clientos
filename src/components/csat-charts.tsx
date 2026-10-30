@@ -44,7 +44,7 @@ export function MonthlyCsat({ months }: { months: { key: string; label: string; 
                   fill={BAR} opacity={hover == null || hover === i ? 1 : 0.55} />
               ) : <text x={cx} y={T + plotH - 4} textAnchor="middle" className="fill-[#9aa7ac] text-[10px]">–</text>}
               {/* label only the latest month; the tooltip and table carry the rest */}
-              {i === months.length - 1 && m.csat != null ? <text x={cx} y={top - 5} textAnchor="middle" className="fill-[#0F2A30] font-mono text-[11px] font-semibold">{m.csat}%</text> : null}
+              {i === months.length - 1 && m.csat != null ? <text x={cx} y={top - 5} textAnchor="middle" className="fill-foreground font-mono text-[11px] font-semibold">{m.csat}%</text> : null}
               <text x={cx} y={H - 6} textAnchor="middle" className="fill-[#6b7a80] text-[10px]">{m.label}</text>
             </g>
           )
@@ -71,7 +71,7 @@ export function ScoreBars({ distribution, labels }: { distribution: { score: num
       {distribution.map((d) => (
         <div key={d.score} className="grid grid-cols-[130px_minmax(0,1fr)] items-center gap-2 text-xs"
           title={`${labels[d.score]}: ${d.count} of ${total}${total ? ` (${Math.round((100 * d.count) / total)}%)` : ''}`}>
-          <span className="truncate text-muted"><b className="font-mono text-ink">{d.score}</b> {labels[d.score]}</span>
+          <span className="truncate text-muted-foreground"><b className="font-mono text-ink">{d.score}</b> {labels[d.score]}</span>
           <span className="flex items-center gap-1.5">
             <span className="h-3 rounded-r-[4px]" style={{ width: `${(d.count / max) * 85}%`, minWidth: d.count ? 3 : 0, background: BAR }} />
             <span className="font-mono">{d.count}</span>

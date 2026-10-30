@@ -18,9 +18,9 @@ export default async function PortalMeetings() {
         <div className="row row-head grid-cols-[80px_minmax(0,1fr)_200px_80px_90px]"><span>Date</span><span>Meeting</span><span>Project</span><span>Actions</span><span>Decisions</span></div>
         {meetings?.length ? meetings.map((m) => (
           <Link key={m.id} href={`/portal/meetings/${m.id}`} className="row min-h-10 grid-cols-[80px_minmax(0,1fr)_200px_80px_90px] text-[14px] text-ink no-underline hover:bg-head">
-            <span className="font-mono text-xs text-muted">{shortDate(m.held_on)}</span>
+            <span className="font-mono text-xs text-muted-foreground">{shortDate(m.held_on)}</span>
             <span className="truncate font-medium">{m.title}</span>
-            <span className="truncate text-[13px] text-muted">{m.projects?.name ?? '–'}</span>
+            <span className="truncate text-[13px] text-muted-foreground">{m.projects?.name ?? '–'}</span>
             <span className="font-mono text-xs">{m.meeting_actions.length}</span>
             <span className="font-mono text-xs">{m.decisions.length}</span>
           </Link>

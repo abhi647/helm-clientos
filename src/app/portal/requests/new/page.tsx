@@ -25,11 +25,11 @@ export default async function NewRequest({ searchParams }: { searchParams: Promi
             className={cn('btn', key === kind && 'border-ink bg-head font-semibold')}>{KINDS[key].tab}</Link>
         ))}
       </nav>
-      <p className="m-0 text-[13px] text-muted">Tell us what you need. You will get a reference number straight away and can follow every step here.</p>
+      <p className="m-0 text-[13px] text-muted-foreground">Tell us what you need. You will get a reference number straight away and can follow every step here.</p>
       <Card>
         <ActionForm key={kind} action={createRequest} submit="Submit request" resetOnSuccess={false}>
           <RequestFields kind={kind} projects={projects ?? []} />
-          <p className="m-0 text-xs text-muted">Attachments: add files on the request page after submitting, or in Documents.</p>
+          <p className="m-0 text-xs text-muted-foreground">Attachments: add files on the request page after submitting, or in Documents.</p>
         </ActionForm>
       </Card>
     </div>

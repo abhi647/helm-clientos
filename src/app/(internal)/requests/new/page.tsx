@@ -30,9 +30,9 @@ export default async function LogRequest({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <PageHeader title="Log a request" meta={<Link href="/requests" className="text-xs text-muted no-underline hover:text-ink">← Requests</Link>} />
+      <PageHeader title="Log a request" meta={<Link href="/requests" className="text-xs text-muted-foreground no-underline hover:text-ink">← Requests</Link>} />
       <div className="mx-auto flex w-full max-w-[720px] flex-col gap-3 p-4">
-        <p className="m-0 text-[13px] text-muted">For a request a customer gave you in a call, a meeting or a message. It appears in their portal as their request, marked as logged by you, and they are emailed.</p>
+        <p className="m-0 text-[13px] text-muted-foreground">For a request a customer gave you in a call, a meeting or a message. It appears in their portal as their request, marked as logged by you, and they are emailed.</p>
         <Card title="1. Which customer?">
           <div className="flex flex-wrap gap-1.5">
             {(customers ?? []).map((c) => (
@@ -56,7 +56,7 @@ export default async function LogRequest({ searchParams }: { searchParams: Promi
                   {(people ?? []).map((p) => <option key={p.id} value={p.id ?? ""}>{p.full_name}{p.customer_role === 'customer_exec' ? ' (executive)' : ''}</option>)}
                   <option value="">{customer.name} (the company, no one person)</option>
                 </select>
-                <span className="text-xs text-muted">They are emailed, can follow it in their portal, and are asked to rate it when it is delivered.</span>
+                <span className="text-xs text-muted-foreground">They are emailed, can follow it in their portal, and are asked to rate it when it is delivered.</span>
               </label>
               <RequestFields kind={kind} projects={projects ?? []} />
             </ActionForm>

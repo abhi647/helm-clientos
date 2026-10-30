@@ -126,11 +126,11 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
                         <summary className="flex cursor-pointer list-none items-center gap-2 px-2.5 py-2 hover:bg-head">
                           <span className="flex min-w-0 flex-1 flex-col">
                             <span className="truncate text-[13px] font-semibold">{l.label}</span>
-                            <span className="truncate text-xs text-muted">{KIND_LABEL[l.kind]}{PLANNED_LABEL[l.kind] && l.planned_quantity != null ? ` · ${l.planned_quantity} ${PLANNED_LABEL[l.kind]!.toLowerCase()}` : ''}</span>
+                            <span className="truncate text-xs text-muted-foreground">{KIND_LABEL[l.kind]}{PLANNED_LABEL[l.kind] && l.planned_quantity != null ? ` · ${l.planned_quantity} ${PLANNED_LABEL[l.kind]!.toLowerCase()}` : ''}</span>
                           </span>
-                          <span className="shrink-0 text-right font-mono text-xs">{money(l.rate, open.currency, { exact: true })}<span className="text-muted"> / {l.unit}</span></span>
+                          <span className="shrink-0 text-right font-mono text-xs">{money(l.rate, open.currency, { exact: true })}<span className="text-muted-foreground"> / {l.unit}</span></span>
                           <span className="shrink-0 text-xs font-medium text-link group-open:hidden">Edit</span>
-                          <span className="hidden shrink-0 text-xs font-medium text-muted group-open:inline">Close</span>
+                          <span className="hidden shrink-0 text-xs font-medium text-muted-foreground group-open:inline">Close</span>
                         </summary>
                         <div className="border-t border-line-soft bg-[#fbfcfc] p-2.5">
                           <ActionForm action={updateRateCardLine} submit="Save line" resetOnSuccess={false} primary={false}>
@@ -148,7 +148,7 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
                   <ActionForm action={addRateCardLine} submit="Add line">
                     <input type="hidden" name="card_id" value={open.id} />
                     <LineFields currency={open.currency} />
-                    <p className="m-0 text-xs text-muted">
+                    <p className="m-0 text-xs text-muted-foreground">
                       One line per resource, delivery or unit: add as many as the contract has. Day rate: planned quantity is the
                       number of people ({KIND_UNIT.day_rate}s are filled in each period).
                     </p>
@@ -188,7 +188,7 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
         {live ? (
           <>
             <div className="overflow-x-auto"><RateLines lines={sortLines(live.rate_card_lines)} currency={live.currency} /></div>
-            {live.notes ? <p className="m-0 border-t border-line-soft px-3 py-2 text-xs text-muted">{live.notes}</p> : null}
+            {live.notes ? <p className="m-0 border-t border-line-soft px-3 py-2 text-xs text-muted-foreground">{live.notes}</p> : null}
             <LinePeople lines={live.rate_card_lines} people={staff ?? []} covered={covered} />
             {!open ? <div className="border-t border-line-soft p-3"><ActionButton run={startRateCard.bind(null, id)}>Revise rates</ActionButton></div> : null}
           </>
@@ -213,10 +213,10 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
                 return (
                   <div key={d.id} className="row grid-cols-[minmax(0,1fr)_140px_130px_120px_110px]">
                     <span className="truncate" title={d.deal_name}>{d.deal_name}</span>
-                    <span className="truncate text-xs text-muted">{d.stage_label}</span>
+                    <span className="truncate text-xs text-muted-foreground">{d.stage_label}</span>
                     <span className="font-mono text-xs">{d.invoice_number ?? '–'}</span>
                     <span className="text-right font-mono text-xs">{inv ? money(inv.total, inv.currency, { exact: true }) : '–'}</span>
-                    <span className="text-xs">{inv ? inv.status : d.invoice_number ? <span className="text-muted">Not synced</span> : '–'}</span>
+                    <span className="text-xs">{inv ? inv.status : d.invoice_number ? <span className="text-muted-foreground">Not synced</span> : '–'}</span>
                   </div>
                 )
               })}
@@ -231,7 +231,7 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
           <div className="border-b border-line-soft p-3">
             <ActionForm action={createStatement} submit="Statement for a period" primary={false} resetOnSuccess={false}>
               <input type="hidden" name="project_id" value={id} />
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <label className="flex items-center gap-1.5">From <input type="date" name="period_start" required defaultValue={firstOfMonth} className="input" /></label>
                 <label className="flex items-center gap-1.5">to <input type="date" name="period_end" required defaultValue={endOfMonth} className="input" /></label>
                 <span>Or a statement for a whole period (retainers, day rates by person): day rates with people named are filled from their approved days; others start at resources × working days.</span>
@@ -254,7 +254,7 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
                       <span><StatementStatus status={s.status} /></span>
                       <span className="text-right font-mono text-xs">{money(subtotal, s.rate_cards?.currency ?? 'INR', { exact: true })}</span>
                       <span className="truncate text-xs">{s.zoho_invoice_number ? <span className="font-mono">Draft {s.zoho_invoice_number}</span>
-                        : s.invoice_error ? <span className="text-crit-ink">{s.invoice_error}</span> : invoiceable ? <span className="text-muted">Ready to invoice</span> : <span className="text-muted">–</span>}</span>
+                        : s.invoice_error ? <span className="text-crit-ink">{s.invoice_error}</span> : invoiceable ? <span className="text-muted-foreground">Ready to invoice</span> : <span className="text-muted-foreground">–</span>}</span>
                     </div>
                   )
                 })}

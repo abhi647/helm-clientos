@@ -9,6 +9,10 @@ import { canManage, requireStaff } from '@/lib/session'
 import { TaskBoard } from '@/components/task-board'
 import { TaskFilters, TaskTable, ViewSwitch, asSort, asStatus, asView, sortRows, statusFilterOptions } from '@/components/task-views'
 import { createClient } from '@/lib/supabase/server'
+import { AlarmClock, CalendarCheck, CalendarRange, Hourglass } from 'lucide-react'
+import { CalendarLegend, Distribution, TaskCalendar } from '@/components/viz'
+
+const STATUS_COLOR = { todo: '#a3a3a3', in_progress: 'var(--color-info)', in_review: 'var(--color-review)', waiting_customer: 'var(--color-warn)', blocked: 'var(--color-crit)' } as const
 
 export const metadata: Metadata = { title: 'My Work' }
 
@@ -75,7 +79,7 @@ export default async function MyWork({ searchParams }: { searchParams: Promise<S
 
   return (
     <>
-      <PageHeader title="My Work" meta={<span className="text-xs text-muted">{tasks.length} open tasks{whose ? ` · ${whose}` : ''}</span>} />
+      <PageHeader title="My Work" meta={<span>{tasks.length} open tasks{whose ? ` · ${whose}` : ''}</span>} />
       <div className="flex flex-col gap-3 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <ViewSwitch current={view} href={(v) => link({ view: v === 'list' ? undefined : v })} />
@@ -86,21 +90,32 @@ export default async function MyWork({ searchParams }: { searchParams: Promise<S
             { name: 'status', label: 'Status', value: statusF ?? '', options: statusFilterOptions.filter((o) => o.value !== 'done') },
           ]} />
         </div>
-        <div className="card grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))]">
-          <Stat label="Today" value={n('today')} /><Stat label="Overdue" value={n('overdue')} tone={n('overdue') ? 'crit' : undefined} />
-          <Stat label="Waiting on customer" value={n('waiting')} tone={n('waiting') ? 'warn' : undefined} /><Stat label="This week" value={n('week')} />
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Stat label="Today" value={n('today')} icon={<CalendarCheck />} tone={n('today') ? 'info' : undefined} />
+          <Stat label="Overdue" value={n('overdue')} icon={<AlarmClock />} tone={n('overdue') ? 'crit' : 'good'} />
+          <Stat label="Waiting on customer" value={n('waiting')} icon={<Hourglass />} tone={n('waiting') ? 'warn' : undefined} />
+          <Stat label="This week" value={n('week')} icon={<CalendarRange />} />
         </div>
-        {view === 'board' ? <TaskBoard cards={flat} setStatus={setTaskStatus} hideEmptyDone />
+        {tasks.length ? (
+          <Card title="Open work by status" description={`${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'}${whose ? ` · ${whose}` : ''}`}>
+            <Distribution segments={(['todo', 'in_progress', 'in_review', 'waiting_customer', 'blocked'] as const).map((st) => ({
+              name: TASK_STATUS[st], value: tasks.filter((t) => t.status === st).length, color: STATUS_COLOR[st],
+            })).filter((x) => x.value)} />
+          </Card>
+        ) : null}
+        {view === 'calendar' ? <div className="flex flex-col gap-2"><CalendarLegend /><TaskCalendar items={flat.filter((r) => r.dueIso).map((r) => ({ id: r.id, title: r.title, date: r.dueIso!, href: r.href, kind: 'due' as const,
+            overdue: r.overdue, waiting: r.status === 'waiting_customer', context: r.context }))} /><p className="m-0 text-xs text-muted-foreground">Open tasks with a due date. For finished work too, see <Link href="/calendar">Calendar</Link>.</p></div>
+          : view === 'board' ? <TaskBoard cards={flat} setStatus={setTaskStatus} hideEmptyDone />
           : view === 'table' ? <TaskTable rows={sortRows(flat, sort)} sort={sort} sortHref={(k) => link({ sort: k === 'due' ? undefined : k })} setStatus={setTaskStatus} contextLabel="Project" />
           : tasks.length ? groups.filter((g) => g.tasks.length).map((g) => (
           <Card key={g.key} flush title={g.title} extra={`${g.tasks.length}`} className="overflow-x-auto">
             <div className="min-w-[760px]">
               {g.tasks.map((t) => (
                 <div key={t.id} className="row grid-cols-[minmax(0,1fr)_200px_70px_60px_150px_84px] hover:bg-head">
-                  <Link href={`/projects/${t.project_id}?task=${t.id}`} className="truncate font-medium text-ink no-underline hover:underline">{t.parent ? <span className="font-normal text-muted">{t.parent.title} › </span> : null}{t.title}</Link>
-                  <span className="flex min-w-0 items-center gap-1.5 truncate text-xs text-muted">{whose && t.assignee ? <><Avatar name={t.assignee.full_name} size={16} /><span className="truncate text-ink">{t.assignee.full_name}</span> · </> : null}<span className="truncate">{t.projects?.customers?.name} · {t.projects?.name}</span></span>
+                  <Link href={`/projects/${t.project_id}?task=${t.id}`} className="truncate font-medium text-ink no-underline hover:underline">{t.parent ? <span className="font-normal text-muted-foreground">{t.parent.title} › </span> : null}{t.title}</Link>
+                  <span className="flex min-w-0 items-center gap-1.5 truncate text-xs text-muted-foreground">{whose && t.assignee ? <><Avatar name={t.assignee.full_name} size={16} /><span className="truncate text-ink">{t.assignee.full_name}</span> · </> : null}<span className="truncate">{t.projects?.customers?.name} · {t.projects?.name}</span></span>
                   <span className={cn('font-mono text-xs', g.key === 'overdue' && 'font-semibold text-crit-ink')}>{shortDate(t.due_date)}</span>
-                  <span className="text-right font-mono text-xs text-muted">{t.task_estimates?.estimate ? effortShort(t.task_estimates.estimate, t.task_estimates.unit) : ''}</span>
+                  <span className="text-right font-mono text-xs text-muted-foreground">{t.task_estimates?.estimate ? effortShort(t.task_estimates.estimate, t.task_estimates.unit) : ''}</span>
                   <StatusSelect label={`Status of ${t.title}`} value={t.status} options={statusOptions} onChange={setTaskStatus.bind(null, t.id)} />
                   <span><Visibility value={t.visibility} /></span>
                 </div>
@@ -124,10 +139,10 @@ export default async function MyWork({ searchParams }: { searchParams: Promise<S
                 </div>
               ))}
             </div>
-          ) : <p className="m-0 p-3 text-xs text-muted">No time logged in the last 30 days. Open a task to log time.</p>}
+          ) : <p className="m-0 p-3 text-xs text-muted-foreground">No time logged in the last 30 days. Open a task to log time.</p>}
         </Card>
-        <p className="m-0 text-xs text-muted">Your PM approves your hours each week; approved hours are locked. A returned entry says what to fix: delete it and log it again. {time?.length ? `${hrs((time ?? []).filter((e) => !e.approved_at && !e.returned_note).reduce((s, e) => s + Number(e.hours), 0))} waiting for approval.` : ''}</p>
-        <p className="m-0 text-xs text-muted">Open a task to read its requirement and discussion, log time, or mark it ready for review. <TaskStatusChip status="in_review" /> tells the PM it is ready.</p>
+        <p className="m-0 text-xs text-muted-foreground">Your PM approves your hours each week; approved hours are locked. A returned entry says what to fix: delete it and log it again. {time?.length ? `${hrs((time ?? []).filter((e) => !e.approved_at && !e.returned_note).reduce((s, e) => s + Number(e.hours), 0))} waiting for approval.` : ''}</p>
+        <p className="m-0 text-xs text-muted-foreground">Open a task to read its requirement and discussion, log time, or mark it ready for review. <TaskStatusChip status="in_review" /> tells the PM it is ready.</p>
       </div>
     </>
   )

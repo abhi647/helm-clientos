@@ -9,7 +9,9 @@ import type { Enums } from '@/lib/database.types'
 import { TASK_STATUS, isOverdue, shortDate, effort, effortShort, hrs } from '@/lib/format'
 import { EffortInput } from '@/components/effort-input'
 import { TaskBoard } from '@/components/task-board'
-import { TaskFilters, TaskTable, ViewSwitch, asSort, asStatus, asView, sortRows, statusFilterOptions } from '@/components/task-views'
+import { TaskDrawer } from '@/components/task-drawer'
+import { PLAN_VIEWS, TaskFilters, TaskTable, ViewSwitch, asSort, asStatus, asView, sortRows, statusFilterOptions } from '@/components/task-views'
+import { CalendarLegend, PlanTimeline, TaskCalendar, type CalendarItem } from '@/components/viz'
 import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
@@ -24,7 +26,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
   const preview = sp.preview === '1'
   const openOnly = sp.open === '1'
   const q = (sp.q ?? '').trim().toLowerCase()
-  const view = asView(sp.view)
+  const view = asView(sp.view, PLAN_VIEWS)
   const statusF = asStatus(sp.status)
   // owner filter: '' anyone, 'me', 'none' (unassigned) or a person's id
   const who = sp.who ?? ''
@@ -93,22 +95,22 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
       return (
         <>
         <span className={cn('flex min-w-0 items-center gap-2', sub ? 'pl-12' : 'pl-1')}>
-            {sub ? <span aria-hidden className="-ml-4 text-muted">└</span> : (
-              <span aria-hidden className={cn('w-4 flex-none text-center text-[10px] text-muted transition-transform group-open/task:rotate-90', !toggle && 'invisible')}>▶</span>
+            {sub ? <span aria-hidden className="-ml-4 text-muted-foreground">└</span> : (
+              <span aria-hidden className={cn('w-4 flex-none text-center text-[10px] text-muted-foreground transition-transform group-open/task:rotate-90', !toggle && 'invisible')}>▶</span>
             )}
             <span aria-hidden className={cn('size-[13px] flex-none rounded-sm', t.status === 'done' ? 'bg-good' : 'border-[1.5px] border-[#b9c4c8]')} />
-            <Link href={link({ task: t.id })} className={cn('truncate no-underline hover:underline', t.status === 'done' ? 'text-muted' : sub ? 'text-ink' : 'font-medium text-ink')}>{t.title}</Link>
-            {!preview && t.rate_line_id ? <span className="flex-none rounded bg-head px-1.5 text-[11px] text-muted" title="Billed as">{lineName.get(t.rate_line_id) ?? 'Billed'}</span> : null}
-            {kids.length ? <span className="flex-none text-[11px] text-muted" title="Subtasks done">{kids.filter((k) => k.status === 'done').length}/{kids.length} subtasks</span> : null}
-            {commentCount.get(t.id) ? <span className="text-[11px] text-muted">{commentCount.get(t.id)} comments</span> : null}
+            <Link href={link({ task: t.id })} scroll={false} className={cn('truncate no-underline hover:underline', t.status === 'done' ? 'text-muted-foreground' : sub ? 'text-ink' : 'font-medium text-ink')}>{t.title}</Link>
+            {!preview && t.rate_line_id ? <span className="flex-none rounded bg-head px-1.5 text-[11px] text-muted-foreground" title="Billed as">{lineName.get(t.rate_line_id) ?? 'Billed'}</span> : null}
+            {kids.length ? <span className="flex-none text-[11px] text-muted-foreground" title="Subtasks done">{kids.filter((k) => k.status === 'done').length}/{kids.length} subtasks</span> : null}
+            {commentCount.get(t.id) ? <span className="text-[11px] text-muted-foreground">{commentCount.get(t.id)} comments</span> : null}
           </span>
           <span><TaskStatusChip status={t.status} overdue={overdue} /></span>
-          <span className="flex min-w-0 items-center gap-1.5">{t.assignee ? <><Avatar name={t.assignee.full_name} customer={t.assignee.kind === 'customer'} /><span className="truncate">{t.assignee.full_name}</span></> : <span className="text-muted">Unassigned</span>}</span>
-          <span className="font-mono text-xs text-muted">{shortDate(t.start_date)}</span>
+          <span className="flex min-w-0 items-center gap-1.5">{t.assignee ? <><Avatar name={t.assignee.full_name} customer={t.assignee.kind === 'customer'} /><span className="truncate">{t.assignee.full_name}</span></> : <span className="text-muted-foreground">Unassigned</span>}</span>
+          <span className="font-mono text-xs text-muted-foreground">{shortDate(t.start_date)}</span>
           <span className={cn('font-mono text-xs', overdue && 'font-semibold text-crit-ink')}>{shortDate(t.due_date)}</span>
           {!preview ? <><span className="truncate text-right font-mono text-xs" title={est(t) ? effort(est(t), unitOf(t)) : undefined}>{est(t) ? effortShort(est(t), unitOf(t)) : '–'}</span><span className={cn('text-right font-mono text-xs', estHours(t) && lg > estHours(t) && 'font-semibold text-warn-ink')}>{lg ? hrs(lg) : '–'}</span></> : null}
           <span><Visibility value={t.visibility} /></span>
-          <span aria-label={t.spotlight ? 'Spotlight' : undefined} className={t.spotlight ? 'text-ink' : 'text-[#d5dcdf]'}>★</span>
+          <span aria-label={t.spotlight ? 'Spotlight' : undefined} className={t.spotlight ? 'text-ink' : 'text-control'}>★</span>
         </>
       )
     }
@@ -150,7 +152,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
     id: t.id, title: t.title, href: link({ task: t.id }), status: t.status, overdue: t.status !== 'done' && isOverdue(t.due_date), selected: sel?.id === t.id,
     parent: t.parent_id ? parentTitle.get(t.parent_id) ?? null : null, context: t.phase_id ? phaseName.get(t.phase_id) ?? null : 'Not in a phase',
     owner: t.assignee ? { name: t.assignee.full_name, customer: t.assignee.kind === 'customer' } : null,
-    start: t.start_date ? shortDate(t.start_date) : null, due: t.due_date ? shortDate(t.due_date) : null, dueIso: t.due_date,
+    start: t.start_date ? shortDate(t.start_date) : null, due: t.due_date ? shortDate(t.due_date) : null, dueIso: t.due_date, startIso: t.start_date, completedIso: t.completed_at,
     effort: !preview && est(t) ? effortShort(est(t), unitOf(t)) : null, logged: !preview && logged.get(t.id) ? hrs(logged.get(t.id)!) : null,
   }))
 
@@ -158,7 +160,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
     <div className="flex flex-col gap-2.5 p-4">
       {sp.created ? <p role="status" className="m-0 rounded-md bg-good-bg px-3 py-2 text-xs font-medium text-good-ink">Project created from the template. Assign the customer tasks, then share the portal.</p> : null}
       <div className="flex flex-wrap items-center gap-2">
-        <form className="flex h-[30px] items-center rounded-md border border-[#d5dcdf] bg-white px-2">
+        <form className="flex h-[30px] items-center rounded-md border border-control bg-white px-2">
           {preview ? <input type="hidden" name="preview" value="1" /> : null}
           {openOnly ? <input type="hidden" name="open" value="1" /> : null}
           {sp.view ? <input type="hidden" name="view" value={sp.view} /> : null}
@@ -166,7 +168,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
           {sp.status ? <input type="hidden" name="status" value={sp.status} /> : null}
           <input name="q" defaultValue={sp.q} aria-label="Filter tasks" placeholder="Filter tasks" className="w-40 border-0 bg-transparent text-[13px] outline-none" />
         </form>
-        <ViewSwitch current={view} href={(v) => link({ view: v === 'list' ? undefined : v })} />
+        <ViewSwitch current={view} views={PLAN_VIEWS} href={(v) => link({ view: v === 'list' ? undefined : v })} />
         <TaskFilters keep={{ view: sp.view, q: sp.q, open: sp.open, preview: sp.preview, task: sp.task, sort: sp.sort }} fields={[
           { name: 'who', label: 'Owner', value: who, options: [{ value: '', label: 'Any owner' }, { value: 'me', label: 'Me' }, { value: 'none', label: 'Unassigned' },
             ...people.filter((p) => p.id !== me.id).map((p) => ({ value: p.id, label: `${p.full_name}${p.kind === 'customer' ? ' (customer)' : ''}` }))] },
@@ -174,7 +176,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
         ]} />
         <Link href={link({ open: openOnly ? undefined : '1' })} className={cn('btn', openOnly && 'border-brand bg-selected font-semibold')}>Open only</Link>
         <Link href={link({ preview: preview ? undefined : '1', task: undefined })} className={cn('btn', preview && 'border-brand bg-selected font-semibold')}>{preview ? 'Exit customer preview' : 'Customer preview'}</Link>
-        <div className="ml-2 flex flex-wrap gap-3 text-xs text-muted">
+        <div className="ml-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
           <span><b className="font-mono text-ink">{stats.total}</b> tasks</span>
           <span><b className="font-mono text-good-ink">{stats.done}</b> done</span>
           <span><b className="font-mono text-crit-ink">{stats.overdue}</b> overdue</span>
@@ -207,7 +209,16 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
       <div className="flex flex-wrap items-start gap-3">
         {view !== 'list' ? (
           <div className="min-w-0 flex-[999_1_640px]">
-            {view === 'board' ? <TaskBoard cards={flat.map((r) => ({ ...r, start: undefined, logged: undefined }))} setStatus={setTaskStatus} />
+            {view === 'calendar' ? <div className="flex flex-col gap-2"><CalendarLegend /><TaskCalendar items={flat.flatMap((r): CalendarItem[] => r.status === 'done'
+                ? (r.completedIso ? [{ id: r.id, title: r.title, date: r.completedIso, href: r.href, kind: 'done' as const, context: r.context ?? undefined }] : [])
+                : (r.dueIso ? [{ id: r.id, title: r.title, date: r.dueIso, href: r.href, kind: 'due' as const, overdue: r.overdue, waiting: r.status === 'waiting_customer', context: r.context ?? undefined }] : []))} /></div>
+            : view === 'timeline' ? <PlanTimeline selectedId={sel?.id ?? null} tasks={flat.filter((r) => r.dueIso).map((r) => ({
+                id: r.id, label: r.parent ? `↳ ${r.title}` : r.title, start: r.startIso ?? r.dueIso!, end: r.dueIso!, group: r.context ?? undefined, owner: r.owner?.name,
+                progress: r.status === 'done' ? 100 : r.status === 'in_review' ? 80 : r.status === 'in_progress' || r.status === 'waiting_customer' ? 40 : 0,
+                color: r.overdue ? 'var(--color-crit)' : r.status === 'done' ? 'var(--color-good)' : r.status === 'waiting_customer' ? 'var(--color-warn)' : r.status === 'in_review' ? 'var(--color-review)' : undefined,
+                href: r.href,
+              }))} undated={flat.filter((r) => !r.dueIso).length} />
+            : view === 'board' ? <TaskBoard cards={flat.map((r) => ({ ...r, start: undefined, logged: undefined }))} setStatus={setTaskStatus} />
               : <TaskTable rows={sortRows(flat, sort)} sort={sort} sortHref={(k) => link({ sort: k === 'due' ? undefined : k })} setStatus={setTaskStatus} contextLabel="Phase" showEffort={!preview} />}
           </div>
         ) : null}
@@ -228,11 +239,11 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                 <details key={phase.id} open={pct < 100 || Boolean(sel && sel.phase_id === phase.id)} className="group/phase">
                   <summary className={cn('row cursor-pointer list-none bg-head font-semibold', cols)}>
                     <span className="flex items-center gap-2">
-                      <span aria-hidden className="w-4 flex-none text-center text-[10px] text-muted transition-transform group-open/phase:rotate-90">▶</span>
-                      <span>{phase.name}</span><span className="text-xs font-normal text-muted">{pts.length} tasks</span>
+                      <span aria-hidden className="w-4 flex-none text-center text-[10px] text-muted-foreground transition-transform group-open/phase:rotate-90">▶</span>
+                      <span>{phase.name}</span><span className="text-xs font-normal text-muted-foreground">{pts.length} tasks</span>
                       <span className="h-1.5 w-16 overflow-hidden rounded-full bg-line"><span className={cn('block h-full rounded-full', pct === 100 ? 'bg-good' : 'bg-info')} style={{ width: `${pct}%` }} /></span>
                     </span>
-                    <span className="flex items-center gap-1.5 text-xs font-normal whitespace-nowrap text-muted">
+                    <span className="flex items-center gap-1.5 text-xs font-normal whitespace-nowrap text-muted-foreground">
                       {/* a phase's state comes from its tasks and subtasks */}
                       {(() => {
                         const work = inPhase.filter((t) => t.phase_id === phase.id)
@@ -244,8 +255,8 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                     <span className="font-normal">{!preview && lines?.length ? (
                       <StatusSelect key={`ph-${phase.id}-${phase.rate_line_id ?? ''}`} label={`${phase.name} billed as`} value={phase.rate_line_id ?? ''} options={withCurrent(phase.rate_line_id)} onChange={setBilledAs.bind(null, 'phase', phase.id)} />
                     ) : null}</span>
-                    <span className="font-mono text-xs font-normal text-muted">{shortDate(allPhase[0]?.start_date)}</span>
-                    <span className="font-mono text-xs font-normal text-muted">{shortDate(allPhase.at(-1)?.due_date)}</span>
+                    <span className="font-mono text-xs font-normal text-muted-foreground">{shortDate(allPhase[0]?.start_date)}</span>
+                    <span className="font-mono text-xs font-normal text-muted-foreground">{shortDate(allPhase.at(-1)?.due_date)}</span>
                     {!preview ? <><span className="text-right font-mono text-xs">{effortPhase.reduce((a, t) => a + est(t), 0) || ''}</span><span className="text-right font-mono text-xs">{effortPhase.reduce((a, t) => a + (logged.get(t.id) ?? 0), 0) || ''}</span></> : null}
                     <span /><span />
                   </summary>
@@ -272,8 +283,8 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                 <details open className="group/phase">
                   <summary className={cn('row cursor-pointer list-none bg-head font-semibold', cols)}>
                     <span className="flex items-center gap-2">
-                      <span aria-hidden className="w-4 flex-none text-center text-[10px] text-muted transition-transform group-open/phase:rotate-90">▶</span>
-                      <span>Not in a phase</span><span className="text-xs font-normal text-muted">{loose.length} tasks</span>
+                      <span aria-hidden className="w-4 flex-none text-center text-[10px] text-muted-foreground transition-transform group-open/phase:rotate-90">▶</span>
+                      <span>Not in a phase</span><span className="text-xs font-normal text-muted-foreground">{loose.length} tasks</span>
                     </span>
                   </summary>
                   {loose.map(taskRow)}
@@ -288,7 +299,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                 const count = all.filter((t) => t.phase_id === ph.id && !t.parent_id).length
                 return (
                   <div key={ph.id} className="row grid-cols-[minmax(0,1fr)_auto] text-xs">
-                    <span className="truncate">{ph.name} <span className="text-muted">· {count} {count === 1 ? 'task' : 'tasks'}</span></span>
+                    <span className="truncate">{ph.name} <span className="text-muted-foreground">· {count} {count === 1 ? 'task' : 'tasks'}</span></span>
                     <ActionButton run={deletePhase.bind(null, ph.id)} className="btn-ghost h-6 px-2 text-xs text-crit-ink"
                       confirm={`Delete the phase "${ph.name}"${count ? ` and its ${count} ${count === 1 ? 'task' : 'tasks'}` : ''}? This cannot be undone.`}>Delete</ActionButton>
                   </div>
@@ -299,32 +310,32 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
         </div>
 
         {sel ? (
-          <aside className="card flex min-w-0 max-w-[420px] flex-[1_1_340px] flex-col" aria-label="Task details">
-            <div className="flex items-start gap-2 border-b border-line px-3 py-2.5">
+          <TaskDrawer closeHref={link({ task: undefined })} title={sel.title}>
+          <aside className="flex flex-col" aria-label="Task details">
+            <div className="flex items-start gap-2 border-b border-line px-5 pt-5 pb-4 pr-12">
               <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                <span className="label">{phases?.find((p) => p.id === sel.phase_id)?.name}{selParent ? <> › <Link href={link({ task: selParent.id })} className="normal-case">{selParent.title}</Link></> : null}</span>
-                <span className="text-[15px] font-semibold">{sel.title}</span>
+                <span className="label">{phases?.find((p) => p.id === sel.phase_id)?.name}{selParent ? <> › <Link href={link({ task: selParent.id })} scroll={false} className="normal-case">{selParent.title}</Link></> : null}</span>
+                <span className="text-lg leading-snug font-semibold tracking-[-0.02em]">{sel.title}</span>
                 <span className="flex flex-wrap gap-1.5"><TaskStatusChip status={sel.status} overdue={sel.status !== 'done' && isOverdue(sel.due_date)} /><Visibility value={sel.visibility} />{sel.spotlight ? <Chip tone="dark">★ Spotlight</Chip> : null}</span>
               </div>
-              <Link href={link({ task: undefined })} aria-label="Close" className="btn w-[30px] px-0">✕</Link>
             </div>
-            <div className="flex flex-col gap-3.5 p-3">
-              <dl className="m-0 grid grid-cols-[96px_minmax(0,1fr)] gap-y-1.5 text-[13px]">
-                <dt className="text-muted">Owner</dt><dd className="m-0">{sel.assignee?.full_name ?? 'Unassigned'} · {sel.owner_side === 'customer' ? 'Customer' : 'Seven Billion'}</dd>
-                {sel.request ? <><dt className="text-muted">Request</dt><dd className="m-0"><Link href={`/requests/${sel.request.id}`} className="font-mono">{sel.request.number}</Link></dd></> : null}
-                <dt className="text-muted">Start → Due</dt><dd className="m-0 font-mono">{shortDate(sel.start_date)} → {shortDate(sel.due_date)}</dd>
-                {!preview && lines?.length ? <><dt className="text-muted">Billed as</dt><dd className="m-0">
-                  {sel.parent_id ? <span className="text-muted">Through its task{selParent?.rate_line_id ? `: ${lineName.get(selParent.rate_line_id)}` : ''}</span> : (
+            <div className="flex flex-col gap-4 p-5">
+              <dl className="m-0 grid grid-cols-[104px_minmax(0,1fr)] gap-y-2.5 rounded-xl bg-muted/60 p-3.5 text-[13px]">
+                <dt className="text-muted-foreground">Owner</dt><dd className="m-0">{sel.assignee?.full_name ?? 'Unassigned'} · {sel.owner_side === 'customer' ? 'Customer' : 'Seven Billion'}</dd>
+                {sel.request ? <><dt className="text-muted-foreground">Request</dt><dd className="m-0"><Link href={`/requests/${sel.request.id}`} className="font-mono">{sel.request.number}</Link></dd></> : null}
+                <dt className="text-muted-foreground">Start → Due</dt><dd className="m-0 font-mono">{shortDate(sel.start_date)} → {shortDate(sel.due_date)}</dd>
+                {!preview && lines?.length ? <><dt className="text-muted-foreground">Billed as</dt><dd className="m-0">
+                  {sel.parent_id ? <span className="text-muted-foreground">Through its task{selParent?.rate_line_id ? `: ${lineName.get(selParent.rate_line_id)}` : ''}</span> : (
                     <span className="flex flex-col gap-1">
                       <StatusSelect key={`bill-${sel.id}-${sel.rate_line_id ?? ''}`} label="Task billed as" value={sel.rate_line_id ?? ''} options={withCurrent(sel.rate_line_id)} onChange={setBilledAs.bind(null, 'task', sel.id)} />
-                      {!sel.rate_line_id ? <span className="text-xs text-muted">{(() => {
+                      {!sel.rate_line_id ? <span className="text-xs text-muted-foreground">{(() => {
                         const ph = phases?.find((p) => p.id === sel.phase_id)
                         return ph?.rate_line_id ? `Uses the phase's line: ${lineName.get(ph.rate_line_id)}` : 'Hours use the line the person is named on'
                       })()}</span> : null}
                     </span>
                   )}
                 </dd></> : null}
-                {!preview ? <><dt className="text-muted">Effort</dt><dd className="m-0 font-mono">{hrs(logged.get(sel.id) ?? 0)} logged · estimate {est(sel) ? effort(est(sel), unitOf(sel)) : '–'}</dd></> : null}
+                {!preview ? <><dt className="text-muted-foreground">Effort</dt><dd className="m-0 font-mono">{hrs(logged.get(sel.id) ?? 0)} logged · estimate {est(sel) ? effort(est(sel), unitOf(sel)) : '–'}</dd></> : null}
               </dl>
               {sel.description ? <p className="m-0 text-[13px] leading-relaxed">{sel.description}</p> : null}
               {!preview ? (
@@ -341,10 +352,10 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                 <div className="flex flex-col gap-1.5 border-t border-line-soft pt-2.5">
                   <span className="label">Subtasks {selSubs.length ? `· ${selSubs.filter((k) => k.status === 'done').length}/${selSubs.length} done` : ''}</span>
                   {selSubs.map((k) => (
-                    <Link key={k.id} href={link({ task: k.id })} className="flex items-center gap-2 text-[13px] no-underline hover:underline">
+                    <Link key={k.id} href={link({ task: k.id })} scroll={false} className="flex items-center gap-2 text-[13px] no-underline hover:underline">
                       <span aria-hidden className={cn('size-[11px] flex-none rounded-sm', k.status === 'done' ? 'bg-good' : 'border-[1.5px] border-[#b9c4c8]')} />
-                      <span className={cn('truncate', k.status === 'done' ? 'text-muted' : 'text-ink')}>{k.title}</span>
-                      <span className="ml-auto flex-none text-xs text-muted">{k.assignee?.full_name ?? 'Unassigned'}{k.due_date ? ` · ${shortDate(k.due_date)}` : ''}</span>
+                      <span className={cn('truncate', k.status === 'done' ? 'text-muted-foreground' : 'text-ink')}>{k.title}</span>
+                      <span className="ml-auto flex-none text-xs text-muted-foreground">{k.assignee?.full_name ?? 'Unassigned'}{k.due_date ? ` · ${shortDate(k.due_date)}` : ''}</span>
                     </Link>
                   ))}
                   {!preview ? (
@@ -368,7 +379,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                   <ActionForm action={logTime} submit="Log time" className="mt-2">
                     <input type="hidden" name="task_id" value={sel.id} />
                     <div className="flex gap-2">
-                      <span className="flex items-center gap-1.5"><input type="number" name="hours" min={0.25} max={24} step={0.25} required placeholder="Hours" aria-label="Hours worked" className="input w-20 font-mono" /><span className="text-xs text-muted">hours</span></span>
+                      <span className="flex items-center gap-1.5"><input type="number" name="hours" min={0.25} max={24} step={0.25} required placeholder="Hours" aria-label="Hours worked" className="input w-20 font-mono" /><span className="text-xs text-muted-foreground">hours</span></span>
                       <input type="date" name="worked_on" defaultValue={new Date().toISOString().slice(0, 10)} aria-label="Date" className="input flex-1" />
                     </div>
                     <label className="flex items-center gap-1.5 text-xs"><input type="checkbox" name="billable" defaultChecked /> Billable</label>
@@ -382,6 +393,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
               </div>
             </div>
           </aside>
+          </TaskDrawer>
         ) : null}
       </div>
     </div>

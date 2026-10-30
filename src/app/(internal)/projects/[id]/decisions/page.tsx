@@ -17,9 +17,9 @@ export default async function Decisions({ params }: { params: Promise<{ id: stri
       <Card flush className="min-w-0 flex-[999_1_620px]" title="Decision log" extra="Recorded once, referenced forever">
         {data?.length ? data.map((d) => (
           <div key={d.id} className={`row py-1.5 ${manage ? 'grid-cols-[72px_minmax(0,1fr)_120px_84px_64px]' : 'grid-cols-[72px_minmax(0,1fr)_160px_84px]'}`}>
-            <span className="font-mono text-xs text-muted">{d.number}</span>
-            <span className="leading-snug">{d.decision}<span className="block text-xs text-muted">{d.decided_by}{d.meetings ? ` · from ${d.meetings.title}` : ''}</span></span>
-            <span className="font-mono text-xs text-muted">{shortDate(d.decided_on)}</span>
+            <span className="font-mono text-xs text-muted-foreground">{d.number}</span>
+            <span className="leading-snug">{d.decision}<span className="block text-xs text-muted-foreground">{d.decided_by}{d.meetings ? ` · from ${d.meetings.title}` : ''}</span></span>
+            <span className="font-mono text-xs text-muted-foreground">{shortDate(d.decided_on)}</span>
             <span><Visibility value={d.visibility} /></span>
             {manage ? <ActionButton run={deleteDecision.bind(null, d.id)} className="btn-ghost h-6 px-2 text-xs text-crit-ink" confirm={`Delete decision ${d.number}? This cannot be undone.`}>Delete</ActionButton> : null}
           </div>

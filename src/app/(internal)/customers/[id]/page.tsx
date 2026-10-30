@@ -53,7 +53,7 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
   return (
     <>
       <PageHeader title={c.name}
-        meta={<span className="text-xs text-muted">{c.hubspot_company_id ? `HubSpot ${c.hubspot_company_id}` : 'Not linked to HubSpot'} · {c.zoho_customer_id ? `Zoho ${c.zoho_customer_id}` : 'Not linked to Zoho'}</span>}
+        meta={<span className="text-xs text-muted-foreground">{c.hubspot_company_id ? `HubSpot ${c.hubspot_company_id}` : 'Not linked to HubSpot'} · {c.zoho_customer_id ? `Zoho ${c.zoho_customer_id}` : 'Not linked to Zoho'}</span>}
         actions={<div className="flex flex-wrap gap-2">
           {canManage(me) ? <Link href={`/projects/new?customer=${c.id}`} className="btn">+ New project</Link> : null}
           <Link href={`/requests/new?customer=${c.id}`} className="btn">+ Log a request</Link>
@@ -68,7 +68,7 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                     <Avatar name={t.person?.full_name ?? '?'} />
                     <span className="flex min-w-0 flex-1 flex-col leading-tight">
                       <span className="truncate font-medium">{t.person?.full_name}</span>
-                      {t.role_label ? <span className="truncate text-xs text-muted">{t.role_label}</span> : null}
+                      {t.role_label ? <span className="truncate text-xs text-muted-foreground">{t.role_label}</span> : null}
                     </span>
                     {canManage(me) ? (
                       <span className="shrink-0"><ActionButton run={removeFromCustomerTeam.bind(null, c.id, t.profile_id)} className="btn-ghost h-6 px-2 text-xs"
@@ -76,7 +76,7 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                     ) : null}
                   </div>
                 ))}
-                {!team?.length ? <p className="m-0 text-xs text-muted">No one is on the {c.name} account team yet.</p> : null}
+                {!team?.length ? <p className="m-0 text-xs text-muted-foreground">No one is on the {c.name} account team yet.</p> : null}
               </div>
               {canManage(me) && addable.length ? (
                 <details className="mt-3 border-t border-line-soft pt-3">
@@ -88,7 +88,7 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                       {addable.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
                     </select>
                     <input name="role_label" maxLength={60} aria-label="Role on this account" placeholder="Role on this account, e.g. Data engineer (optional)" className="input" />
-                    <p className="m-0 text-xs text-muted">They are told, hear about {c.name}&apos;s new requests, and are shown to {c.name} in their portal.</p>
+                    <p className="m-0 text-xs text-muted-foreground">They are told, hear about {c.name}&apos;s new requests, and are shown to {c.name} in their portal.</p>
                   </ActionForm>
                 </details>
               ) : null}
@@ -103,7 +103,7 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                     <input name="email" type="email" required placeholder="Work email" aria-label="Work email" className="input" />
                     <select name="customer_role" defaultValue="customer_member" aria-label="Role" className="input"><option value="customer_member">Team member (works with us day to day)</option><option value="customer_exec">Executive (approves estimates, rates and statements)</option></select>
                     <label className="flex items-center gap-1.5 text-xs"><input type="checkbox" name="can_view_invoices" /> Can see invoices and approve billing</label>
-                    <p className="m-0 text-xs text-muted">They get an email to sign in to the {c.name} portal. No password needed.</p>
+                    <p className="m-0 text-xs text-muted-foreground">They get an email to sign in to the {c.name} portal. No password needed.</p>
                   </ActionForm>
                 </details>
               ) : null}
@@ -114,7 +114,7 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                       <Avatar name={u.full_name} customer />
                       <span className="flex min-w-0 flex-1 flex-col leading-tight">
                         <span className="truncate font-medium">{u.full_name}</span>
-                        <span className="truncate text-xs text-muted">{u.email}</span>
+                        <span className="truncate text-xs text-muted-foreground">{u.email}</span>
                       </span>
                       <span className="flex shrink-0 items-center gap-1">
                         {u.access_revoked_at ? <Chip tone="crit">Access removed</Chip> : <>{u.customer_role === 'customer_exec' ? <Chip>Executive</Chip> : <Chip>Member</Chip>}{u.can_view_invoices ? <Chip tone="info">Invoices</Chip> : null}</>}
@@ -141,14 +141,14 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                     ) : null}
                   </details>
                 ))}
-                {!people?.length ? <p className="m-0 text-xs text-muted">No one from {c.name} has access yet.</p> : null}
+                {!people?.length ? <p className="m-0 text-xs text-muted-foreground">No one from {c.name} has access yet.</p> : null}
               </div>
               {canManage(me) && toInvite.length ? (
                 <div className="mt-3 border-t border-line-soft pt-2.5">
                   <p className="label mt-0 mb-1.5">People to invite ({toInvite.length}, from HubSpot)</p>
                   {toInvite.map((x) => (
                     <details key={x.id} className="border-b border-line-soft py-1.5 last:border-b-0">
-                      <summary className="cursor-pointer text-[13px]">{x.full_name} <span className="text-xs text-muted">{x.email}{x.job_title ? ` · ${x.job_title}` : ''}</span></summary>
+                      <summary className="cursor-pointer text-[13px]">{x.full_name} <span className="text-xs text-muted-foreground">{x.email}{x.job_title ? ` · ${x.job_title}` : ''}</span></summary>
                       <ActionForm action={inviteCustomerUser} submit="Send invitation" className="mt-2">
                         <input type="hidden" name="customer_id" value={c.id} />
                         <input type="hidden" name="full_name" value={x.full_name} />
@@ -163,7 +163,7 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
               ) : null}
             </Card>
             <Card title="Hours credit" extra={plan ? (plan.kind === 'monthly' ? `${hrs(plan.monthly_hours)} a month` : 'Prepaid hours') : 'Not set'}>
-              {credit ? <HoursMeter b={credit} /> : <p className="m-0 text-xs text-muted">{plan ? 'No hours bought yet: add a block below.' : 'No hours plan. Work is billed from the rate card only.'}</p>}
+              {credit ? <HoursMeter b={credit} /> : <p className="m-0 text-xs text-muted-foreground">{plan ? 'No hours bought yet: add a block below.' : 'No hours plan. Work is billed from the rate card only.'}</p>}
               {finance ? (
                 <>
                   <details className="mt-3 border-t border-line-soft pt-3">
@@ -183,7 +183,7 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                           <input type="number" name="rollover_cap" min={0} step={0.5} defaultValue={plan ? (plan.rollover_cap ?? '') : 0} aria-label="Carry-over cap" placeholder="No cap" className="input font-mono" /></label>
                         <label className="flex flex-col gap-1"><span className="label">Starts on</span>
                           <input type="date" name="starts_on" required defaultValue={plan?.starts_on ?? `${today.slice(0, 8)}01`} aria-label="Plan starts on" className="input" /></label>
-                        <p className="m-0 text-xs text-muted">Monthly: unused hours carry over up to the cap (0 = none, empty = no cap). Prepaid: the blocks you add below are used up from the start date. Approved billable hours count; going over is allowed and shown.</p>
+                        <p className="m-0 text-xs text-muted-foreground">Monthly: unused hours carry over up to the cap (0 = none, empty = no cap). Prepaid: the blocks you add below are used up from the start date. Approved billable hours count; going over is allowed and shown.</p>
                       </ActionForm>
                     </div>
                   </details>
@@ -208,9 +208,9 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                 <div className="mt-3 flex flex-col border-t border-line-soft pt-2 text-xs">
                   {topups.map((t) => (
                     <div key={t.id} className="flex items-center gap-2 py-1">
-                      <span className="font-mono text-muted">{shortDate(t.added_on)}</span>
+                      <span className="font-mono text-muted-foreground">{shortDate(t.added_on)}</span>
                       <span className="font-mono font-semibold">+{hrs(t.hours)}</span>
-                      <span className="min-w-0 flex-1 truncate text-muted">{t.note}</span>
+                      <span className="min-w-0 flex-1 truncate text-muted-foreground">{t.note}</span>
                       {finance ? <ActionButton run={deleteCreditTopup.bind(null, t.id)} className="btn-ghost h-6 px-2 text-xs" confirm="Remove these hours from the customer's credit?">Remove</ActionButton> : null}
                     </div>
                   ))}
@@ -219,9 +219,9 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
             </Card>
             <Card title="HubSpot and Zoho">
               <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[13px]">
-                <dt className="text-muted">HubSpot</dt><dd className="m-0 font-mono">{c.hubspot_company_id ?? 'Not linked'}</dd>
-                <dt className="text-muted">Zoho</dt><dd className="m-0 font-mono">{c.zoho_customer_id ?? 'Not linked'}</dd>
-                {finance ? <><dt className="text-muted">GST on invoices</dt><dd className="m-0">{billing?.tax_label || <span className="text-warn-ink">Not set: Zoho will refuse invoices</span>}</dd></> : null}
+                <dt className="text-muted-foreground">HubSpot</dt><dd className="m-0 font-mono">{c.hubspot_company_id ?? 'Not linked'}</dd>
+                <dt className="text-muted-foreground">Zoho</dt><dd className="m-0 font-mono">{c.zoho_customer_id ?? 'Not linked'}</dd>
+                {finance ? <><dt className="text-muted-foreground">GST on invoices</dt><dd className="m-0">{billing?.tax_label || <span className="text-warn-ink">Not set: Zoho will refuse invoices</span>}</dd></> : null}
               </dl>
               {finance ? (
                 <details className="mt-3 border-t border-line-soft pt-3">
@@ -235,9 +235,9 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                           <optgroup label="Taxes">{taxes.taxes.map((t) => <option key={t.id} value={`tax:${t.id}|${t.name}`}>{t.name} ({t.percentage}%)</option>)}</optgroup>
                           {taxes.exemptions.length ? <optgroup label="Tax exemptions">{taxes.exemptions.map((x) => <option key={x.id} value={`exemption:${x.id}|${x.name}`}>{x.name}</option>)}</optgroup> : null}
                         </select>
-                        <p className="m-0 text-xs text-muted">Every line of this customer&apos;s invoices carries it. Usually GST18 in Punjab, IGST18 in other states, and an exemption (export under LUT) or IGST0 for clients abroad: check with your accountant.</p>
+                        <p className="m-0 text-xs text-muted-foreground">Every line of this customer&apos;s invoices carries it. Usually GST18 in Punjab, IGST18 in other states, and an exemption (export under LUT) or IGST0 for clients abroad: check with your accountant.</p>
                       </ActionForm>
-                    ) : <p className="m-0 text-xs text-muted">{taxes.error ? `Zoho could not list the taxes: ${taxes.error}` : 'Connect Zoho Books to pick the GST from its tax list.'}</p>}
+                    ) : <p className="m-0 text-xs text-muted-foreground">{taxes.error ? `Zoho could not list the taxes: ${taxes.error}` : 'Connect Zoho Books to pick the GST from its tax list.'}</p>}
                   </div>
                 </details>
               ) : null}
@@ -251,7 +251,7 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                         <input name="hubspot_company_id" defaultValue={c.hubspot_company_id ?? ''} inputMode="numeric" className="input" placeholder="Not linked" /></label>
                       <label className="flex flex-col gap-1"><span className="label">Zoho Books customer id</span>
                         <input name="zoho_customer_id" defaultValue={c.zoho_customer_id ?? ''} inputMode="numeric" className="input" placeholder="Not linked" /></label>
-                      <p className="m-0 text-xs text-muted">Checked against HubSpot and Zoho before saving. Zoho invoices and payments follow this id; HubSpot deals and contacts follow the company id.</p>
+                      <p className="m-0 text-xs text-muted-foreground">Checked against HubSpot and Zoho before saving. Zoho invoices and payments follow this id; HubSpot deals and contacts follow the company id.</p>
                     </ActionForm>
                   </div>
                 </details>
@@ -260,13 +260,13 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
             {['admin', 'ceo'].includes(me.internal_role ?? '') ? (
           <Card title="Customer data" extra="Admin and CEO">
             <div className="flex flex-col gap-3">
-              <p className="m-0 text-xs text-muted">For a data request, or before an account is closed: everything Helm holds about {c.name}, as one JSON file.</p>
+              <p className="m-0 text-xs text-muted-foreground">For a data request, or before an account is closed: everything Helm holds about {c.name}, as one JSON file.</p>
               <div><a href={`/api/customers/${c.id}/export`} className="btn" download>Export all data</a></div>
               <details className="rounded-md border border-crit-bg p-2.5">
                 <summary className="cursor-pointer text-xs font-semibold text-crit-ink">Delete {c.name} and all its data</summary>
                 <ActionForm action={deleteCustomerData} submit="Delete for good" className="mt-2" resetOnSuccess={false}>
                   <input type="hidden" name="customer_id" value={c.id} />
-                  <p className="m-0 text-xs text-muted">Removes every project, request, file, invoice, billing record and comment, and the sign-ins of their people. This cannot be undone: export first.</p>
+                  <p className="m-0 text-xs text-muted-foreground">Removes every project, request, file, invoice, billing record and comment, and the sign-ins of their people. This cannot be undone: export first.</p>
                   <input name="confirm_name" required autoComplete="off" aria-label="Type the customer's name to confirm" placeholder={`Type ${c.name} to confirm`} className="input" />
                 </ActionForm>
               </details>
@@ -279,7 +279,7 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
               {projects?.length ? projects.map((p) => (
                 <Link key={p.id} href={`/projects/${p.id}`} className="row grid-cols-[minmax(0,1fr)_130px_110px_90px_90px] text-ink no-underline hover:bg-head">
                   <span className="truncate font-medium">{p.name}</span><Health health={p.health} /><Progress value={prog.get(p.id) ?? 0} width={44} />
-                  <span className="truncate text-xs">{p.pm?.full_name}</span><span className="font-mono text-xs text-muted">{shortDate(p.end_date)}</span>
+                  <span className="truncate text-xs">{p.pm?.full_name}</span><span className="font-mono text-xs text-muted-foreground">{shortDate(p.end_date)}</span>
                 </Link>
               )) : <Empty title="No projects yet" />}
             </Card>

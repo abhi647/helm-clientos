@@ -50,11 +50,11 @@ export function UploadForm({ customerId, projectId, requestId, projects, folders
         <select name="project_id" aria-label="Project" className="input"><option value="">No project</option>{(projects ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
       )}
       <input type="file" name="file" required aria-label="File" accept={ACCEPT} className="text-xs" />
-      <span className="text-[11px] text-muted">{ALLOWED_LABEL}, up to 50 MB. Every file is security-checked before anyone can open it.</span>
+      <span className="text-[11px] text-muted-foreground">{ALLOWED_LABEL}, up to 50 MB. Every file is security-checked before anyone can open it.</span>
       <select name="folder" defaultValue="02-requirements" aria-label="Folder" className="input">{Object.entries(folders).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
       {staff ? (
         <select name="visibility" defaultValue={defaultShared ? 'shared' : 'internal'} aria-label="Visibility" className="input"><option value="internal">Internal (Seven Billion only)</option><option value="shared">Shared with customer</option></select>
-      ) : <p className="m-0 text-xs text-muted">Files you upload are shared with your Seven Billion team.</p>}
+      ) : <p className="m-0 text-xs text-muted-foreground">Files you upload are shared with your Seven Billion team.</p>}
       <div className="flex flex-wrap items-center gap-2">
         <button type="submit" disabled={pending} className="btn btn-primary">{pending ? 'Uploading…' : 'Upload'}</button>
         {msg ? <span role={msg.ok ? 'status' : 'alert'} className={msg.ok ? 'text-xs font-medium text-good-ink' : 'text-xs text-crit-ink'}>{msg.text}</span> : null}

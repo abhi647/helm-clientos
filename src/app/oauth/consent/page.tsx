@@ -25,18 +25,18 @@ export default async function Consent({ searchParams }: { searchParams: Promise<
         {error || !data ? (
           <>
             <h1 className="m-0 text-xl font-semibold">This request has expired</h1>
-            <p className="m-0 text-[13px] text-muted">Go back to the AI tool and connect Helm again.</p>
+            <p className="m-0 text-[13px] text-muted-foreground">Go back to the AI tool and connect Helm again.</p>
           </>
         ) : (
           <form action="/oauth/consent/decide" method="post" className="flex flex-col gap-3">
             <input type="hidden" name="authorization_id" value={authorization_id} />
             <h1 className="m-0 text-xl font-semibold">Connect {data.client.name || 'an AI tool'} to Helm?</h1>
-            <p className="m-0 text-[13px] leading-relaxed text-muted">
+            <p className="m-0 text-[13px] leading-relaxed text-muted-foreground">
               It will act as <b className="text-ink">{me.full_name}</b> and see only what you can see in Helm. It can read your projects, tasks, requests
               {staff ? ', approvals and weekly updates, and create and update tasks, log your time, comment, raise requests and move request stages' : ' and weekly updates, comment, and raise requests'}.
               It cannot delete anything, decide approvals, bill or change settings.
             </p>
-            <p className="m-0 rounded-md bg-head px-3 py-2 text-xs text-muted">Returns you to <span className="font-mono text-ink">{new URL(data.redirect_uri).host}</span>. Remove access any time from the AI tool&apos;s connector settings.</p>
+            <p className="m-0 rounded-md bg-head px-3 py-2 text-xs text-muted-foreground">Returns you to <span className="font-mono text-ink">{new URL(data.redirect_uri).host}</span>. Remove access any time from the AI tool&apos;s connector settings.</p>
             <div className="flex gap-2">
               <button type="submit" name="decision" value="approve" autoFocus className="btn btn-primary h-10 flex-1 text-sm">Allow</button>
               <button type="submit" name="decision" value="deny" className="btn h-10 flex-1 text-sm">Deny</button>

@@ -33,13 +33,13 @@ export async function RequestList({ me, projectId, filter = 'open', basePath }: 
           </div>
           {data.map((r) => (
             <Link key={r.id} href={`${detail}/${r.id}`} className={cn('row text-ink no-underline hover:bg-head', staff ? 'grid-cols-[80px_minmax(0,1fr)_120px_130px_110px_90px_48px]' : 'grid-cols-[80px_minmax(0,1fr)_130px_110px_90px_48px]')}>
-              <span className="font-mono text-xs text-muted">{r.number}</span>
-              <span className="truncate font-medium">{r.title}<span className="ml-2 text-xs font-normal text-muted">{r.owner?.full_name ?? (staff ? 'Unassigned' : '')}</span></span>
+              <span className="font-mono text-xs text-muted-foreground">{r.number}</span>
+              <span className="truncate font-medium">{r.title}<span className="ml-2 text-xs font-normal text-muted-foreground">{r.owner?.full_name ?? (staff ? 'Unassigned' : '')}</span></span>
               {staff ? <span className="truncate text-xs">{r.customers?.name}</span> : null}
               <span><RequestStatusChip status={r.status} /></span>
               <span className="truncate text-xs">{label(r.type)}</span>
               <span className="text-xs"><PriorityText priority={r.priority} /></span>
-              <span className="text-right font-mono text-xs text-muted">{ageInDays(r.created_at)}</span>
+              <span className="text-right font-mono text-xs text-muted-foreground">{ageInDays(r.created_at)}</span>
             </Link>
           ))}
         </div>

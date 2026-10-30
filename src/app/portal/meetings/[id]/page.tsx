@@ -27,7 +27,7 @@ export default async function PortalMeeting({ params }: { params: Promise<{ id: 
       <div>
         <Link href="/portal/meetings" className="text-[13px]">← Meetings</Link>
         <h1 className="mt-1 mb-0 text-lg font-semibold">{m.title}</h1>
-        <p className="m-0 text-[13px] text-muted"><span className="font-mono">{shortDate(m.held_on)}</span>{m.projects ? ` · ${m.projects.name}` : ''}{m.attendees ? ` · ${m.attendees}` : ''}</p>
+        <p className="m-0 text-[13px] text-muted-foreground"><span className="font-mono">{shortDate(m.held_on)}</span>{m.projects ? ` · ${m.projects.name}` : ''}{m.attendees ? ` · ${m.attendees}` : ''}</p>
       </div>
       <div className="flex flex-wrap items-start gap-3.5">
         <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-3.5">
@@ -40,7 +40,7 @@ export default async function PortalMeeting({ params }: { params: Promise<{ id: 
           <Card title="Discussion"><Thread entityType="meeting" entityId={m.id} customerId={m.customer_id} me={me} /></Card>
         </div>
         <Card className="min-w-0 flex-[1_1_320px]" title="Notes">
-          <p className="m-0 text-[13px] leading-relaxed whitespace-pre-wrap">{m.summary || <span className="text-muted">No notes yet.</span>}</p>
+          <p className="m-0 text-[13px] leading-relaxed whitespace-pre-wrap">{m.summary || <span className="text-muted-foreground">No notes yet.</span>}</p>
         </Card>
       </div>
     </div>

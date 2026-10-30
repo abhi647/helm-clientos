@@ -31,14 +31,14 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
   return (
     <>
       <PageHeader title={m.title} meta={<>
-        <span className="font-mono text-xs text-muted">{shortDate(m.held_on)}</span>
+        <span className="font-mono text-xs text-muted-foreground">{shortDate(m.held_on)}</span>
         <Visibility value={m.visibility} />
-        {m.attendees ? <span className="text-xs text-muted">With <b className="font-medium text-ink">{m.attendees}</b></span> : null}
+        {m.attendees ? <span className="text-xs text-muted-foreground">With <b className="font-medium text-ink">{m.attendees}</b></span> : null}
       </>}>
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-muted">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-muted-foreground">
           {project ? <>
-            <Link href={`/customers/${project.customers?.id}`} className="text-muted no-underline hover:text-ink">{project.customers?.name}</Link><span>/</span>
-            <Link href={`/projects/${project.id}/meetings`} className="text-muted no-underline hover:text-ink">{project.name}</Link><span>/</span>
+            <Link href={`/customers/${project.customers?.id}`} className="text-muted-foreground no-underline hover:text-ink">{project.customers?.name}</Link><span>/</span>
+            <Link href={`/projects/${project.id}/meetings`} className="text-muted-foreground no-underline hover:text-ink">{project.name}</Link><span>/</span>
           </> : null}
           <span className="text-ink">Meeting</span>
         </nav>
@@ -93,7 +93,7 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
             <input id="n-att" name="attendees" defaultValue={m.attendees} className="input" />
             <label className="label" htmlFor="n-sum">Notes</label>
             <textarea id="n-sum" name="summary" rows={12} defaultValue={m.summary} className="textarea" />
-            {m.visibility === 'shared' ? <p className="m-0 text-xs text-muted">The customer sees these notes.</p> : null}
+            {m.visibility === 'shared' ? <p className="m-0 text-xs text-muted-foreground">The customer sees these notes.</p> : null}
           </ActionForm>
           {canManage(me) && project ? (
             <div className="mt-3 border-t border-line-soft pt-3">

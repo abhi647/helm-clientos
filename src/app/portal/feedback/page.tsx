@@ -23,11 +23,11 @@ export default async function PortalFeedback() {
         <div className="min-w-[560px]">
           {items?.length ? items.map((f) => (
             <Link key={f.id} href={`/portal/feedback/${f.id}`} className="row min-h-10 grid-cols-[64px_96px_minmax(0,1fr)_110px_70px] text-ink no-underline hover:bg-head">
-              <span className="font-mono text-xs text-muted">{f.number}</span>
+              <span className="font-mono text-xs text-muted-foreground">{f.number}</span>
               <span><FeedbackKindChip kind={f.kind} /></span>
-              <span className="truncate">{f.body}<span className="ml-1.5 text-xs text-muted">{f.from?.full_name}</span></span>
+              <span className="truncate">{f.body}<span className="ml-1.5 text-xs text-muted-foreground">{f.from?.full_name}</span></span>
               <span><FeedbackStatusChip status={f.status} /></span>
-              <span className="text-xs text-muted">{relativeTime(f.created_at)}</span>
+              <span className="text-xs text-muted-foreground">{relativeTime(f.created_at)}</span>
             </Link>
           )) : <Empty title="No feedback yet">Tell us what is working and what is not. We read every message.</Empty>}
         </div>
@@ -37,8 +37,8 @@ export default async function PortalFeedback() {
           <fieldset className="m-0 flex flex-wrap gap-1.5 border-0 p-0">
             <legend className="label mb-1.5">What kind?</legend>
             {FEEDBACK_KINDS.map((k, i) => (
-              <label key={k.value} className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-[#d5dcdf] px-2.5 text-[13px] has-[:checked]:border-ink has-[:checked]:bg-head has-[:checked]:font-semibold">
-                <input type="radio" name="kind" value={k.value} defaultChecked={i === 1} className="accent-[#0F2A30]" />{k.label}
+              <label key={k.value} className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-control px-2.5 text-[13px] has-[:checked]:border-ink has-[:checked]:bg-head has-[:checked]:font-semibold">
+                <input type="radio" name="kind" value={k.value} defaultChecked={i === 1} className="accent-primary" />{k.label}
               </label>
             ))}
           </fieldset>

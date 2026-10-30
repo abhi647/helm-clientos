@@ -38,16 +38,16 @@ export async function Thread({ entityType, entityId, customerId, me, defaultShar
           c.visibility === 'internal' ? 'border border-dashed border-[#a7b2b6] bg-[#f7f8f9]' : 'border border-line-soft bg-white')}>
           <div className="flex items-center gap-1.5 text-xs">
             <b>{c.author?.full_name}</b>
-            {c.author?.kind === 'customer' && staff ? <span className="text-muted">(customer)</span> : null}
-            <span className="text-muted">{relativeTime(c.created_at)}</span>
+            {c.author?.kind === 'customer' && staff ? <span className="text-muted-foreground">(customer)</span> : null}
+            <span className="text-muted-foreground">{relativeTime(c.created_at)}</span>
             {staff ? <span className="ml-auto"><Visibility value={c.visibility} /></span> : null}
-            {canDelete(c) ? <span className={staff ? '' : 'ml-auto'}><ActionButton run={deleteComment.bind(null, c.id)} className="btn-ghost h-5 px-1.5 text-[11px] text-muted" confirm="Delete this comment?">Delete</ActionButton></span> : null}
+            {canDelete(c) ? <span className={staff ? '' : 'ml-auto'}><ActionButton run={deleteComment.bind(null, c.id)} className="btn-ghost h-5 px-1.5 text-[11px] text-muted-foreground" confirm="Delete this comment?">Delete</ActionButton></span> : null}
           </div>
           <p className="m-0 text-[13px] leading-relaxed whitespace-pre-wrap"><MentionText body={c.body} names={c.mentions.map((id) => nameOf.get(id)).filter((n): n is string => !!n)} /></p>
         </div>
       ))}
-      {!shown.length ? <p className="m-0 text-xs text-muted">No comments yet.</p> : null}
-      {parentInternal && staff ? <p className="m-0 text-xs text-muted">This item is internal, so every comment on it stays internal.</p> : null}
+      {!shown.length ? <p className="m-0 text-xs text-muted-foreground">No comments yet.</p> : null}
+      {parentInternal && staff ? <p className="m-0 text-xs text-muted-foreground">This item is internal, so every comment on it stays internal.</p> : null}
       {asCustomer ? null : <CommentBox action={addComment} entityType={entityType} entityId={entityId} customerId={customerId} staff={staff && !parentInternal} defaultShared={defaultShared} people={parentInternal ? people.filter((p) => !p.customer) : people} />}
     </div>
   )

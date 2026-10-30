@@ -165,13 +165,14 @@ async function main() {
   const answered = (customer_id, recipient_id, kind, days, score, comment = '', project_id = null) =>
     ({ customer_id, recipient_id, kind, project_id, score, comment, sent_at: ago(days + 2), answered_at: ago(days), expires_at: ago(days - 19),
        period: kind === 'pulse' ? ago(days).slice(0, 8) + '01' : null })
+  // pulses for one person are at least 31 days apart, so they never share a calendar month (one pulse a month)
   await many('csat_surveys', [
-    answered(nesma.id, michel, 'pulse', 150, 4), answered(nesma.id, omar, 'pulse', 148, 3, 'Updates could be more regular.'),
-    answered(nesma.id, michel, 'pulse', 120, 4), answered(nesma.id, omar, 'pulse', 118, 4),
-    answered(nesma.id, michel, 'pulse', 90, 5, 'The weekly update is exactly what I need.'), answered(nesma.id, omar, 'request', 75, 4, '', pbi.id),
-    answered(nesma.id, michel, 'pulse', 60, 4), answered(nesma.id, omar, 'pulse', 58, 5, 'Data mapping workshop was very useful.'),
+    answered(nesma.id, michel, 'pulse', 155, 4), answered(nesma.id, omar, 'pulse', 152, 3, 'Updates could be more regular.'),
+    answered(nesma.id, michel, 'pulse', 124, 4), answered(nesma.id, omar, 'pulse', 121, 4),
+    answered(nesma.id, michel, 'pulse', 93, 5, 'The weekly update is exactly what I need.'), answered(nesma.id, omar, 'request', 75, 4, '', pbi.id),
+    answered(nesma.id, michel, 'pulse', 62, 4), answered(nesma.id, omar, 'pulse', 64, 5, 'Data mapping workshop was very useful.'),
     answered(cbd.id, cbdLead, 'pulse', 88, 3), answered(cbd.id, cbdLead, 'pulse', 57, 2, 'Too many slipped dates on the data model.'),
-    answered(nesma.id, michel, 'pulse', 30, 5), answered(cbd.id, cbdLead, 'pulse', 27, 3),
+    answered(nesma.id, michel, 'pulse', 31, 5), answered(cbd.id, cbdLead, 'pulse', 26, 3),
   ])
   // asked but never answered (counts against the response rate)
   await many('csat_surveys', [{ customer_id: nesma.id, recipient_id: omar, kind: 'pulse', period: ago(30).slice(0, 8) + '01', sent_at: ago(32), expires_at: ago(2) }])

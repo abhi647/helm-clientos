@@ -6,19 +6,20 @@ import type { Enums } from '@/lib/database.types'
 import { TASK_STATUS } from '@/lib/format'
 
 type Status = Enums<'task_status'>
-export type TaskView = 'list' | 'board' | 'table'
-export const VIEWS: { value: TaskView; label: string }[] = [{ value: 'list', label: 'List' }, { value: 'board', label: 'Board' }, { value: 'table', label: 'Table' }]
-export const asView = (v: string | undefined): TaskView => (v === 'board' || v === 'table' ? v : 'list')
+export type TaskView = 'list' | 'board' | 'table' | 'timeline' | 'calendar'
+export const VIEWS: { value: TaskView; label: string }[] = [{ value: 'list', label: 'List' }, { value: 'board', label: 'Board' }, { value: 'table', label: 'Table' }, { value: 'calendar', label: 'Calendar' }]
+export const PLAN_VIEWS: { value: TaskView; label: string }[] = [...VIEWS, { value: 'timeline', label: 'Timeline' }]
+export const asView = (v: string | undefined, allowed = VIEWS): TaskView => allowed.find((x) => x.value === v)?.value ?? 'list'
 export const asStatus = (v: string | undefined): Status | undefined => (v && v in TASK_STATUS ? (v as Status) : undefined)
 const STATUS_OPTIONS = (Object.keys(TASK_STATUS) as Status[]).map((v) => ({ value: v, label: TASK_STATUS[v] }))
 
 /** List / Board / Table, as links: the view lives in the address, so a refresh or a shared link keeps it. */
-export function ViewSwitch({ current, href }: { current: TaskView; href: (v: TaskView) => string }) {
+export function ViewSwitch({ current, href, views = VIEWS }: { current: TaskView; href: (v: TaskView) => string; views?: typeof VIEWS }) {
   return (
-    <nav aria-label="View" className="inline-flex h-[30px] overflow-hidden rounded-md border border-[#d5dcdf] bg-white text-[13px]">
-      {VIEWS.map((v) => (
-        <Link key={v.value} href={href(v.value)} aria-current={current === v.value ? 'page' : undefined}
-          className={cn('flex items-center px-3 no-underline', current === v.value ? 'bg-selected font-semibold text-ink' : 'text-muted hover:bg-head')}>{v.label}</Link>
+    <nav aria-label="View" className="inline-flex h-8 items-center gap-0.5 rounded-lg bg-muted p-0.5 text-[13px] ring-1 ring-border ring-inset">
+      {views.map((v) => (
+        <Link key={v.value} href={href(v.value)} scroll={false} aria-current={current === v.value ? 'page' : undefined}
+          className={cn('flex h-full items-center rounded-md px-3 no-underline transition-colors', current === v.value ? 'bg-card font-medium text-foreground shadow-[0_1px_2px_rgb(0_0_0/.08)]' : 'text-muted-foreground hover:text-foreground')}>{v.label}</Link>
       ))}
     </nav>
   )
@@ -36,7 +37,7 @@ export function TaskFilters({ fields, keep }: { fields: FilterField[]; keep: Rec
       {Object.entries(keep).filter(([, v]) => v).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
       {fields.map((f) => (
         <AutoSaveSelect key={f.name} name={f.name} defaultValue={f.value} aria-label={f.label}
-          className={cn('input h-[30px] w-auto py-0 text-[13px]', f.value && 'border-brand bg-selected font-semibold')}>
+          className={cn('input w-auto py-0', f.value && 'border-brand bg-selected font-semibold')}>
           {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </AutoSaveSelect>
       ))}
@@ -88,20 +89,20 @@ export function TaskTable({ rows, sort, sortHref, setStatus, contextLabel, showE
         </div>
         {rows.length ? rows.map((r) => (
           <div key={r.id} className={cn('row border-l-[3px]', cols, TASK_STRIPE[r.overdue ? 'overdue' : r.status], r.selected ? 'bg-selected' : 'hover:bg-head')}>
-            <Link href={r.href} className={cn('truncate no-underline hover:underline', r.status === 'done' ? 'text-muted' : 'font-medium text-ink')}>
-              {r.parent ? <span className="font-normal text-muted">{r.parent} › </span> : null}{r.title}
+            <Link href={r.href} scroll={false} className={cn('truncate no-underline hover:underline', r.status === 'done' ? 'text-muted-foreground' : 'font-medium text-ink')}>
+              {r.parent ? <span className="font-normal text-muted-foreground">{r.parent} › </span> : null}{r.title}
             </Link>
-            {contextLabel ? <span className="truncate text-xs text-muted">{r.context}</span> : null}
+            {contextLabel ? <span className="truncate text-xs text-muted-foreground">{r.context}</span> : null}
             <span className="flex items-center gap-1.5">
               <span className="sr-only"><TaskStatusChip status={r.status} overdue={r.overdue} /></span>
               <StatusSelect key={`${r.id}-${r.status}`} label={`Status of ${r.title}`} value={r.status} options={STATUS_OPTIONS} onChange={setStatus.bind(null, r.id)} />
             </span>
-            <span className="flex min-w-0 items-center gap-1.5">{r.owner ? <><Avatar name={r.owner.name} customer={r.owner.customer} /><span className="truncate">{r.owner.name}</span></> : <span className="text-muted">Unassigned</span>}</span>
-            <span className="font-mono text-xs text-muted">{r.start ?? ''}</span>
+            <span className="flex min-w-0 items-center gap-1.5">{r.owner ? <><Avatar name={r.owner.name} customer={r.owner.customer} /><span className="truncate">{r.owner.name}</span></> : <span className="text-muted-foreground">Unassigned</span>}</span>
+            <span className="font-mono text-xs text-muted-foreground">{r.start ?? ''}</span>
             <span className={cn('font-mono text-xs', r.overdue && 'font-semibold text-crit-ink')}>{r.due ?? ''}</span>
             {showEffort ? <><span className="text-right font-mono text-xs">{r.effort ?? '–'}</span><span className="text-right font-mono text-xs">{r.logged ?? '–'}</span></> : null}
           </div>
-        )) : <p className="m-0 p-3 text-xs text-muted">No tasks match these filters.</p>}
+        )) : <p className="m-0 p-3 text-xs text-muted-foreground">No tasks match these filters.</p>}
       </div>
     </div>
   )

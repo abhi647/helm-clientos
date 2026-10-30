@@ -28,14 +28,14 @@ export default async function PortalBilling() {
 
   return (
     <>
-      <PageHeader title="Billing" meta={<span className="text-xs text-muted">{waiting ? `${waiting} waiting for your approval` : 'Nothing waiting for you'}</span>} />
+      <PageHeader title="Billing" meta={<span className="text-xs text-muted-foreground">{waiting ? `${waiting} waiting for your approval` : 'Nothing waiting for you'}</span>} />
       <div className="flex max-w-[1000px] flex-col gap-3 p-4">
         {pendingCards.map((c) => (
           <Card key={c.id} title={<span className="flex items-center gap-2">Rates for {c.projects?.name} <RateCardStatus status={c.status} /></span>}
             extra={<span className="font-mono">{c.currency}{c.po_number ? ` · PO ${c.po_number}` : ''}{c.submitted_at ? ` · sent ${relativeTime(c.submitted_at)}` : ''}</span>}>
             <div className="overflow-x-auto"><RateLines lines={sort(c.rate_card_lines)} currency={c.currency} /></div>
-            {c.notes ? <p className="mt-2 mb-0 text-xs text-muted">{c.notes}</p> : null}
-            <p className="mt-3 mb-2 text-xs text-muted">Once approved, every statement for this project is billed at these rates. Tax is added on the invoice.</p>
+            {c.notes ? <p className="mt-2 mb-0 text-xs text-muted-foreground">{c.notes}</p> : null}
+            <p className="mt-3 mb-2 text-xs text-muted-foreground">Once approved, every statement for this project is billed at these rates. Tax is added on the invoice.</p>
             <DecisionForm action={decideRateCard} approvalId={c.id} idName="card_id" />
           </Card>
         ))}
@@ -46,8 +46,8 @@ export default async function PortalBilling() {
             <Card key={s.id} title={<span className="flex items-center gap-2">{s.projects?.name} · {period(s.period_start, s.period_end)} <StatementStatus status={s.status} /></span>}
               extra={s.submitted_at ? `Sent ${relativeTime(s.submitted_at)}` : undefined}>
               <div className="overflow-x-auto"><StatementLines lines={sort(s.statement_lines)} currency={currency} /></div>
-              {s.note ? <p className="mt-2 mb-0 text-xs text-muted">{s.note}</p> : null}
-              <p className="mt-3 mb-2 text-xs text-muted">After you approve, Seven Billion sends the invoice from Zoho Books{s.rate_cards?.po_number ? ` against PO ${s.rate_cards.po_number}` : ''}.</p>
+              {s.note ? <p className="mt-2 mb-0 text-xs text-muted-foreground">{s.note}</p> : null}
+              <p className="mt-3 mb-2 text-xs text-muted-foreground">After you approve, Seven Billion sends the invoice from Zoho Books{s.rate_cards?.po_number ? ` against PO ${s.rate_cards.po_number}` : ''}.</p>
               <DecisionForm action={decideStatement} approvalId={s.id} idName="statement_id" />
             </Card>
           )
@@ -57,7 +57,7 @@ export default async function PortalBilling() {
           {liveCards.length ? liveCards.map((c) => (
             <div key={c.id} className="border-b border-line-soft last:border-b-0">
               <div className="flex items-center gap-2 px-3 pt-2.5 text-[13px] font-semibold">{c.projects?.name}
-                <span className="font-mono text-xs font-normal text-muted">v{c.version} · {c.currency}{c.po_number ? ` · PO ${c.po_number}` : ''}</span></div>
+                <span className="font-mono text-xs font-normal text-muted-foreground">v{c.version} · {c.currency}{c.po_number ? ` · PO ${c.po_number}` : ''}</span></div>
               <div className="overflow-x-auto"><RateLines lines={sort(c.rate_card_lines)} currency={c.currency} /></div>
             </div>
           )) : <Empty title="No approved rates yet" />}

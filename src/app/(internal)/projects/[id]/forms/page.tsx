@@ -25,7 +25,7 @@ export default async function ProjectForms({ params }: { params: Promise<{ id: s
             <Card key={s.id} title={def.title} extra={<>{s.by?.full_name} · {relativeTime(s.created_at)}</>}>
               <dl className="m-0 grid grid-cols-[220px_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px] leading-snug">
                 {describeAnswers(def, s.answers as Record<string, string>).map((a) => (
-                  <div key={a.label} className="contents"><dt className="text-muted">{a.label}</dt><dd className="m-0 whitespace-pre-wrap">{a.value}</dd></div>
+                  <div key={a.label} className="contents"><dt className="text-muted-foreground">{a.label}</dt><dd className="m-0 whitespace-pre-wrap">{a.value}</dd></div>
                 ))}
               </dl>
             </Card>
@@ -38,18 +38,18 @@ export default async function ProjectForms({ params }: { params: Promise<{ id: s
           {waiting?.length ? waiting.map((w) => (
             <div key={w.id} className="row grid-cols-[minmax(0,1fr)_60px]">
               <span className="truncate"><b className="font-medium">{formByKey(w.form_key!)?.title}</b> · {w.assignee?.full_name}</span>
-              <span className="font-mono text-xs text-muted">{shortDate(w.due_date)}</span>
+              <span className="font-mono text-xs text-muted-foreground">{shortDate(w.due_date)}</span>
             </div>
           )) : <Empty title="Nothing waiting" />}
         </Card>
         <Card flush title="Send a form" extra="Goes to the customer lead">
           {Object.values(FORMS).map((f) => (
             <div key={f.key} className="row grid-cols-[minmax(0,1fr)_auto] py-1.5">
-              <span className="flex min-w-0 flex-col"><span className="font-medium">{f.title}</span><span className="truncate text-xs text-muted">{f.intro}</span></span>
+              <span className="flex min-w-0 flex-col"><span className="font-medium">{f.title}</span><span className="truncate text-xs text-muted-foreground">{f.intro}</span></span>
               <ActionButton run={sendForm.bind(null, id, f.key)}>Send</ActionButton>
             </div>
           ))}
-          <p className="m-0 border-t border-line-soft px-3 py-2 text-xs text-muted">
+          <p className="m-0 border-t border-line-soft px-3 py-2 text-xs text-muted-foreground">
             <Chip tone="review">Playbook</Chip> Kickoff sends Data access automatically; UAT feedback and closure are sent by the UAT and close rules.
           </p>
         </Card>

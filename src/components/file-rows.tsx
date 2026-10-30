@@ -34,12 +34,12 @@ export function FileRows({ docs, versions, staff, customerId }: { docs: FileRow[
           <div key={d.id} className="row grid-cols-[minmax(0,1fr)_92px_84px_56px] hover:bg-head">
             <span className="flex min-w-0 flex-col py-1">
               <span className="flex min-w-0 items-center gap-1.5">
-                <span className="truncate font-medium">{d.name}</span><span className="font-mono text-xs text-muted">v{d.version}</span>
+                <span className="truncate font-medium">{d.name}</span><span className="font-mono text-xs text-muted-foreground">v{d.version}</span>
                 <Status status={d.scan_status} staff={staff} />
               </span>
-              <span className="truncate text-xs text-muted">{d.uploader?.full_name ? `${d.uploader.full_name} · ` : ''}{relativeTime(d.created_at)}</span>
+              <span className="truncate text-xs text-muted-foreground">{d.uploader?.full_name ? `${d.uploader.full_name} · ` : ''}{relativeTime(d.created_at)}</span>
               {history.length ? (
-                <details className="text-xs text-muted">
+                <details className="text-xs text-muted-foreground">
                   <summary className="cursor-pointer">Earlier versions</summary>
                   {history.map((v) => OPENABLE.has(v.scan_status)
                     ? <a key={v.version} href={`/api/documents/${d.id}?v=${v.version}`} className="block py-0.5">v{v.version} · {v.name} · {relativeTime(v.created_at)}</a>
@@ -52,7 +52,7 @@ export function FileRows({ docs, versions, staff, customerId }: { docs: FileRow[
             <span className="flex items-center justify-end gap-2">
               {previewable ? <a href={`/api/documents/${d.id}?preview=1`} target="_blank" rel="noopener noreferrer" aria-label={`Preview ${d.name}`} title="Preview" className="text-link"><Eye className="size-4" aria-hidden /></a> : null}
               {openable ? <a href={`/api/documents/${d.id}`} aria-label={`Download ${d.name}`} title="Download" className="text-link"><Download className="size-4" aria-hidden /></a>
-                : !d.storage_path ? <span className="text-xs text-muted" title="Placeholder without a file">–</span> : null}
+                : !d.storage_path ? <span className="text-xs text-muted-foreground" title="Placeholder without a file">–</span> : null}
             </span>
           </div>
         )
@@ -67,7 +67,7 @@ export function ArchiveControls({ docs, archived }: { docs: FileRow[]; archived:
     <>
       {docs.map((d) => (
         <div key={d.id} className="row grid-cols-[minmax(0,1fr)_auto] text-xs">
-          <span className="truncate text-muted">{d.name}{archived && d.archived_at ? ` · archived ${relativeTime(d.archived_at)}` : ''}</span>
+          <span className="truncate text-muted-foreground">{d.name}{archived && d.archived_at ? ` · archived ${relativeTime(d.archived_at)}` : ''}</span>
           <span className="flex items-center gap-1">
             <ActionButton run={archiveDocument.bind(null, d.id, !archived)} className="h-6 px-2 text-xs"
               confirm={archived ? undefined : `Archive ${d.name}? The customer will no longer see it.`}>{archived ? 'Restore' : 'Archive'}</ActionButton>
@@ -98,15 +98,15 @@ export function FileTiles({ docs, staff, customerId, folders }: { docs: (FileRow
         return (
           <div key={d.id} className="flex min-w-0 flex-col gap-2 rounded-md border border-line bg-white p-3 transition-colors hover:border-brand">
             <div className="flex items-start gap-2">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-head text-muted"><Icon className="size-[18px]" aria-hidden /></span>
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-head text-muted-foreground"><Icon className="size-[18px]" aria-hidden /></span>
               <span className="flex min-w-0 flex-col">
                 {open ? <a href={open} {...(previewable ? { target: '_blank', rel: 'noopener noreferrer' } : {})} title={d.name}
                   className="line-clamp-2 text-[13px] leading-snug font-medium break-words text-ink no-underline hover:underline">{d.name}</a>
                   : <span title={d.name} className="line-clamp-2 text-[13px] leading-snug font-medium break-words">{d.name}</span>}
-                <span className="truncate text-[11px] text-muted">{folders[d.folder] ?? d.folder} · v{d.version}</span>
+                <span className="truncate text-[11px] text-muted-foreground">{folders[d.folder] ?? d.folder} · v{d.version}</span>
               </span>
             </div>
-            <span className="truncate text-xs text-muted">{d.uploader?.full_name ? `${d.uploader.full_name} · ` : ''}{relativeTime(d.created_at)}</span>
+            <span className="truncate text-xs text-muted-foreground">{d.uploader?.full_name ? `${d.uploader.full_name} · ` : ''}{relativeTime(d.created_at)}</span>
             <div className="mt-auto flex items-center gap-1.5 border-t border-line-soft pt-2">
               {staff ? <Visibility value={d.visibility} /> : null}
               <Status status={d.scan_status} staff={staff} />

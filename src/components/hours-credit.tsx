@@ -38,13 +38,13 @@ export function HoursMeter({ b, className }: { b: CreditBalance; className?: str
     <div className={cn('flex flex-col gap-1.5', className)}>
       <div className="flex flex-wrap items-baseline gap-x-2">
         <span className={cn('tabular font-mono text-[24px] leading-tight font-semibold', INK[tone])}>{hrs(used)}</span>
-        <span className="text-sm text-muted">of {hrs(avail)} used</span>
+        <span className="text-sm text-muted-foreground">of {hrs(avail)} used</span>
         <span className={cn('ml-auto text-sm font-semibold', INK[tone])}>{creditLeft(b)}</span>
       </div>
       <span className="h-2 w-full overflow-hidden rounded-full bg-line" role="progressbar" aria-label="Hours used" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
         <span className={cn('block h-full rounded-full', BAR[tone])} style={{ width: `${pct}%` }} />
       </span>
-      <span className="text-xs text-muted">
+      <span className="text-xs text-muted-foreground">
         {b.kind === 'monthly' ? `${shortDate(b.period_start)} – ${shortDate(b.period_end)} · ` : `Prepaid since ${shortDate(b.period_start)} · `}
         {parts.filter(Boolean).join(' + ')}
         {b.remaining < 0 ? ' · Hours over are billed at the agreed rate.' : ''}

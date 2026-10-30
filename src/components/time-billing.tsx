@@ -24,7 +24,7 @@ export function LinePeople({ lines, people, covered }: { lines: Line[]; people: 
           <details key={l.id} className="rounded-md border border-line-soft">
             <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 px-2.5 py-2 text-[13px] hover:bg-head">
               <span className="font-semibold">{l.label}</span>
-              <span className="flex-1 truncate text-xs text-muted">
+              <span className="flex-1 truncate text-xs text-muted-foreground">
                 {on.length ? on.map((id) => name.get(id) ?? 'Someone').join(', ') : 'Nobody named: filled with resources × working days'}
               </span>
               <span className="text-xs font-medium text-link">Choose people</span>
@@ -45,7 +45,7 @@ export function LinePeople({ lines, people, covered }: { lines: Line[]; people: 
           </details>
         )
       })}
-      <p className="m-0 text-xs text-muted">
+      <p className="m-0 text-xs text-muted-foreground">
         Their approved billable days fill this line on each statement, and are marked billed once the statement is approved, so
         they are never billed twice. The customer sees the line and its days, not this list.
       </p>
@@ -83,7 +83,7 @@ export function UnbilledTime({ rows, showProject = false }: { rows: Unbilled[]; 
           ))}
         </div>
       </div>
-      <p className="m-0 border-t border-line-soft px-3 py-2 text-xs text-muted">
+      <p className="m-0 border-t border-line-soft px-3 py-2 text-xs text-muted-foreground">
         Approved, billable days that no approved statement has billed yet. Someone not on a day-rate line cannot be billed
         until finance names them on one (Billing → Day rates from timesheets).
       </p>
@@ -110,7 +110,7 @@ export function ReadyToBill({ tasks, currency, projectId, canCreate }: { tasks: 
   const ready = shown.filter(billable)
   const total = currency ? ready.reduce((a, t) => a + value(t), 0) : 0
   const what = (t: ReadyRow) => {
-    if (t.heldBy) return <span className="text-xs text-muted">On a statement {t.heldBy === 'pending' ? 'waiting for the customer' : 'being prepared'}</span>
+    if (t.heldBy) return <span className="text-xs text-muted-foreground">On a statement {t.heldBy === 'pending' ? 'waiting for the customer' : 'being prepared'}</span>
     if (!t.kind) return <Chip tone="warn">Not billed as anything</Chip>
     if (t.kind === 'day_rate') {
       return t.unbilledDays
@@ -134,14 +134,14 @@ export function ReadyToBill({ tasks, currency, projectId, canCreate }: { tasks: 
               <label key={t.id} className="row grid-cols-[28px_minmax(0,1fr)_90px_minmax(0,1.2fr)_120px]">
                 <span>{canCreate && billable(t) ? <input type="checkbox" name="task" value={t.id} aria-label={`Bill ${t.title}`} /> : null}</span>
                 <span className="truncate">{t.title}</span>
-                <span className="font-mono text-xs">{t.done ? shortDate(t.completedAt) : <span className="text-muted">Not yet</span>}</span>
+                <span className="font-mono text-xs">{t.done ? shortDate(t.completedAt) : <span className="text-muted-foreground">Not yet</span>}</span>
                 <span className="min-w-0 truncate">{what(t)}</span>
                 <span className="text-right font-mono text-xs">{billable(t) && t.rate != null && currency ? money(value(t), currency, { exact: true }) : '–'}</span>
               </label>
             ))}
           </div>
         </div>
-        <p className="m-0 border-t border-line-soft px-3 py-2 text-xs text-muted">
+        <p className="m-0 border-t border-line-soft px-3 py-2 text-xs text-muted-foreground">
           Tick the work to bill and create a statement: it bills exactly that work (approved days on the task and its
           subtasks; deliveries and units once Done). Send it to the customer to approve, then invoice approved statements
           under Statements. Days waiting for approval are billed once approved; a task billed as nothing needs its line

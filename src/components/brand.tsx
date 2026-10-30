@@ -34,7 +34,7 @@ export function BrandLockup({ size = 28, by = false, className }: { size?: numbe
       <BrandMark size={size} title="" />
       <span className="flex flex-col leading-tight">
         <span className="text-[15px] font-semibold tracking-[-0.01em]">Helm</span>
-        {by ? <span className="text-[11px] text-muted">by Seven Billion</span> : null}
+        {by ? <span className="text-[11px] text-muted-foreground">by Seven Billion</span> : null}
       </span>
     </span>
   )

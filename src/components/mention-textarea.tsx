@@ -92,7 +92,7 @@ export const MentionTextarea = forwardRef<{ clear: (sent?: string) => void }, {
               className="flex h-8 cursor-pointer items-center gap-2 px-2.5 text-[13px] data-[selected=true]:bg-head">
               <Avatar name={p.name} customer={p.customer} />
               <span className="truncate">{p.name}</span>
-              {p.customer ? <span className="ml-auto text-[11px] text-muted">customer</span> : null}
+              {p.customer ? <span className="ml-auto text-[11px] text-muted-foreground">customer</span> : null}
             </Command.Item>
           ))}
         </Command.List>

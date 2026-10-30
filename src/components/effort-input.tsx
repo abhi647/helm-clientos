@@ -12,7 +12,7 @@ export function EffortInput({ name, unitName, units, defaultValue, defaultUnit, 
       <input type="number" name={name} step={step} min={step} defaultValue={defaultValue ?? ''} required={required}
         placeholder={placeholder} aria-label={`${placeholder} in ${list.length === 1 ? `${unit}s` : 'the chosen unit'}`} className="input w-24 font-mono" />
       {list.length === 1 ? (
-        <><input type="hidden" name={unitName} value={unit} /><span className="text-xs text-muted">{unit === 'day' ? 'days' : unit}</span></>
+        <><input type="hidden" name={unitName} value={unit} /><span className="text-xs text-muted-foreground">{unit === 'day' ? 'days' : unit}</span></>
       ) : (
         <select name={unitName} defaultValue={unit} aria-label="Effort unit" className="input w-auto">
           {list.map((u) => <option key={u} value={u}>{u === 'day' ? 'days' : u}</option>)}

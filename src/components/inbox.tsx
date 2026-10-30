@@ -28,9 +28,9 @@ export async function Inbox({ tab: raw, basePath }: { tab?: string; basePath: st
           <span aria-label={n.read_at ? undefined : 'Unread'} className={cn('size-2 rounded-full', n.read_at ? 'bg-transparent' : 'bg-info')} />
           <span className="min-w-0">
             <span className={cn('block truncate', !n.read_at && 'font-semibold')}>{n.title} {n.needs_action ? <Chip tone="warn" className="ml-1">Action</Chip> : null}</span>
-            {n.body ? <span className="block truncate text-xs text-muted">{n.body}</span> : null}
+            {n.body ? <span className="block truncate text-xs text-muted-foreground">{n.body}</span> : null}
           </span>
-          <span className="text-right text-xs text-muted">{relativeTime(n.created_at)}</span>
+          <span className="text-right text-xs text-muted-foreground">{relativeTime(n.created_at)}</span>
         </Link>
       )) : <Empty title="You are all caught up" />}
     </Card>

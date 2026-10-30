@@ -19,13 +19,13 @@ export function ActionLines({ actions, taskHref, control }: {
         <div key={a.id} className="row grid-cols-[minmax(0,1fr)_150px_70px_150px]">
           <span className="truncate">{a.text}</span>
           <span className="flex min-w-0 items-center gap-1.5">
-            {a.assignee ? <><Avatar name={a.assignee.full_name} customer={a.owner_side === 'customer'} /><span className="truncate">{a.assignee.full_name}</span></> : <span className="text-muted">Unassigned</span>}
+            {a.assignee ? <><Avatar name={a.assignee.full_name} customer={a.owner_side === 'customer'} /><span className="truncate">{a.assignee.full_name}</span></> : <span className="text-muted-foreground">Unassigned</span>}
           </span>
           <span className="font-mono text-xs">{shortDate(a.due_date)}</span>
           <span className="text-right">
             {a.task_id
               ? <Link href={taskHref(a.task_id)} className="text-xs font-medium">{a.task?.status === 'done' ? <Chip tone="good">Done</Chip> : 'In the plan →'}</Link>
-              : control ? control(a) : <span className="text-xs text-muted">Not scheduled yet</span>}
+              : control ? control(a) : <span className="text-xs text-muted-foreground">Not scheduled yet</span>}
           </span>
         </div>
       ))}
@@ -41,9 +41,9 @@ export function DecisionRows({ decisions, staff }: {
     <>
       {decisions.map((d) => (
         <div key={d.id} className={staff ? 'row grid-cols-[72px_minmax(0,1fr)_70px_84px] py-1.5' : 'row grid-cols-[72px_minmax(0,1fr)_70px] py-1.5'}>
-          <span className="font-mono text-xs text-muted">{d.number}</span>
-          <span className="leading-snug">{d.decision}{d.decided_by ? <span className="block text-xs text-muted">{d.decided_by}</span> : null}</span>
-          <span className="font-mono text-xs text-muted">{shortDate(d.decided_on)}</span>
+          <span className="font-mono text-xs text-muted-foreground">{d.number}</span>
+          <span className="leading-snug">{d.decision}{d.decided_by ? <span className="block text-xs text-muted-foreground">{d.decided_by}</span> : null}</span>
+          <span className="font-mono text-xs text-muted-foreground">{shortDate(d.decided_on)}</span>
           {staff ? <span><Visibility value={d.visibility} /></span> : null}
         </div>
       ))}

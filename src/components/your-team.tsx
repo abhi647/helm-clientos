@@ -13,7 +13,7 @@ export async function YourTeam() {
         <div key={t.profile_id} className="row min-h-10 grid-cols-[24px_minmax(0,1fr)] gap-2">
           <Avatar name={t.person?.full_name ?? '?'} />
           <span className="flex min-w-0 flex-col leading-tight"><span className="truncate text-[13px] font-medium">{t.person?.full_name}</span>
-            {t.role_label ? <span className="truncate text-xs text-muted">{t.role_label}</span> : null}</span>
+            {t.role_label ? <span className="truncate text-xs text-muted-foreground">{t.role_label}</span> : null}</span>
         </div>
       ))}
     </Card>

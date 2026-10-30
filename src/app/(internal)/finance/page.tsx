@@ -29,7 +29,7 @@ export default async function Finance() {
   const lastSync = invoices?.reduce<string | null>((a, i) => (!a || i.synced_at > a ? i.synced_at : a), null)
   return (
     <>
-      <PageHeader title="Finance" meta={<span className="text-xs text-muted">Synced from Zoho Books{lastSync ? ` · last sync ${relativeTime(lastSync)}` : ''}</span>}
+      <PageHeader title="Finance" meta={<span className="text-xs text-muted-foreground">Synced from Zoho Books{lastSync ? ` · last sync ${relativeTime(lastSync)}` : ''}</span>}
         actions={<ActionButton run={syncZohoNow}>Sync now</ActionButton>} />
       <div className="flex flex-col gap-3 p-4">
         <Card flush title="Invoices" className="overflow-x-auto">
@@ -45,7 +45,7 @@ export default async function Finance() {
                     <span className="truncate">{i.customers?.name}</span>
                     <span className="text-right font-mono text-xs">{money(i.total, i.currency)}</span>
                     <span className="text-right font-mono text-xs">{money(i.balance, i.currency)}</span><span />
-                    <span className="font-mono text-xs text-muted">{shortDate(i.issued_on)}</span>
+                    <span className="font-mono text-xs text-muted-foreground">{shortDate(i.issued_on)}</span>
                     <span className={cn('font-mono text-xs', overdue && 'font-semibold text-crit-ink')}>{shortDate(i.due_on)}</span>
                     <span>{overdue ? <Chip tone="crit">{late}d overdue</Chip> : <Chip tone={i.status === 'paid' ? 'good' : 'info'}>{label(i.status)}</Chip>}</span>
                   </div>
@@ -73,7 +73,7 @@ export default async function Finance() {
                 <span className="truncate">{c.projects?.customers?.name} · {c.projects?.name}</span>
                 <span className="truncate text-xs">{c.billing_model ?? '–'}</span>
                 <span className="text-right font-mono text-xs">{money(c.contract_value, c.currency)}</span>
-                <span className="font-mono text-xs text-muted">{c.po_number ?? 'No PO'}</span>
+                <span className="font-mono text-xs text-muted-foreground">{c.po_number ?? 'No PO'}</span>
               </div>
             ))}</div> : <Empty title="No commercials recorded" />}
           </Card>

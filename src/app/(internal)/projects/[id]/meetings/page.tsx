@@ -23,8 +23,8 @@ export default async function ProjectMeetings({ params }: { params: Promise<{ id
             const open = m.meeting_actions.filter((a) => !a.task_id).length
             return (
               <Link key={m.id} href={`/meetings/${m.id}`} className="row grid-cols-[80px_minmax(0,1fr)_110px_90px_84px] text-ink no-underline hover:bg-head">
-                <span className="font-mono text-xs text-muted">{shortDate(m.held_on)}</span>
-                <span className="flex min-w-0 flex-col py-1"><span className="truncate font-medium">{m.title}</span>{m.attendees ? <span className="truncate text-xs text-muted">{m.attendees}</span> : null}</span>
+                <span className="font-mono text-xs text-muted-foreground">{shortDate(m.held_on)}</span>
+                <span className="flex min-w-0 flex-col py-1"><span className="truncate font-medium">{m.title}</span>{m.attendees ? <span className="truncate text-xs text-muted-foreground">{m.attendees}</span> : null}</span>
                 <span className="text-xs">{m.meeting_actions.length} {open ? <span className="font-semibold text-warn-ink">· {open} not in plan</span> : null}</span>
                 <span className="font-mono text-xs">{m.decisions.length}</span>
                 <span><Visibility value={m.visibility} /></span>

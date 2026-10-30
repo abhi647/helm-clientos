@@ -18,7 +18,7 @@ export default async function ContinuePage({ searchParams }: { searchParams: Pro
       <form action="/auth/confirm" method="post" className="flex w-full max-w-sm flex-col gap-2.5">
         <div className="mb-6 flex items-center gap-2.5"><BrandLockup size={34} by /></div>
         <h1 className="m-0 text-xl font-semibold">{invite ? 'Welcome to Helm' : 'Sign in to Helm'}</h1>
-        <p className="mt-0 mb-3 text-[13px] text-muted">{invite ? 'Open your workspace to accept the invitation.' : 'Continue to finish signing in.'}</p>
+        <p className="mt-0 mb-3 text-[13px] text-muted-foreground">{invite ? 'Open your workspace to accept the invitation.' : 'Continue to finish signing in.'}</p>
         <input type="hidden" name="token_hash" value={token_hash} />
         <input type="hidden" name="type" value={type ?? 'email'} />
         <input type="hidden" name="next" value={next ?? '/'} />

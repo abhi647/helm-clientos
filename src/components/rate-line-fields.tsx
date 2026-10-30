@@ -19,9 +19,9 @@ const nextUnit = (kind: Kind, current: string) =>
 function Field({ label, hint, className, children }: { label: string; hint?: string | null; className?: string; children: React.ReactNode }) {
   return (
     <label className={cn('flex min-w-0 flex-col gap-1', className)}>
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">{label}</span>
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
       {children}
-      {hint ? <span className="text-[11px] text-muted">{hint}</span> : null}
+      {hint ? <span className="text-[11px] text-muted-foreground">{hint}</span> : null}
     </label>
   )
 }
@@ -76,7 +76,7 @@ export function LineFields({ line, currency }: { currency: string; line?: { kind
       <Field label="Charged per" hint={UNIT_HINT[kind]}>
         <input ref={unitBox} name="unit" aria-label="Unit" required defaultValue={line?.unit ?? KIND_UNIT[start]} readOnly={!!fixed}
           onChange={(e) => { setUnit(e.target.value); last.current = { ...last.current, unit: e.target.value } }}
-          placeholder="dashboard, user…" className={cn('input', fixed && 'bg-head text-muted')} />
+          placeholder="dashboard, user…" className={cn('input', fixed && 'bg-head text-muted-foreground')} />
       </Field>
       <Field label={`Rate (${currency})`} hint={`${currency} per ${fixed ?? (unit || 'unit')}`}>
         <input name="rate" aria-label="Rate" required inputMode="decimal" defaultValue={line?.rate} placeholder="e.g. 25000" className="input font-mono" />

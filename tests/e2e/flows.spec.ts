@@ -8,6 +8,9 @@ import { createClient } from '@supabase/supabase-js'
 const MAILPIT = process.env.MAILPIT_URL ?? 'http://127.0.0.1:54324'
 const SHOTS = process.env.E2E_SCREENSHOTS
 
+/** A success message: shown as a toast, which can outlive the form that sent it. */
+const toast = (page: Page, text: string) => page.locator('[data-sonner-toast]').getByText(text).first()
+
 async function shot(page: Page, name: string) {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true })
 }
@@ -320,7 +323,7 @@ test('CEO adds a customer, links it to HubSpot and Zoho, and starts projects by 
   await page.getByText('Change links').click()
   await page.getByLabel('Zoho Books customer id').fill('7700001')
   await page.getByRole('button', { name: 'Save links' }).click()
-  await expect(page.getByRole('status').getByText('Saved.')).toBeVisible()
+  await expect(toast(page, 'Saved.')).toBeVisible()
   await page.reload()
   await expect(page.getByText('HubSpot 9100001 · Zoho 7700001')).toBeVisible()
   await shot(page, '35-customer-links')
@@ -432,7 +435,7 @@ test('customer level: the account team and the customer\'s people, managed on th
   await people.getByLabel('Full name').fill('Leila Haddad')
   await people.getByLabel('Work email').fill('leila@nesma.example.com')
   await people.getByRole('button', { name: 'Send invitation' }).click()
-  await expect(people.getByText('Invitation sent to leila@nesma.example.com.')).toBeVisible()
+  await expect(toast(page, 'Invitation sent to leila@nesma.example.com.')).toBeVisible()
   await page.reload()
   const leila = people.locator('details', { hasText: 'Leila Haddad' })
   await expect(leila.locator('summary').getByText('Member', { exact: true })).toBeVisible()
@@ -440,7 +443,7 @@ test('customer level: the account team and the customer\'s people, managed on th
   await leila.getByLabel('Role for Leila Haddad').selectOption('customer_exec')
   await leila.getByLabel('Can see invoices and approve billing').check()
   await leila.getByRole('button', { name: 'Save' }).click()
-  await expect(leila.getByText('Saved.')).toBeVisible()
+  await expect(toast(page, 'Saved.')).toBeVisible()
   await page.reload()
   await expect(leila.locator('summary').getByText('Executive', { exact: true })).toBeVisible()
   await expect(leila.locator('summary').getByText('Invoices', { exact: true })).toBeVisible()
@@ -842,7 +845,7 @@ test('the sidebar shows names, collapses to icons and remembers the choice', asy
   await page.reload()
   await expect(nav.getByRole('button', { name: 'Expand navigation' })).toBeVisible()   // kept across reloads
   await nav.getByRole('link', { name: 'Customers' }).hover()
-  await expect(nav.getByRole('tooltip', { name: 'Customers' })).toBeVisible()
+  await expect(page.getByRole('tooltip', { name: 'Customers' })).toBeVisible()
   await shot(page, '28-nav-collapsed')
   await nav.getByRole('button', { name: 'Expand navigation' }).click()
 })
@@ -876,7 +879,7 @@ test('the plan has subtasks: the PM breaks a task down, the consultant finds the
   await panel.getByLabel('Subtask title').fill('Order test cases')
   await panel.getByLabel('Owner of the new subtask').selectOption({ label: 'Sahil' })
   await panel.getByRole('button', { name: 'Add subtask' }).click()
-  await expect(panel.getByText('Subtask added.')).toBeVisible()
+  await expect(toast(page, 'Subtask added.')).toBeVisible()
   await page.reload()
   await expect(panel.getByText('Subtasks · 0/1 done')).toBeVisible()
   await expect(page.getByText('0/1 subtasks')).toBeVisible()
@@ -1022,7 +1025,8 @@ test('first time or forgotten password: a code from the email, then a new passwo
   await expect(page.getByText(/Wrong email or password/)).toBeVisible()
   // and back to the seed password from the menu, for the tests after this one
   await signIn(page, email, fresh)
-  await page.getByRole('link', { name: 'Change password' }).click()
+  await page.getByRole('button', { name: /^Account:/ }).click()
+  await page.getByRole('menuitem', { name: 'Password and passkeys' }).click()
   await expect(page.getByRole('heading', { name: 'Change your password' })).toBeVisible()
   await page.getByLabel('New password').fill(PASSWORD)
   await page.getByLabel('Type it again').fill(PASSWORD)
@@ -1061,7 +1065,7 @@ test.describe('on a phone', () => {
     await page.getByRole('button', { name: 'Open menu' }).click()
     const menu = page.getByRole('dialog', { name: 'Menu' })
     await expect(menu.getByRole('link', { name: 'Projects' })).toBeVisible()
-    expect((await menu.locator('> div').last().boundingBox())!.height).toBeGreaterThan(800)   // the whole screen, not clipped to the top bar
+    expect((await menu.boundingBox())!.height).toBeGreaterThan(800)   // the whole screen, not clipped to the top bar
     await shot(page, '30-phone-menu')
     await menu.getByRole('link', { name: 'Projects' }).click()
     await expect(page).toHaveURL(/\/projects$/)

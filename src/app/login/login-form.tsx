@@ -11,7 +11,7 @@ function CodeForm({ email, next, error }: { email: string; next: string; error?:
     <div className="flex flex-col gap-3">
       <div role="status" className="rounded-md border border-line bg-head p-3 text-[13px] leading-relaxed">
         <b>Check your inbox.</b> If <span className="font-medium">{email}</span> has access, an email with a 6-digit code is on its way. Enter it below, then choose your password.
-        <span className="mt-1.5 block text-xs text-muted">
+        <span className="mt-1.5 block text-xs text-muted-foreground">
           Nothing after a few minutes? Check Junk. If you have not been invited yet, no email is sent: Helm is invite-only, so ask
           your Seven Billion contact (or your admin, if you work at Seven Billion) to invite you.
         </span>
@@ -24,7 +24,7 @@ function CodeForm({ email, next, error }: { email: string; next: string; error?:
           placeholder="123456" className="input h-11 text-center font-mono text-lg tracking-[.3em]" />
         {error ? <p role="alert" className="m-0 text-xs text-crit-ink">That code is wrong or has expired. Check the latest email, or send a new one.</p> : null}
         <button type="submit" className="btn btn-primary h-10 text-sm">Continue</button>
-        <a href={`/login?next=${encodeURIComponent(next)}`} className="text-center text-xs text-muted">Back to sign in</a>
+        <a href={`/login?next=${encodeURIComponent(next)}`} className="text-center text-xs text-muted-foreground">Back to sign in</a>
       </form>
     </div>
   )
@@ -57,7 +57,7 @@ export function LoginForm({ next, codeFor, codeError }: { next: string; codeFor?
         <input id="reset-email" name="email" type="email" required autoComplete="email" autoFocus placeholder="you@company.com" className="input h-10 text-sm" />
         {sent.status === 'error' ? <p role="alert" className="m-0 text-xs text-crit-ink">{sent.message}</p> : null}
         <button type="submit" disabled={sending} className="btn btn-primary h-10 text-sm">{sending ? 'Sending…' : 'Email me a code'}</button>
-        <button type="button" onClick={() => setReset(false)} className="text-center text-xs text-muted">Back to sign in</button>
+        <button type="button" onClick={() => setReset(false)} className="text-center text-xs text-muted-foreground">Back to sign in</button>
       </form>
     )
   }
@@ -76,7 +76,7 @@ export function LoginForm({ next, codeFor, codeError }: { next: string; codeFor?
         </button>
       ) : null}
       <PasskeySignIn next={next} />
-      <div className="my-1 flex items-center gap-2 text-[11px] text-muted"><span className="h-px flex-1 bg-line" />or with your email and password<span className="h-px flex-1 bg-line" /></div>
+      <div className="my-1 flex items-center gap-2 text-[11px] text-muted-foreground"><span className="h-px flex-1 bg-line" />or with your email and password<span className="h-px flex-1 bg-line" /></div>
       {/* a full-page post (src/app/auth/password), so browsers recognise the sign-in and offer to save the password */}
       <form action="/auth/password" method="post" onSubmit={() => setSigningIn(true)} className="flex flex-col gap-2.5">
         <input type="hidden" name="next" value={next} />
@@ -87,7 +87,7 @@ export function LoginForm({ next, codeFor, codeError }: { next: string; codeFor?
         <button type="submit" disabled={signingIn} className="btn btn-primary h-10 text-sm">{signingIn ? 'Signing in…' : 'Sign in'}</button>
       </form>
       <button type="button" onClick={() => setReset(true)} className="text-center text-xs font-medium text-link">Set or reset your password</button>
-      <p className="m-0 text-xs leading-relaxed text-muted">
+      <p className="m-0 text-xs leading-relaxed text-muted-foreground">
         <b className="font-medium text-ink">Helm is invite-only.</b> First time here? Use <i>Set or reset your password</i> with the email you were
         invited with{sso ? ', or the Google or Microsoft account for that address' : ''}. No access yet? Ask your Seven Billion contact.
       </p>

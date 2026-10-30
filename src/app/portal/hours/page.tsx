@@ -47,8 +47,8 @@ export default async function PortalHours({ searchParams }: { searchParams: Prom
     <div className="flex flex-col gap-3">
       <h1 className="m-0 text-xl font-semibold">Hours</h1>
       <Card title={plan.kind === 'monthly' ? 'This month' : 'Prepaid hours'}>
-        {credit ? <HoursMeter b={credit} /> : <p className="m-0 text-xs text-muted">No hours added yet.</p>}
-        <p className="mt-3 mb-0 text-xs text-muted">
+        {credit ? <HoursMeter b={credit} /> : <p className="m-0 text-xs text-muted-foreground">No hours added yet.</p>}
+        <p className="mt-3 mb-0 text-xs text-muted-foreground">
           Hours count once your project manager approves the team&apos;s time. You are told at 75%, 90% and 100% used.
           Work carries on past 100%: hours over are billed at the agreed rate.
         </p>
@@ -71,8 +71,8 @@ export default async function PortalHours({ searchParams }: { searchParams: Prom
               {rows.map((r, i) => (
                 <div key={i} className="row grid-cols-[80px_minmax(0,0.8fr)_minmax(0,1.4fr)_90px_60px]">
                   <span className="font-mono text-xs">{shortDate(r.worked_on)}</span>
-                  <span className="truncate text-xs text-muted">{r.project}</span>
-                  <span className={cn('truncate', r.work === 'Internal work' && 'text-muted')}>{r.work}</span>
+                  <span className="truncate text-xs text-muted-foreground">{r.project}</span>
+                  <span className={cn('truncate', r.work === 'Internal work' && 'text-muted-foreground')}>{r.work}</span>
                   <span className="truncate text-xs">{r.person}</span>
                   <span className="text-right font-mono text-xs">{+Number(r.hours).toFixed(2)}</span>
                 </div>
@@ -98,9 +98,9 @@ export default async function PortalHours({ searchParams }: { searchParams: Prom
               <div className="flex flex-col text-xs">
                 {topups.map((t) => (
                   <div key={t.id} className="flex items-center gap-2 py-1">
-                    <span className="font-mono text-muted">{shortDate(t.added_on)}</span>
+                    <span className="font-mono text-muted-foreground">{shortDate(t.added_on)}</span>
                     <span className="font-mono font-semibold">+{hrs(t.hours)}</span>
-                    <span className="min-w-0 flex-1 truncate text-muted">{t.note}</span>
+                    <span className="min-w-0 flex-1 truncate text-muted-foreground">{t.note}</span>
                   </div>
                 ))}
               </div>

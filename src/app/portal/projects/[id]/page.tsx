@@ -31,8 +31,8 @@ export default async function PortalProject({ params, searchParams }: { params: 
         <h1 className="m-0 text-xl font-semibold">{p.name}</h1>
         <Health health={p.health} />
         <Progress value={prog?.total ? (100 * (prog.done ?? 0)) / prog.total : 0} />
-        <span className="font-mono text-xs text-muted">{shortDate(p.start_date)} → {shortDate(p.end_date)}</span>
-        <span className="text-xs text-muted">Your Seven Billion lead: <b className="font-medium text-ink">{p.pm?.full_name}</b></span>
+        <span className="font-mono text-xs text-muted-foreground">{shortDate(p.start_date)} → {shortDate(p.end_date)}</span>
+        <span className="text-xs text-muted-foreground">Your Seven Billion lead: <b className="font-medium text-ink">{p.pm?.full_name}</b></span>
       </div>
       <div className="flex flex-wrap items-start gap-3">
         <Card flush className="min-w-0 flex-[999_1_560px] overflow-x-auto" title="Plan">
@@ -46,12 +46,12 @@ export default async function PortalProject({ params, searchParams }: { params: 
                   <div className="row row-head grid-cols-[minmax(0,1fr)_120px_140px_70px] text-ink normal-case"><span className="text-[13px] tracking-normal">{ph.name}</span><span /><span /><span /></div>
                   {pts.map((t) => (
                     <div key={t.id} className={cn('row min-h-9 grid-cols-[minmax(0,1fr)_120px_140px_70px]', sel?.id === t.id && 'bg-selected')}>
-                      <Link href={`/portal/projects/${id}?task=${t.id}`} className={cn('truncate no-underline hover:underline', t.parent_id && 'pl-5', t.status === 'done' ? 'text-muted' : t.parent_id ? 'text-ink' : 'font-medium text-ink')}>
-                        {t.parent_id ? <span aria-hidden className="mr-1.5 text-muted">└</span> : null}{t.status === 'done' ? '✓ ' : ''}{t.title}{t.spotlight ? <Chip tone="dark" className="ml-2">★ Needs you</Chip> : null}
+                      <Link href={`/portal/projects/${id}?task=${t.id}`} className={cn('truncate no-underline hover:underline', t.parent_id && 'pl-5', t.status === 'done' ? 'text-muted-foreground' : t.parent_id ? 'text-ink' : 'font-medium text-ink')}>
+                        {t.parent_id ? <span aria-hidden className="mr-1.5 text-muted-foreground">└</span> : null}{t.status === 'done' ? '✓ ' : ''}{t.title}{t.spotlight ? <Chip tone="dark" className="ml-2">★ Needs you</Chip> : null}
                       </Link>
                       <span><TaskStatusChip status={t.status} overdue={t.status !== 'done' && isOverdue(t.due_date)} /></span>
                       <span className="flex min-w-0 items-center gap-1.5">{t.assignee ? <><Avatar name={t.assignee.full_name} customer={t.assignee.kind === 'customer'} /><span className="truncate text-[13px]">{t.assignee.full_name}</span></> : null}</span>
-                      <span className="font-mono text-xs text-muted">{shortDate(t.due_date)}</span>
+                      <span className="font-mono text-xs text-muted-foreground">{shortDate(t.due_date)}</span>
                     </div>
                   ))}
                 </div>
@@ -64,9 +64,9 @@ export default async function PortalProject({ params, searchParams }: { params: 
             <Card title={sel.title} extra={<Link href={`/portal/projects/${id}`} aria-label="Close">✕</Link>}>
               <div className="flex flex-col gap-2.5">
                 <span className="flex gap-1.5"><TaskStatusChip status={sel.status} overdue={sel.status !== 'done' && isOverdue(sel.due_date)} /></span>
-                {sel.parent_id ? <span className="text-xs text-muted">Part of <Link href={`/portal/projects/${id}?task=${sel.parent_id}`}>{tasks?.find((t) => t.id === sel.parent_id)?.title}</Link></span> : null}
+                {sel.parent_id ? <span className="text-xs text-muted-foreground">Part of <Link href={`/portal/projects/${id}?task=${sel.parent_id}`}>{tasks?.find((t) => t.id === sel.parent_id)?.title}</Link></span> : null}
                 {sel.description ? <p className="m-0 text-[13px] leading-relaxed">{sel.description}</p> : null}
-                <span className="text-xs text-muted">Due {shortDate(sel.due_date)} · {sel.assignee?.full_name ?? 'Seven Billion'}</span>
+                <span className="text-xs text-muted-foreground">Due {shortDate(sel.due_date)} · {sel.assignee?.full_name ?? 'Seven Billion'}</span>
                 <Thread entityType="task" entityId={sel.id} customerId={sel.customer_id} me={me} />
               </div>
             </Card>

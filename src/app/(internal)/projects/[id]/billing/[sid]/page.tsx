@@ -47,7 +47,7 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="flex max-w-[1000px] flex-col gap-3 p-4">
-      <Link href={`/projects/${id}/billing`} className="text-xs text-muted no-underline hover:text-ink">← Billing</Link>
+      <Link href={`/projects/${id}/billing`} className="text-xs text-muted-foreground no-underline hover:text-ink">← Billing</Link>
       <Card title={<span className="flex items-center gap-2">Statement · {period(st.period_start, st.period_end)} <StatementStatus status={st.status} /></span>}
         extra={`Rates v${st.rate_cards?.version} · ${currency}${st.rate_cards?.po_number ? ` · PO ${st.rate_cards.po_number}` : ''}`}>
         {st.status === 'changes_requested' && st.decision_note ? (
@@ -62,14 +62,14 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
         {editable ? (
           <div className="flex flex-col gap-3">
             {fromTimesheets.size ? (
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <ActionButton run={refillStatement.bind(null, st.id)} confirm={st.from_tasks ? 'Fill the lines again from this statement\'s tasks (approved days, and deliveries or units that are Done)? Quantities and notes are replaced.' : 'Fill the day-rate lines again from approved timesheets? Their quantities and notes are replaced. Save any other changes first.'}>{st.from_tasks ? 'Fill again from its tasks' : 'Fill from timesheets'}</ActionButton>
                 <span>Lines marked ⏱ are filled from the approved days of the people named on them. Lowering a quantity writes the rest off.</span>
               </div>
             ) : null}
             <ActionForm action={saveStatement} submit="Save" resetOnSuccess={false} primary={false}>
               <input type="hidden" name="statement_id" value={st.id} />
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <label className="flex items-center gap-1.5">From <input type="date" name="period_start" required defaultValue={st.period_start} className="input" /></label>
                 <label className="flex items-center gap-1.5">to <input type="date" name="period_end" required defaultValue={st.period_end} className="input" /></label>
               </div>
@@ -78,11 +78,11 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
                   <div className="row row-head grid-cols-[minmax(0,1fr)_120px_120px_minmax(0,1fr)]"><span>Item</span><span className="text-right">Rate</span><span>Quantity</span><span>Note for the customer</span></div>
                   {lines.map((l) => (
                     <div key={l.id} className="row grid-cols-[minmax(0,1fr)_120px_120px_minmax(0,1fr)] py-1">
-                      <span className="flex min-w-0 flex-col"><span className="truncate font-medium">{l.rate_card_line_id && fromTimesheets.has(l.rate_card_line_id) ? <span title="Filled from approved timesheets">⏱ </span> : null}{l.label}</span><span className="text-xs text-muted">{KIND_LABEL[l.kind]}</span></span>
-                      <span className="text-right font-mono text-xs">{money(l.rate, currency, { exact: true })} <span className="text-muted">/ {l.unit}</span></span>
+                      <span className="flex min-w-0 flex-col"><span className="truncate font-medium">{l.rate_card_line_id && fromTimesheets.has(l.rate_card_line_id) ? <span title="Filled from approved timesheets">⏱ </span> : null}{l.label}</span><span className="text-xs text-muted-foreground">{KIND_LABEL[l.kind]}</span></span>
+                      <span className="text-right font-mono text-xs">{money(l.rate, currency, { exact: true })} <span className="text-muted-foreground">/ {l.unit}</span></span>
                       <label className="flex items-center gap-1.5">
                         <input name={`q_${l.id}`} aria-label={`Quantity for ${l.label}`} inputMode="decimal" defaultValue={Number(l.quantity)} className="input w-[72px] text-right font-mono" />
-                        <span className="text-xs text-muted">{plural(l.unit)}</span>
+                        <span className="text-xs text-muted-foreground">{plural(l.unit)}</span>
                       </label>
                       <input name={`n_${l.id}`} aria-label={`Note for ${l.label}`} defaultValue={l.note} placeholder={l.kind === 'day_rate' ? 'e.g. 2 days leave' : l.kind === 'delivery' ? 'e.g. accepted 24 Sep' : ''} className="input" />
                     </div>
@@ -90,7 +90,7 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
                 </div>
               </div>
               <textarea name="note" aria-label="Note for the customer" rows={2} defaultValue={st.note} placeholder="Note for the customer (optional)" className="textarea" />
-              <p className="m-0 text-xs text-muted">Rates are the approved ones and cannot be changed here. Save first, then send. Lines left at 0 are not billed.</p>
+              <p className="m-0 text-xs text-muted-foreground">Rates are the approved ones and cannot be changed here. Save first, then send. Lines left at 0 are not billed.</p>
             </ActionForm>
             <div className="border-t border-line-soft pt-3 text-xs font-semibold">Preview</div>
             <div className="overflow-x-auto"><StatementLines lines={lines} currency={currency} /></div>
@@ -106,11 +106,11 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
         ) : (
           <div className="flex flex-col gap-3">
             <div className="overflow-x-auto"><StatementLines lines={lines} currency={currency} /></div>
-            {st.note ? <p className="m-0 text-xs text-muted">{st.note}</p> : null}
+            {st.note ? <p className="m-0 text-xs text-muted-foreground">{st.note}</p> : null}
             <dl className="m-0 grid grid-cols-[150px_minmax(0,1fr)] gap-y-1.5 text-[13px]">
-              {st.submitted_at ? <><dt className="text-muted">Sent</dt><dd className="m-0">{relativeTime(st.submitted_at)}</dd></> : null}
-              {st.decided_at ? <><dt className="text-muted">Approved</dt><dd className="m-0">{relativeTime(st.decided_at)}{st.decider?.full_name ? ` by ${st.decider.full_name}` : ''}{st.approved_for_customer ? ' for the customer' : ''}{st.approved_for_customer && st.decision_note?.includes(': ') ? ` (${st.decision_note.slice(st.decision_note.indexOf(': ') + 2)})` : ''}</dd></> : null}
-              {st.zoho_invoice_number ? <><dt className="text-muted">Zoho</dt><dd className="m-0">Draft invoice <b className="font-mono">{st.zoho_invoice_number}</b>, waiting for Finance to review and send it in Zoho Books.</dd></> : null}
+              {st.submitted_at ? <><dt className="text-muted-foreground">Sent</dt><dd className="m-0">{relativeTime(st.submitted_at)}</dd></> : null}
+              {st.decided_at ? <><dt className="text-muted-foreground">Approved</dt><dd className="m-0">{relativeTime(st.decided_at)}{st.decider?.full_name ? ` by ${st.decider.full_name}` : ''}{st.approved_for_customer ? ' for the customer' : ''}{st.approved_for_customer && st.decision_note?.includes(': ') ? ` (${st.decision_note.slice(st.decision_note.indexOf(': ') + 2)})` : ''}</dd></> : null}
+              {st.zoho_invoice_number ? <><dt className="text-muted-foreground">Zoho</dt><dd className="m-0">Draft invoice <b className="font-mono">{st.zoho_invoice_number}</b>, waiting for Finance to review and send it in Zoho Books.</dd></> : null}
             </dl>
             {st.invoice_error ? <p role="alert" className="m-0 rounded-md bg-crit-bg p-2.5 text-xs text-crit-ink">{st.invoice_error}</p> : null}
             {st.status === 'pending' && canSeeFinance(me) ? (
@@ -138,7 +138,7 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
               ))}
             </div>
           </div>
-        ) : <p className="m-0 p-3 text-xs text-muted">No time logged on this project between these dates.</p>}
+        ) : <p className="m-0 p-3 text-xs text-muted-foreground">No time logged on this project between these dates.</p>}
       </Card>
     </div>
   )

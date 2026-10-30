@@ -1,5 +1,5 @@
 import { clsx, type ClassValue } from 'clsx'
-import { Lock, Users } from 'lucide-react'
+import { Inbox, Lock, Users } from 'lucide-react'
 import { twMerge } from 'tailwind-merge'
 import type { Enums } from '@/lib/database.types'
 import { HEALTH, TASK_STATUS, initials, label } from '@/lib/format'
@@ -18,12 +18,12 @@ const TONE: Record<Tone, string> = {
 }
 
 const DOT: Record<Tone, string> = {
-  good: 'bg-good', info: 'bg-info', warn: 'bg-warn', crit: 'bg-crit', review: 'bg-review', neutral: 'bg-[#9aa8ad]', dark: 'bg-white',
+  good: 'bg-good', info: 'bg-info', warn: 'bg-warn', crit: 'bg-crit', review: 'bg-review', neutral: 'bg-[#a3a3a3]', dark: 'bg-white',
 }
 
 export function Chip({ tone = 'neutral', children, className, title, dot }: { tone?: Tone; children: React.ReactNode; className?: string; title?: string; dot?: boolean }) {
   return (
-    <span title={title} className={cn('inline-flex h-5 items-center gap-1 rounded-sm px-[7px] text-[11px] font-semibold whitespace-nowrap', TONE[tone], className)}>
+    <span title={title} className={cn('inline-flex h-5 items-center gap-1 rounded-full px-[7px] text-[11px] font-medium whitespace-nowrap', TONE[tone], className)}>
       {dot ? <span aria-hidden className={cn('size-1.5 flex-none rounded-full', DOT[tone])} /> : null}
       {children}
     </span>
@@ -32,7 +32,7 @@ export function Chip({ tone = 'neutral', children, className, title, dot }: { to
 
 /** The colour of each task state, used for chips, plan row stripes and the legend. */
 export const TASK_STRIPE: Record<Enums<'task_status'> | 'overdue', string> = {
-  todo: 'border-l-[#c4cfd3]', in_progress: 'border-l-info', in_review: 'border-l-review', waiting_customer: 'border-l-warn',
+  todo: 'border-l-[#d4d4d4]', in_progress: 'border-l-info', in_review: 'border-l-review', waiting_customer: 'border-l-warn',
   blocked: 'border-l-crit', done: 'border-l-good', overdue: 'border-l-crit',
 }
 
@@ -40,7 +40,7 @@ export const TASK_STRIPE: Record<Enums<'task_status'> | 'overdue', string> = {
 export function StatusLegend({ className }: { className?: string }) {
   const items: [Tone, string][] = [['neutral', 'Not started'], ['info', 'In progress'], ['review', 'In review'], ['warn', 'With customer'], ['crit', 'Blocked or overdue'], ['good', 'Done']]
   return (
-    <span className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted', className)} aria-label="What the colours mean">
+    <span className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground', className)} aria-label="What the colours mean">
       {items.map(([t, l]) => <span key={l} className="inline-flex items-center gap-1"><span aria-hidden className={cn('size-2 rounded-full', DOT[t])} />{l}</span>)}
     </span>
   )
@@ -68,7 +68,7 @@ export function ApprovalStatusChip({ status }: { status: Enums<'approval_status'
 }
 
 export function PriorityText({ priority }: { priority: Enums<'priority'> }) {
-  const cls = priority === 'critical' ? 'text-crit-ink font-semibold' : priority === 'high' ? 'text-warn-ink font-semibold' : 'text-muted'
+  const cls = priority === 'critical' ? 'text-crit-ink font-semibold' : priority === 'high' ? 'text-warn-ink font-semibold' : 'text-muted-foreground'
   return <span className={cls}>{label(priority)}</span>
 }
 
@@ -103,9 +103,9 @@ export function Avatar({ name, customer, size = 20 }: { name: string; customer?:
   return (
     <span
       aria-hidden
-      style={{ width: size, height: size, fontSize: size < 24 ? 9 : 11 }}
+      style={{ width: size, height: size, fontSize: size < 24 ? 9 : size < 30 ? 11 : 12 }}
       className={cn('inline-flex flex-none items-center justify-center rounded-full font-bold',
-        customer ? 'border border-[#f3d29b] bg-[#fff4df] text-[#92400e]' : 'bg-ink text-white')}
+        customer ? 'bg-[#fdf0d6] text-[#8a4b00] ring-1 ring-[#f3d29b]' : 'bg-gradient-to-br from-[#4f7bff] to-[#2a5bff] text-white')}
     >
       {initials(name)}
     </span>
@@ -118,7 +118,7 @@ export function Progress({ value, width = 80, tone }: { value: number; width?: n
   const bar = tone ? DOT[tone] : pct >= 100 ? 'bg-good' : 'bg-info'
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="h-[6px] overflow-hidden rounded-full bg-line" style={{ width }} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+      <span className="h-1.5 overflow-hidden rounded-full bg-muted" style={{ width }} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
         <span className={cn('block h-full rounded-full', bar)} style={{ width: `${pct}%` }} />
       </span>
       <span className="tabular font-mono text-xs">{pct}%</span>
@@ -128,33 +128,43 @@ export function Progress({ value, width = 80, tone }: { value: number; width?: n
 
 export function PageHeader({ title, meta, actions, children }: { title: React.ReactNode; meta?: React.ReactNode; actions?: React.ReactNode; children?: React.ReactNode }) {
   return (
-    <header className="border-b border-line bg-white px-5 pt-2.5">
+    <header className="border-b border-border px-4 pt-3 pb-3">
       {children}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
-        <h1 className="m-0 text-[19px] font-semibold tracking-[-.01em]">{title}</h1>
-        {meta}
-        {actions ? <div className="ml-auto flex flex-wrap gap-1.5">{actions}</div> : null}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h1 className="m-0 text-[19px] leading-tight font-semibold tracking-[-0.02em]">{title}</h1>
+          {meta ? <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">{meta}</div> : null}
+        </div>
+        {actions ? <div className="ml-auto flex flex-wrap gap-2">{actions}</div> : null}
       </div>
     </header>
   )
 }
 
-export function Empty({ title, children }: { title: string; children?: React.ReactNode }) {
+export function Empty({ title, children, icon }: { title: string; children?: React.ReactNode; icon?: React.ReactNode }) {
   return (
-    <div className="px-4 py-6 text-center">
+    <div className="flex flex-col items-center px-4 py-6 text-center">
+      <span aria-hidden className="mb-2 grid size-8 place-items-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border ring-inset [&>svg]:size-4">
+        {icon ?? <Inbox />}
+      </span>
       <div className="text-[13px] font-semibold">{title}</div>
-      {children ? <div className="mt-1 text-xs text-muted">{children}</div> : null}
+      {children ? <div className="mt-0.5 max-w-sm text-xs text-muted-foreground">{children}</div> : null}
     </div>
   )
 }
 
-export function Card({ title, extra, children, className, flush }: { title?: React.ReactNode; extra?: React.ReactNode; children: React.ReactNode; className?: string; flush?: boolean }) {
+export function Card({ title, extra, children, className, flush, description }: {
+  title?: React.ReactNode; extra?: React.ReactNode; children: React.ReactNode; className?: string; flush?: boolean; description?: React.ReactNode
+}) {
   return (
-    <section className={cn('card min-w-0', className)}>
+    <section className={cn('card min-w-0 overflow-hidden', className)}>
       {title ? (
         <div className="card-head">
-          <h2 className="m-0 text-[13px] font-semibold">{title}</h2>
-          {extra ? <div className="ml-auto flex items-center gap-2 text-xs text-muted">{extra}</div> : null}
+          <div className="min-w-0">
+            <h2 className="m-0 text-[13px] font-semibold">{title}</h2>
+            {description ? <p className="m-0 text-[11px] text-muted-foreground">{description}</p> : null}
+          </div>
+          {extra ? <div className="ml-auto flex flex-none items-center gap-2 text-xs text-muted-foreground">{extra}</div> : null}
         </div>
       ) : null}
       {/* phones: wide tables scroll inside the card instead of widening the page */}
@@ -164,37 +174,39 @@ export function Card({ title, extra, children, className, flush }: { title?: Rea
 }
 
 type MeterTone = 'good' | 'info' | 'warn' | 'crit' | 'neutral'
-const METER: Record<MeterTone, { stripe: string; ink: string; bar: string }> = {
-  good: { stripe: 'before:bg-good', ink: 'text-good-ink', bar: 'bg-good' },
-  info: { stripe: 'before:bg-info', ink: 'text-info-ink', bar: 'bg-info' },
-  warn: { stripe: 'before:bg-warn', ink: 'text-warn-ink', bar: 'bg-warn' },
-  crit: { stripe: 'before:bg-crit', ink: 'text-crit-ink', bar: 'bg-crit' },
-  neutral: { stripe: 'before:bg-line', ink: 'text-ink', bar: 'bg-[#9aa8ad]' },
+const METER: Record<MeterTone, { chip: string; ink: string; bar: string }> = {
+  good: { chip: 'bg-good-bg text-good-ink ring-good/20', ink: 'text-good-ink', bar: 'bg-good' },
+  info: { chip: 'bg-info-bg text-info-ink ring-info/20', ink: 'text-info-ink', bar: 'bg-info' },
+  warn: { chip: 'bg-warn-bg text-warn-ink ring-warn/25', ink: 'text-warn-ink', bar: 'bg-warn' },
+  crit: { chip: 'bg-crit-bg text-crit-ink ring-crit/20', ink: 'text-crit-ink', bar: 'bg-crit' },
+  neutral: { chip: 'bg-muted text-muted-foreground ring-border', ink: 'text-ink', bar: 'bg-[#a3a3a3]' },
 }
 
 /**
- * A meter tile: a coloured stripe and value for its state (green fine, amber needs a look, red needs action,
- * blue information), an optional bar (pct), and a link to the list behind the number.
+ * A KPI tile: label, a large figure, and an optional bar. The figure takes the colour of its state (green fine,
+ * amber needs a look, red needs action), and the small badge repeats it in words so colour is never the only signal.
  */
-export function Stat({ label: l, value, sub, tone = 'neutral', pct, href }: {
-  label: string; value: React.ReactNode; sub?: React.ReactNode; tone?: MeterTone; pct?: number; href?: string
+export function Stat({ label: l, value, sub, tone = 'neutral', pct, href, icon }: {
+  label: string; value: React.ReactNode; sub?: React.ReactNode; tone?: MeterTone; pct?: number; href?: string; icon?: React.ReactNode
 }) {
   const m = METER[tone]
   const body = (
     <>
-      <span className="label">{l}</span>
-      <span className="flex items-baseline gap-2">
-        <span className={cn('tabular font-mono text-[24px] leading-tight font-semibold', m.ink)}>{value}</span>
-        {sub ? <span className="text-xs text-muted">{sub}</span> : null}
+      <span className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
+        <span className="truncate">{l}</span>
+        {icon ? <span aria-hidden className={cn('grid size-5 flex-none place-items-center rounded-md ring-1 ring-inset [&>svg]:size-3', m.chip)}>{icon}</span> : null}
+      </span>
+      <span className="mt-0.5 flex items-baseline gap-1.5">
+        <span className={cn('tabular text-[22px] leading-7 font-semibold tracking-[-0.03em]', tone === 'neutral' || tone === 'good' ? 'text-foreground' : m.ink)}>{value}</span>
+        {sub ? <span className="text-xs text-muted-foreground">{sub}</span> : null}
       </span>
       {pct != null ? (
-        <span className="mt-1 h-[6px] w-full max-w-[180px] overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
-          <span className={cn('block h-full rounded-full', m.bar)} style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+        <span className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
+          <span className={cn('block h-full rounded-full transition-[width] duration-700', m.bar)} style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
         </span>
       ) : null}
     </>
   )
-  const cls = cn('relative flex min-w-[150px] flex-1 flex-col gap-0.5 border-l border-line-soft px-4 pt-3 pb-2.5 first:border-l-0',
-    'before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:content-[""]', m.stripe)
-  return href ? <a href={href} className={cn(cls, 'text-ink no-underline hover:bg-head')}>{body}</a> : <div className={cls}>{body}</div>
+  const cls = 'card relative flex min-w-[130px] flex-1 flex-col px-3 py-2.5'
+  return href ? <a href={href} className={cn(cls, 'text-ink no-underline transition-[box-shadow,transform] hover:border-control hover:bg-head')}>{body}</a> : <div className={cls}>{body}</div>
 }

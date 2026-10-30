@@ -105,22 +105,22 @@ export function PasskeyManager({ then }: { then?: string }) {
     load()
   }
 
-  if (!canUse) return <p className="m-0 text-xs text-muted">This browser does not support passkeys.</p>
+  if (!canUse) return <p className="m-0 text-xs text-muted-foreground">This browser does not support passkeys.</p>
   return (
     <div className="flex flex-col gap-2">
       {keys?.length ? (
         <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
           {keys.map((k) => (
             <li key={k.id} className="flex items-center gap-2 rounded-md border border-line px-2.5 py-2 text-[13px]">
-              <KeyRound aria-hidden className="size-4 flex-none text-muted" />
+              <KeyRound aria-hidden className="size-4 flex-none text-muted-foreground" />
               <span className="min-w-0 flex-1 truncate">{k.friendly_name || 'Passkey'}
-                <span className="block text-[11px] text-muted">Added {day(k.created_at)}{k.last_used_at ? ` · last used ${day(k.last_used_at)}` : ''}</span>
+                <span className="block text-[11px] text-muted-foreground">Added {day(k.created_at)}{k.last_used_at ? ` · last used ${day(k.last_used_at)}` : ''}</span>
               </span>
               <button type="button" onClick={() => void remove(k)} className="btn btn-ghost h-7 px-2 text-xs text-crit-ink">Remove</button>
             </li>
           ))}
         </ul>
-      ) : keys ? <p className="m-0 text-xs text-muted">No passkeys yet.</p> : null}
+      ) : keys ? <p className="m-0 text-xs text-muted-foreground">No passkeys yet.</p> : null}
       <button type="button" disabled={busy} onClick={() => void add()} className={then ? 'btn btn-primary h-10 text-sm' : 'btn h-9 text-sm'}>
         <KeyRound aria-hidden className="size-4" />{busy ? 'Follow your device…' : then ? 'Use a passkey instead' : 'Add a passkey on this device'}
       </button>

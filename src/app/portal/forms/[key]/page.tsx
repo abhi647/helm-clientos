@@ -22,8 +22,8 @@ export default async function PortalForm({ params, searchParams }: {
   return (
     <div className="mx-auto flex max-w-[680px] flex-col gap-3">
       <Link href="/portal" className="text-[13px]">← Home</Link>
-      <h1 className="m-0 text-xl font-semibold">{def.title}{project ? <span className="font-normal text-muted"> · {project.name}</span> : null}</h1>
-      <p className="m-0 text-[13px] text-muted">{def.intro}</p>
+      <h1 className="m-0 text-xl font-semibold">{def.title}{project ? <span className="font-normal text-muted-foreground"> · {project.name}</span> : null}</h1>
+      <p className="m-0 text-[13px] text-muted-foreground">{def.intro}</p>
       <Card><FormRenderer def={def} projectId={project?.id} actionId={sp.action} projects={projects ?? []} /></Card>
     </div>
   )

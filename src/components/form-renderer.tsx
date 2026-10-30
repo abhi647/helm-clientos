@@ -37,13 +37,13 @@ export function FormRenderer({ def, projectId, actionId, projects }: {
             ) : f.type === 'radio' ? (
               <div className="flex flex-wrap gap-2">
                 {f.options!.map((o) => (
-                  <label key={o.value} className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-[#d5dcdf] px-3 text-[13px] has-[:checked]:border-ink has-[:checked]:bg-head has-[:checked]:font-semibold">
-                    <input type="radio" name={f.name} value={o.value} required={f.required} className="accent-[#0F2A30]" />{o.label}
+                  <label key={o.value} className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-control px-3 text-[13px] has-[:checked]:border-ink has-[:checked]:bg-head has-[:checked]:font-semibold">
+                    <input type="radio" name={f.name} value={o.value} required={f.required} className="accent-primary" />{o.label}
                   </label>
                 ))}
               </div>
             ) : <input id={`f-${f.name}`} name={f.name} type={f.type} required={f.required} placeholder={f.placeholder} className="input h-9 text-sm" />}
-          {f.help ? <span className="text-xs text-muted">{f.help}</span> : null}
+          {f.help ? <span className="text-xs text-muted-foreground">{f.help}</span> : null}
         </fieldset>
       ))}
       <div className="flex flex-wrap items-center gap-2">

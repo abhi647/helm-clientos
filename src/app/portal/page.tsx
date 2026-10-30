@@ -4,7 +4,7 @@ import { completeAction } from '@/app/_actions/requests'
 import { ActionButton } from '@/components/forms'
 import { UpdateCard } from '@/components/project-parts'
 import { Greeting, GreetingChip } from '@/components/shell/greeting'
-import { Card, Chip, Empty, Health, Progress, cn } from '@/components/ui'
+import { Card, Chip, Empty, Health, cn } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
 import { daysFromToday, isoDaysAgo, money, shortDate } from '@/lib/format'
 import { formByKey } from '@/lib/forms'
@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/server'
 import { OpenSurveys } from '@/components/csat-open'
 import { YourTeam } from '@/components/your-team'
 import { ExecHome } from './exec-home'
+import { ProgressRing } from '@/components/viz'
 import { PortalMeters } from '@/components/portal-meters'
 
 export const metadata: Metadata = { title: 'Home' }
@@ -85,7 +86,7 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
                     <div key={a.id} className="row min-h-10 grid-cols-[110px_minmax(0,1fr)_170px_90px_150px] text-[14px]">
                       <span><Chip tone={ty.tone}>{ty.label}</Chip></span>
                       <span className="truncate font-medium">{a.title}</span>
-                      <span className="truncate text-[13px] text-muted">{a.projects?.name ?? '–'}</span>
+                      <span className="truncate text-[13px] text-muted-foreground">{a.projects?.name ?? '–'}</span>
                       <span className={cn('font-mono text-xs', late && 'font-semibold text-crit-ink')}>{late ? `${-(daysFromToday(a.due_date) ?? 0)}d late` : shortDate(a.due_date)}</span>
                       <span className="text-right">
                         {a.type === 'approval' ? <Link href={a.request_id ? `/portal/requests/${a.request_id}` : `/portal/approvals/${a.approval_id}`} className="btn btn-primary">{ty.cta}</Link>
@@ -97,7 +98,7 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
                 })}
               </div>
             ) : <Empty title="You're all caught up">We will let you know when Seven Billion needs something.</Empty>}
-            {others.length ? <p className="m-0 border-t border-line-soft px-3.5 py-2 text-xs text-muted">{others.length} more {others.length === 1 ? 'item is' : 'items are'} with your colleagues.</p> : null}
+            {others.length ? <p className="m-0 border-t border-line-soft px-3.5 py-2 text-xs text-muted-foreground">{others.length} more {others.length === 1 ? 'item is' : 'items are'} with your colleagues.</p> : null}
           </Card>
 
           <Card flush className="overflow-x-auto" title="Projects">
@@ -108,9 +109,9 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
                 const now = ph.find((x) => t.some((k) => k.phase_id === x.id && k.status !== 'done'))
                 return (
                   <div key={p.id} className="row min-h-[52px] grid-cols-[minmax(0,1fr)_130px_120px_240px_60px] text-[14px]">
-                    <span className="flex min-w-0 flex-col"><span className="truncate font-semibold">{p.name}</span><span className="truncate text-xs text-muted">Now: {now?.name ?? 'Wrapping up'}</span></span>
+                    <span className="flex min-w-0 flex-col"><span className="truncate font-semibold">{p.name}</span><span className="truncate text-xs text-muted-foreground">Now: {now?.name ?? 'Wrapping up'}</span></span>
                     <Health health={p.health} className="text-[13px]" />
-                    <Progress value={prog.get(p.id) ?? 0} width={60} />
+                    <ProgressRing value={prog.get(p.id) ?? 0} size={38} />
                     <span className="flex gap-[3px]">
                       {ph.map((x) => {
                         const pts = t.filter((k) => k.phase_id === x.id)
@@ -130,7 +131,7 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
           {updates?.[0] ? <UpdateCard u={updates[0]} projectName={updates[0].projects?.name} /> : null}
           <Card flush title="Upcoming milestones">
             {nextMilestones.length ? nextMilestones.map((m) => (
-              <div key={m.id} className="row min-h-9 grid-cols-[56px_minmax(0,1fr)]"><span className="font-mono text-xs text-muted">{shortDate(m.due_date)}</span><span className="truncate">{m.title}</span></div>
+              <div key={m.id} className="row min-h-9 grid-cols-[56px_minmax(0,1fr)]"><span className="font-mono text-xs text-muted-foreground">{shortDate(m.due_date)}</span><span className="truncate">{m.title}</span></div>
             )) : <Empty title="No upcoming milestones" />}
           </Card>
           <YourTeam />

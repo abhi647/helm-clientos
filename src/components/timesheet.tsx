@@ -38,10 +38,10 @@ export function TimesheetForm({ person, rows, approve, sendBack }: { person: str
             <label key={r.id} className="row cursor-pointer grid-cols-[28px_80px_minmax(0,1fr)_minmax(0,1fr)_64px_minmax(0,1fr)] hover:bg-head">
               <input type="checkbox" name="entry" value={r.id} defaultChecked aria-label={`${r.date} ${r.task}`} />
               <span className="font-mono text-xs">{r.date}</span>
-              <span className="truncate text-xs text-muted">{r.where}</span>
+              <span className="truncate text-xs text-muted-foreground">{r.where}</span>
               <span className="truncate">{r.task}</span>
-              <span className="text-right font-mono text-xs">{r.hours}{r.billable ? '' : <span className="ml-1 text-muted" title="Not billable">nb</span>}</span>
-              <span className="truncate text-xs text-muted">{r.note}</span>
+              <span className="text-right font-mono text-xs">{r.hours}{r.billable ? '' : <span className="ml-1 text-muted-foreground" title="Not billable">nb</span>}</span>
+              <span className="truncate text-xs text-muted-foreground">{r.note}</span>
             </label>
           ))}
         </div>

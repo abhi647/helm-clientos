@@ -59,7 +59,7 @@ export default async function Admin() {
 
   return (
     <>
-      <PageHeader title="Admin" meta={<span className="text-xs text-muted">Seven Billion organisation settings</span>}
+      <PageHeader title="Admin" meta={<span className="text-xs text-muted-foreground">Seven Billion organisation settings</span>}
         actions={<Link href="/admin/health" className="btn">System health</Link>} />
       <div className="flex flex-wrap items-start gap-3 p-4">
         <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-3">
@@ -69,8 +69,8 @@ export default async function Admin() {
               {(staff ?? []).map((p) => (
                 <div key={p.id} className="row grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px_150px]">
                   <span className="flex min-w-0 items-center gap-2"><Avatar name={p.full_name} /><span className="truncate font-medium">{p.full_name}</span>{p.id === me.id ? <Chip>You</Chip> : null}</span>
-                  <span className="truncate text-xs text-muted">{p.email}</span>
-                  <span className="text-xs text-muted">{lastSeen.get(p.id) ? relativeTime(lastSeen.get(p.id)!) : 'Never'}</span>
+                  <span className="truncate text-xs text-muted-foreground">{p.email}</span>
+                  <span className="text-xs text-muted-foreground">{lastSeen.get(p.id) ? relativeTime(lastSeen.get(p.id)!) : 'Never'}</span>
                   <span>{p.id === me.id ? <span className="text-xs">{label(p.internal_role ?? '')}</span>
                     : <RoleSelect userId={p.id} role={removed.has(p.id) ? 'remove' : p.internal_role!} />}</span>
                 </div>
@@ -85,8 +85,8 @@ export default async function Admin() {
                 <div key={c.id} className="row grid-cols-[minmax(0,1fr)_80px_120px_120px_170px]">
                   <Link href={`/customers/${c.id}`} className="truncate font-medium">{c.name}</Link>
                   <span className="font-mono text-xs">{(activeProjects ?? []).filter((p) => p.customer_id === c.id).length}</span>
-                  <span className="truncate font-mono text-xs text-muted">{c.hubspot_company_id ?? '–'}</span>
-                  <span className="truncate font-mono text-xs text-muted">{c.zoho_customer_id ?? '–'}</span>
+                  <span className="truncate font-mono text-xs text-muted-foreground">{c.hubspot_company_id ?? '–'}</span>
+                  <span className="truncate font-mono text-xs text-muted-foreground">{c.zoho_customer_id ?? '–'}</span>
                   <AccountOwnerSelect customerId={c.id} value={c.account_owner_id ?? ''} people={(staff ?? []).map((s) => ({ id: s.id, name: s.full_name }))} />
                 </div>
               ))}
@@ -97,7 +97,7 @@ export default async function Admin() {
             <div className="row row-head grid-cols-[minmax(0,1fr)_minmax(0,1fr)_90px]"><span>When</span><span>Then</span><span /></div>
             {RULES.map((r) => (
               <div key={r.key} className="row grid-cols-[minmax(0,1fr)_minmax(0,1fr)_90px] py-1">
-                <span>{r.when}</span><span className="text-muted">{r.then}</span>
+                <span>{r.when}</span><span className="text-muted-foreground">{r.then}</span>
                 <AutomationToggle ruleKey={r.key} enabled={enabled.get(r.key) ?? true} />
               </div>
             ))}
@@ -113,7 +113,7 @@ export default async function Admin() {
                 <option value="pm">PM / Account manager</option><option value="consultant">Developer / Consultant</option>
                 <option value="finance">Finance</option><option value="ceo">CEO</option><option value="admin">Admin</option>
               </select>
-              <p className="m-0 text-xs text-muted">They get an email link. Sign-in is by email link or Google, never by password.</p>
+              <p className="m-0 text-xs text-muted-foreground">They get an email link. Sign-in is by email link or Google, never by password.</p>
             </ActionForm>
           </Card>
           <Card title="Add a customer">
@@ -129,29 +129,29 @@ export default async function Admin() {
           <Card flush title="Security">
             <div className="row grid-cols-[minmax(0,1fr)_96px] py-1.5">
               <span className="flex min-w-0 flex-col"><span className="font-medium">Sign-in</span>
-                <span className="text-xs text-muted">Email link or code{process.env.NEXT_PUBLIC_GOOGLE_SIGNIN === 'true' ? ', Google' : ''}{process.env.NEXT_PUBLIC_MICROSOFT_SIGNIN === 'true' ? ', Microsoft' : ''}. Invite-only: only people invited here can sign in, whichever way they choose.</span></span>
+                <span className="text-xs text-muted-foreground">Email link or code{process.env.NEXT_PUBLIC_GOOGLE_SIGNIN === 'true' ? ', Google' : ''}{process.env.NEXT_PUBLIC_MICROSOFT_SIGNIN === 'true' ? ', Microsoft' : ''}. Invite-only: only people invited here can sign in, whichever way they choose.</span></span>
               <span className="text-right"><Chip tone="good">Invite-only</Chip></span>
             </div>
             <div className="row grid-cols-[minmax(0,1fr)_96px] py-1.5">
               <span className="flex min-w-0 flex-col"><span className="font-medium">Virus scanning</span>
-                <span className="text-xs text-muted">{e.CLAMAV_HOST ? `ClamAV at ${e.CLAMAV_HOST}` : 'No scanner set: files get a type check only (set CLAMAV_HOST)'}{blocked ? ` · ${blocked} blocked` : ''}{unscanned ? ` · ${unscanned} not scanned` : ''}</span></span>
+                <span className="text-xs text-muted-foreground">{e.CLAMAV_HOST ? `ClamAV at ${e.CLAMAV_HOST}` : 'No scanner set: files get a type check only (set CLAMAV_HOST)'}{blocked ? ` · ${blocked} blocked` : ''}{unscanned ? ` · ${unscanned} not scanned` : ''}</span></span>
               <span className="text-right">{e.CLAMAV_HOST ? <Chip tone="good">On</Chip> : <Chip tone="warn">Not set up</Chip>}</span>
             </div>
             <div className="row grid-cols-[minmax(0,1fr)_96px] py-1.5">
               <span className="flex min-w-0 flex-col"><span className="font-medium">Removing access</span>
-                <span className="text-xs text-muted">Takes effect on the next click; all sessions end.</span></span>
+                <span className="text-xs text-muted-foreground">Takes effect on the next click; all sessions end.</span></span>
               <span className="text-right"><Chip tone="good">Instant</Chip></span>
             </div>
             <div className="row grid-cols-[minmax(0,1fr)_96px] py-1.5">
               <span className="flex min-w-0 flex-col"><span className="font-medium">Consultants see only their customers</span>
-                <span className="text-xs text-muted">When on, a consultant sees a customer only if they are on its account team, run one of its projects or own one of its tasks. Admins, the CEO, PMs and finance see every customer.</span></span>
+                <span className="text-xs text-muted-foreground">When on, a consultant sees a customer only if they are on its account team, run one of its projects or own one of its tasks. Admins, the CEO, PMs and finance see every customer.</span></span>
               <span className="flex justify-end"><ConsultantScopeToggle enabled={!!org?.consultants_see_own_customers} /></span>
             </div>
           </Card>
           <Card flush title="Integrations">
             {integrations.map((i) => (
               <div key={i.name} className="row grid-cols-[minmax(0,1fr)_96px] py-1.5">
-                <span className="flex min-w-0 flex-col"><span className="font-medium">{i.name}</span><span className="truncate text-xs text-muted">{i.note}</span></span>
+                <span className="flex min-w-0 flex-col"><span className="font-medium">{i.name}</span><span className="truncate text-xs text-muted-foreground">{i.note}</span></span>
                 <span className="text-right">{i.ok ? <Chip tone="good">Connected</Chip> : <Chip tone="warn">Not set up</Chip>}</span>
               </div>
             ))}

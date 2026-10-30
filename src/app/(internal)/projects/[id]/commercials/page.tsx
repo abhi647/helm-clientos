@@ -16,10 +16,10 @@ export default async function Commercials({ params }: { params: Promise<{ id: st
       <Card title="Commercials" extra="Internal · CEO, finance and admin only">
         {data ? (
           <dl className="m-0 grid grid-cols-[150px_minmax(0,1fr)] gap-y-2 text-[13px]">
-            <dt className="text-muted">Billing model</dt><dd className="m-0">{data.billing_model ?? '–'}</dd>
-            <dt className="text-muted">Contract value</dt><dd className="m-0 font-mono">{money(data.contract_value, data.currency)}</dd>
-            <dt className="text-muted">PO number</dt><dd className="m-0 font-mono">{data.po_number ?? '–'}</dd>
-            <dt className="text-muted">Notes</dt><dd className="m-0">{data.notes ?? '–'}</dd>
+            <dt className="text-muted-foreground">Billing model</dt><dd className="m-0">{data.billing_model ?? '–'}</dd>
+            <dt className="text-muted-foreground">Contract value</dt><dd className="m-0 font-mono">{money(data.contract_value, data.currency)}</dd>
+            <dt className="text-muted-foreground">PO number</dt><dd className="m-0 font-mono">{data.po_number ?? '–'}</dd>
+            <dt className="text-muted-foreground">Notes</dt><dd className="m-0">{data.notes ?? '–'}</dd>
           </dl>
         ) : <Empty title="No commercials recorded">Add them from the signed SOW.</Empty>}
       </Card>

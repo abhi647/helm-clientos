@@ -27,7 +27,7 @@ export default async function ProjectSettings({ params }: { params: Promise<{ id
     <div className="flex max-w-[760px] flex-col gap-3 p-4">
       <Card title="Delete this project" extra="Admin and CEO">
         {billed ? (
-          <p className="m-0 text-xs text-muted">
+          <p className="m-0 text-xs text-muted-foreground">
             {p.name} has billing history ({n(billed, 'statement')} sent to or approved by the customer), so it is kept for your records.
             Mark it <b>Completed</b> in the header instead: it leaves the active lists and the customer still sees its history.
           </p>
@@ -36,7 +36,7 @@ export default async function ProjectSettings({ params }: { params: Promise<{ id
             <summary className="cursor-pointer text-xs font-semibold text-crit-ink">Delete {p.name} and everything in it</summary>
             <ActionForm action={deleteProject} submit="Delete for good" className="mt-2" resetOnSuccess={false}>
               <input type="hidden" name="project_id" value={p.id} />
-              <p className="m-0 text-xs text-muted">
+              <p className="m-0 text-xs text-muted-foreground">
                 Removes its plan ({n(tasks.count, 'task')}), {n(requests.count, 'request')}, {n(documents.count, 'file')} and {n(meetings.count, 'meeting')},
                 with their comments, approvals, decisions, updates and logged time, for the customer too. This cannot be undone.
                 To keep it but take it off the active lists, mark it Completed instead.

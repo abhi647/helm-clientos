@@ -28,7 +28,7 @@ export default async function ImportPage() {
 
   return (
     <>
-      <PageHeader title="Import from HubSpot & Zoho" meta={<Link href="/admin" className="text-xs text-muted no-underline hover:text-ink">← Admin</Link>} />
+      <PageHeader title="Import from HubSpot & Zoho" meta={<Link href="/admin" className="text-xs text-muted-foreground no-underline hover:text-ink">← Admin</Link>} />
       <div className="flex max-w-[1100px] flex-col gap-3 p-4">
         {'error' in loaded ? (
           <Card><p role="alert" className="m-0 text-[13px] text-crit-ink">{loaded.error}</p></Card>
@@ -42,7 +42,7 @@ export default async function ImportPage() {
                 <b>{loaded.plan.projects.reduce((a, p) => a + p.deals.length, 0)}</b> won HubSpot deals.
                 {loaded.zoho ? ' Zoho invoices and payments are imported and linked to their projects by invoice number.' : ' Zoho is not connected, so invoices are skipped.'}
               </p>
-              <p className="mt-1.5 mb-0 text-xs text-muted">
+              <p className="mt-1.5 mb-0 text-xs text-muted-foreground">
                 Each deal is a billing period. Deals with the same project name under a customer become one project; change a name to
                 merge or split. Contacts are added as people to invite; nobody is emailed. Deals and invoices are visible to admin, CEO and finance only.
               </p>
@@ -57,15 +57,15 @@ export default async function ImportPage() {
                     <div className="flex flex-wrap items-center gap-2 bg-head px-3 py-2 text-[13px]">
                       <b>{p.name}</b>
                       <Chip tone={p.status === 'active' ? 'info' : 'neutral'}>{p.status === 'active' ? 'Active' : 'Completed'}</Chip>
-                      <span className="font-mono text-xs text-muted">{shortDate(p.start)} → {shortDate(p.end)} · {p.deals.length} deal{p.deals.length === 1 ? '' : 's'}</span>
+                      <span className="font-mono text-xs text-muted-foreground">{shortDate(p.start)} → {shortDate(p.end)} · {p.deals.length} deal{p.deals.length === 1 ? '' : 's'}</span>
                     </div>
                     <div className="overflow-x-auto">
                       <div className="min-w-[720px]">
                         {p.deals.map((d) => (
                           <div key={d.id} className="row grid-cols-[minmax(0,1fr)_140px_140px_220px] py-1">
                             <span className="truncate" title={d.name}>{d.name}</span>
-                            <span className="truncate text-xs text-muted">{d.stageLabel}</span>
-                            <span className="font-mono text-xs text-muted">{d.invoiceNumber ?? '–'}</span>
+                            <span className="truncate text-xs text-muted-foreground">{d.stageLabel}</span>
+                            <span className="font-mono text-xs text-muted-foreground">{d.invoiceNumber ?? '–'}</span>
                             <input name={`p_${d.id}`} defaultValue={p.name} aria-label={`Project for ${d.name}`} className="input" />
                           </div>
                         ))}

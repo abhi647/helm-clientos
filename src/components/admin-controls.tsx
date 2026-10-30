@@ -32,7 +32,7 @@ export function AutomationToggle({ ruleKey, enabled }: { ruleKey: Parameters<typ
       <span className={cn('relative h-[18px] w-8 rounded-full transition-colors', on ? 'bg-good' : 'bg-[#c4cdd0]')}>
         <span className={cn('absolute top-[2px] size-[14px] rounded-full bg-white transition-all', on ? 'left-4' : 'left-[2px]')} />
       </span>
-      <span className={on ? 'text-good-ink' : 'text-muted'}>{on ? 'On' : 'Off'}</span>
+      <span className={on ? 'text-good-ink' : 'text-muted-foreground'}>{on ? 'On' : 'Off'}</span>
     </button>
   )
 }
@@ -48,7 +48,7 @@ export function ConsultantScopeToggle({ enabled }: { enabled: boolean }) {
       <span className={cn('relative h-[18px] w-8 rounded-full transition-colors', on ? 'bg-good' : 'bg-[#c4cdd0]')}>
         <span className={cn('absolute top-[2px] size-[14px] rounded-full bg-white transition-all', on ? 'left-4' : 'left-[2px]')} />
       </span>
-      <span className={on ? 'text-good-ink' : 'text-muted'}>{on ? 'On' : 'Off'}</span>
+      <span className={on ? 'text-good-ink' : 'text-muted-foreground'}>{on ? 'On' : 'Off'}</span>
     </button>
   )
 }

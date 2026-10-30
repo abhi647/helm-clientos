@@ -2,7 +2,9 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ProjectState } from '@/components/project-state'
 import { Tabs } from '@/components/shell/nav'
-import { Chip, Health, Progress } from '@/components/ui'
+import { Building2, CalendarRange, ChevronRight, LayoutTemplate, UserRound } from 'lucide-react'
+import { Chip, Health } from '@/components/ui'
+import { ProgressRing } from '@/components/viz'
 import { shortDate } from '@/lib/format'
 import { canManage, canSeeCommercials, canSeeFinance, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
@@ -23,25 +25,31 @@ export default async function ProjectLayout({ children, params }: { children: Re
   const base = `/projects/${id}`
   return (
     <>
-      <header className="border-b border-line bg-white px-4 pt-2">
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-muted">
-          <Link href="/customers" className="text-muted no-underline hover:text-ink">Customers</Link><span>/</span>
-          <Link href={`/customers/${p.customers?.id}`} className="text-muted no-underline hover:text-ink">{p.customers?.name}</Link><span>/</span>
-          <span className="text-ink">{p.name}</span>
+      <header className="border-b border-border px-4 pt-3">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Link href="/customers" className="text-muted-foreground no-underline hover:text-ink">Customers</Link><ChevronRight aria-hidden className="size-3.5" />
+          <Link href={`/customers/${p.customers?.id}`} className="text-muted-foreground no-underline hover:text-ink">{p.customers?.name}</Link><ChevronRight aria-hidden className="size-3.5" />
+          <span className="truncate text-ink">{p.name}</span>
         </nav>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
-          <h1 className="m-0 text-lg font-semibold">{p.name}</h1>
-          <Health health={p.health} />
-          <Progress value={pct} />
-          <span className="font-mono text-xs text-muted">{shortDate(p.start_date)} → {shortDate(p.end_date)}</span>
-          <span className="text-xs text-muted">PM <b className="font-medium text-ink">{p.pm?.full_name ?? '–'}</b></span>
-          <span className="text-xs text-muted">Customer lead <b className="font-medium text-ink">{p.lead?.full_name ?? '–'}</b></span>
-          {internal?.template_key ? <span className="text-xs text-muted">Template <b className="font-medium text-ink">{templateByKey(internal.template_key)?.name ?? internal.template_key}</b></span> : null}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-2 pb-2">
+          <ProgressRing value={pct} size={40} />
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="m-0 text-[19px] leading-tight font-semibold tracking-[-0.02em]">{p.name}</h1>
+              <Health health={p.health} />
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5"><CalendarRange aria-hidden className="size-3.5" /><span className="tabular">{shortDate(p.start_date)} → {shortDate(p.end_date)}</span></span>
+              <span className="inline-flex items-center gap-1.5"><UserRound aria-hidden className="size-3.5" />PM <b className="font-medium text-ink">{p.pm?.full_name ?? '–'}</b></span>
+              <span className="inline-flex items-center gap-1.5"><Building2 aria-hidden className="size-3.5" />Customer lead <b className="font-medium text-ink">{p.lead?.full_name ?? '–'}</b></span>
+              {internal?.template_key ? <span className="inline-flex items-center gap-1.5"><LayoutTemplate aria-hidden className="size-3.5" />{templateByKey(internal.template_key)?.name ?? internal.template_key}</span> : null}
+            </div>
+          </div>
           {canManage(me) ? <span className="ml-auto"><ProjectState projectId={p.id} health={p.health} status={p.status} /></span> : null}
         </div>
         <Tabs items={[
           { href: base, label: 'Plan', exact: true },
-          { href: `${base}/requests`, label: <>Requests {openReq ? <Chip className="ml-1 h-4 px-1.5">{openReq}</Chip> : null}</> },
+          { href: `${base}/requests`, label: <>Requests {openReq ? <Chip className="ml-1 h-[18px] px-1.5">{openReq}</Chip> : null}</> },
           { href: `${base}/updates`, label: 'Updates' },
           { href: `${base}/documents`, label: 'Documents' },
           { href: `${base}/meetings`, label: 'Meetings' },

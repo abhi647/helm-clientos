@@ -2,17 +2,21 @@
 
 import { startTransition, useActionState, useRef, useState, useTransition } from 'react'
 import { Lock, Users } from 'lucide-react'
+import { toast } from 'sonner'
 import type { ActionResult } from '@/app/_actions/shared'
 import { MentionTextarea, type Person } from '@/components/mention-textarea'
 import { cn } from '@/components/ui'
 
 type FormAction = (prev: ActionResult | null, form: FormData) => Promise<ActionResult>
 
+// success is announced as a toast (it may outlive the form, e.g. a drawer that closes); a refusal stays next to the form
 function Message({ state }: { state: ActionResult | null }) {
-  if (!state) return null
-  return state.ok
-    ? state.message ? <p role="status" className="m-0 text-xs font-medium text-good-ink">{state.message}</p> : null
-    : <p role="alert" className="m-0 text-xs text-crit-ink">{state.error}</p>
+  if (!state || state.ok) return null
+  return <p role="alert" className="m-0 text-xs text-crit-ink">{state.error}</p>
+}
+const announce = (res: ActionResult, fallback?: string) => {
+  if (res.ok && (res.message ?? fallback)) toast.success(res.message ?? fallback)
+  return res
 }
 
 /**
@@ -56,7 +60,7 @@ export function ActionForm({ action, children, submit, className, resetOnSuccess
 }) {
   const ref = useRef<HTMLFormElement>(null)
   const [state, run, pending] = useActionState<ActionResult | null, FormData>(async (prev, form) => {
-    const res = await action(prev, form)
+    const res = announce(await action(prev, form), 'Saved')
     if (res.ok && resetOnSuccess) ref.current?.reset()
     return res
   }, null)
@@ -98,18 +102,18 @@ export function CommentBox({ action, entityType, entityId, customerId, staff, de
         className={cn(staff && vis === 'internal' && 'border-dashed border-internal-line bg-[#f7f8f9]')} />
       <div className="flex flex-wrap items-center gap-2">
         {staff ? (
-          <span role="radiogroup" aria-label="Who can see this comment" className="inline-flex h-7 overflow-hidden rounded-md border border-[#d5dcdf]">
+          <span role="radiogroup" aria-label="Who can see this comment" className="inline-flex h-7 overflow-hidden rounded-md border border-control">
             {(['internal', 'shared'] as const).map((v) => (
               <button key={v} type="button" role="radio" aria-checked={vis === v} onClick={() => setVis(v)}
                 className={cn('inline-flex cursor-pointer items-center gap-1 border-0 px-2.5 text-xs font-semibold',
-                  vis === v ? (v === 'internal' ? 'bg-internal-bg text-internal-ink' : 'bg-shared-bg text-link') : 'bg-white text-muted')}>
+                  vis === v ? (v === 'internal' ? 'bg-internal-bg text-internal-ink' : 'bg-shared-bg text-link') : 'bg-white text-muted-foreground')}>
                 {v === 'internal' ? <Lock className="size-3" aria-hidden /> : <Users className="size-3" aria-hidden />}
                 {v === 'internal' ? 'Internal' : 'Shared with customer'}
               </button>
             ))}
           </span>
         ) : null}
-        <span className="text-xs text-muted">
+        <span className="text-xs text-muted-foreground">
           {staff ? (vis === 'internal' ? 'Only Seven Billion will see this.' : 'The customer will see this and be notified.') : 'Seven Billion will be notified.'}
         </span>
         <button type="submit" disabled={pending} className="btn ml-auto">{pending ? 'Posting…' : 'Post'}</button>
@@ -131,7 +135,7 @@ export function ActionButton({ run, children, primary, className, confirm, guard
         onClick={() => {
           if (stoppedBy(guard)) return
           if (confirm && !window.confirm(confirm)) return
-          start(async () => setState(await run()))
+          start(async () => setState(announce(await run(), 'Done')))
         }}>
         {pending ? 'Working…' : children}
       </button>
@@ -148,13 +152,18 @@ export function StatusSelect<T extends string>({ value, options, onChange, label
   const [error, setError] = useState<string | null>(null)
   return (
     <span className="inline-flex items-center gap-1">
-      <select aria-label={label} disabled={pending} defaultValue={value} className="input h-7 py-0 text-xs"
+      <select aria-label={label} disabled={pending} defaultValue={value} className="input h-8 cursor-pointer py-0 pr-7 text-[13px] disabled:opacity-60"
         onChange={(e) => {
           const el = e.target
+          const before = value, after = el.value as T
           start(async () => {
-            const res = await onChange(el.value as T)
+            const res = await onChange(after)
             setError(res.ok ? null : res.error)
-            if (!res.ok) el.value = value   // refused: show what is still saved
+            if (!res.ok) { el.value = before; return }   // refused: show what is still saved
+            const name = options.find((o) => o.value === after)?.label ?? after
+            toast.success(`${label}: ${name}`, {
+              action: { label: 'Undo', onClick: () => void onChange(before).then((r) => { if (r.ok) { el.value = before; toast(`${label} put back`) } else toast.error(r.error) }) },
+            })
           })
         }}>
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -194,7 +203,7 @@ export function ApproveForCustomer({ action, idName, id, label = 'Approve for th
       <ActionForm action={action} submit={label} className="mt-2" resetOnSuccess={false} guard={guard}>
         <input type="hidden" name={idName} value={id} />
         <input name="note" maxLength={500} aria-label="How the customer agreed" placeholder="How they agreed, e.g. signed contract, call on 7 Oct (optional)" className="input" />
-        <p className="m-0 text-xs text-muted">{hint ?? 'The customer is told by email and it shows as approved by you for them.'}</p>
+        <p className="m-0 text-xs text-muted-foreground">{hint ?? 'The customer is told by email and it shows as approved by you for them.'}</p>
       </ActionForm>
     </details>
   )

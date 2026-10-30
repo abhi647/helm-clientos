@@ -41,9 +41,9 @@ export function RateLines({ lines, currency }: { lines: RateLine[]; currency: st
       <div className="row row-head grid-cols-[minmax(0,1fr)_170px_130px_110px]"><span>Item</span><span>Model</span><span className="text-right">Rate</span><span className="text-right">Planned</span></div>
       {lines.map((l) => (
         <div key={l.id} className="row grid-cols-[minmax(0,1fr)_170px_130px_110px]">
-          <span className="flex min-w-0 flex-col"><span className="truncate font-medium">{l.label}</span>{l.description ? <span className="truncate text-xs text-muted">{l.description}</span> : null}</span>
+          <span className="flex min-w-0 flex-col"><span className="truncate font-medium">{l.label}</span>{l.description ? <span className="truncate text-xs text-muted-foreground">{l.description}</span> : null}</span>
           <span className="text-xs">{KIND_LABEL[l.kind]}</span>
-          <span className="text-right font-mono text-xs">{money(l.rate, currency, { exact: true })} <span className="text-muted">/ {l.unit}</span></span>
+          <span className="text-right font-mono text-xs">{money(l.rate, currency, { exact: true })} <span className="text-muted-foreground">/ {l.unit}</span></span>
           <span className="text-right font-mono text-xs">{PLANNED_LABEL[l.kind] && l.planned_quantity != null ? `${l.planned_quantity} ${PLANNED_LABEL[l.kind]!.toLowerCase()}` : '–'}</span>
         </div>
       ))}
@@ -62,14 +62,14 @@ export function StatementLines({ lines, currency }: { lines: StatementLine[]; cu
       <div className="row row-head grid-cols-[minmax(0,1fr)_110px_130px_140px]"><span>Item</span><span className="text-right">Quantity</span><span className="text-right">Rate</span><span className="text-right">Amount</span></div>
       {shown.map((l) => (
         <div key={l.id} className="row grid-cols-[minmax(0,1fr)_110px_130px_140px]">
-          <span className="flex min-w-0 flex-col"><span className="truncate font-medium">{l.label}</span>{l.note ? <span className="truncate text-xs text-muted">{l.note}</span> : null}</span>
+          <span className="flex min-w-0 flex-col"><span className="truncate font-medium">{l.label}</span>{l.note ? <span className="truncate text-xs text-muted-foreground">{l.note}</span> : null}</span>
           <span className="text-right font-mono text-xs">{Number(l.quantity)} {plural(l.unit, Number(l.quantity))}</span>
           <span className="text-right font-mono text-xs">{money(l.rate, currency, { exact: true })}</span>
           <span className="text-right font-mono text-xs">{money(l.amount, currency, { exact: true })}</span>
         </div>
       ))}
       <div className="row grid-cols-[minmax(0,1fr)_140px] bg-head">
-        <span className="text-xs text-muted">Subtotal before tax. Tax and the invoice total are added in Zoho Books.</span>
+        <span className="text-xs text-muted-foreground">Subtotal before tax. Tax and the invoice total are added in Zoho Books.</span>
         <span className="text-right font-mono text-xs font-semibold">{money(subtotal, currency, { exact: true })}</span>
       </div>
     </div>

@@ -27,9 +27,9 @@ export default async function NewProject({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <PageHeader title="New project" meta={<Link href="/projects" className="text-xs text-muted no-underline hover:text-ink">← Projects</Link>} />
+      <PageHeader title="New project" meta={<Link href="/projects" className="text-xs text-muted-foreground no-underline hover:text-ink">← Projects</Link>} />
       <div className="mx-auto flex w-full max-w-[720px] flex-col gap-3 p-4">
-        <p className="m-0 text-[13px] text-muted">Won deals in HubSpot arrive on Home ready to set up. Use this for anything else, or to link a deal yourself.</p>
+        <p className="m-0 text-[13px] text-muted-foreground">Won deals in HubSpot arrive on Home ready to set up. Use this for anything else, or to link a deal yourself.</p>
         <Card title="1. Which customer?">
           <div className="flex flex-wrap gap-1.5">
             {(customers ?? []).map((c) => (
@@ -45,7 +45,7 @@ export default async function NewProject({ searchParams }: { searchParams: Promi
               <input type="hidden" name="customer_id" value={customer.id} />
               <label className="flex flex-col gap-1"><span className="label">Project name</span>
                 <input name="name" className="input" placeholder="e.g. Power BI rollout, phase 2" maxLength={160} />
-                <span className="text-xs text-muted">Leave it empty to use the HubSpot deal name.</span></label>
+                <span className="text-xs text-muted-foreground">Leave it empty to use the HubSpot deal name.</span></label>
               <label className="flex flex-col gap-1"><span className="label">Plan</span>
                 <select name="template_key" defaultValue="" className="input h-9">
                   <option value="">Blank: one Delivery phase, add tasks yourself</option>
@@ -56,7 +56,7 @@ export default async function NewProject({ searchParams }: { searchParams: Promi
                   <input type="date" name="start_date" required defaultValue={today} className="input" /></label>
                 <label className="flex flex-col gap-1"><span className="label">End (optional)</span>
                   <input type="date" name="end_date" className="input" />
-                  <span className="text-xs text-muted">A template sets it from its length.</span></label>
+                  <span className="text-xs text-muted-foreground">A template sets it from its length.</span></label>
                 <label className="flex flex-col gap-1"><span className="label">Project manager</span>
                   <select name="pm_id" defaultValue={me.id} className="input h-9">
                     {(staff ?? []).map((p) => <option key={p.id} value={p.id}>{p.full_name}{p.internal_role ? ` (${p.internal_role})` : ''}</option>)}
@@ -64,7 +64,7 @@ export default async function NewProject({ searchParams }: { searchParams: Promi
               </div>
               <label className="flex flex-col gap-1"><span className="label">HubSpot deal id (optional)</span>
                 <input name="hubspot_deal_id" inputMode="numeric" className="input" placeholder="e.g. 18234567890" maxLength={40} />
-                <span className="text-xs text-muted">Checked against HubSpot. Billing reaches Zoho through the customer&apos;s Zoho id.</span></label>
+                <span className="text-xs text-muted-foreground">Checked against HubSpot. Billing reaches Zoho through the customer&apos;s Zoho id.</span></label>
             </ActionForm>
           </Card>
         ) : null}

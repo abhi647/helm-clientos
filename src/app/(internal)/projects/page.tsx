@@ -17,7 +17,7 @@ export default async function Projects() {
   const prog = new Map((progress ?? []).map((p) => [p.project_id, p.total ? (100 * (p.done ?? 0)) / p.total : 0]))
   return (
     <>
-      <PageHeader title="Projects" meta={<span className="text-xs text-muted">{projects?.length ?? 0} projects</span>}
+      <PageHeader title="Projects" meta={<span className="text-xs text-muted-foreground">{projects?.length ?? 0} projects</span>}
         actions={canManage(me) ? <Link href="/projects/new" className="btn btn-primary">+ New project</Link> : null} />
       <div className="p-4">
         <Card flush className="overflow-x-auto">
@@ -31,7 +31,7 @@ export default async function Projects() {
                   <Health health={p.health} />
                   <Progress value={prog.get(p.id) ?? 0} width={50} />
                   <span className="truncate">{p.pm?.full_name ?? '–'}</span>
-                  <span className="font-mono text-xs text-muted">{shortDate(p.start_date)} → {shortDate(p.end_date)}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{shortDate(p.start_date)} → {shortDate(p.end_date)}</span>
                   <span className="text-xs capitalize">{p.status.replace('_', ' ')}</span>
                 </div>
               ))}

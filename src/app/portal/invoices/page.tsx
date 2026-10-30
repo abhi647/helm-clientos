@@ -27,7 +27,7 @@ export default async function PortalInvoices() {
                   <span className="truncate font-mono text-xs" title={i.number}>{i.number}</span>
                   <span className="text-right font-mono text-xs">{money(i.total, i.currency)}</span>
                   <span className="text-right font-mono text-xs">{money(i.balance, i.currency)}</span>
-                  <span className="font-mono text-xs text-muted">{shortDate(i.issued_on)}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{shortDate(i.issued_on)}</span>
                   <span className={cn('font-mono text-xs', late && 'font-semibold text-crit-ink')}>{shortDate(i.due_on)}</span>
                   <span>{i.status === 'paid' ? <Chip tone="good">Paid</Chip> : late ? <Chip tone="crit">Overdue</Chip> : <Chip tone="info">Due</Chip>}</span>
                 </div>

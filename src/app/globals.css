@@ -1,75 +1,183 @@
 @import "tailwindcss";
 
-/* 7B Client OS design tokens (compact enterprise). Indicator hues are validated for colour-blind separation;
-   every status also carries a word, so colour is never the only signal. */
-@theme {
-  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+@custom-variant dark (&:is(.dark *));
 
-  --color-ink: #13343b;
-  --color-muted: #5b6b70;
-  --color-line: #e2e7e9;
-  --color-line-soft: #eef1f2;
-  --color-ground: #f4f6f7;
-  --color-head: #f7f9fa;
-  --color-rail: #0f2a30;
-  --color-rail-hover: #1b3d45;
-  --color-link: #1a6e7c;
-  --color-brand: #20b8cd;
-  --color-selected: #e8f7fa;
-
-  --color-good: #0ca30c;
-  --color-good-ink: #0a6e0a;
-  --color-good-bg: #e5f5e5;
-  --color-info: #2a78d6;
-  --color-info-ink: #1c5cab;
-  --color-info-bg: #e4eefb;
-  --color-warn: #eda100;
-  --color-warn-ink: #7a5200;
-  --color-warn-bg: #fdf2d6;
-  --color-crit: #d03b3b;
-  --color-crit-ink: #a32b2b;
-  --color-crit-bg: #fbeaea;
-  --color-review: #4a3aa7;
-  --color-review-bg: #eceaf8;
-  --color-neutral-bg: #eef1f2;
-  --color-neutral-ink: #4a5b60;
-  --color-internal-bg: #eef0f2;
-  --color-internal-ink: #3f4a4e;
-  --color-internal-line: #8a979c;
-  --color-shared-bg: #e6f4f6;
-
-  --radius-sm: 3px;
-  --radius-md: 4px;
-  --radius-lg: 8px;
-  --shadow-card: 0 1px 2px rgb(15 42 48 / .05), 0 1px 1px rgb(15 42 48 / .03);
-  --shadow-pop: 0 8px 24px rgb(15 42 48 / .12), 0 2px 6px rgb(15 42 48 / .06);
+/* Helm design tokens on the overtrue/ui palette: Ultramarine accent, Ink neutrals, a matched chart palette.
+   shadcn/ui semantic variables come first; Helm's older names (ink, line, head, good, warn…) map onto them so every
+   screen shares one palette. Every status also carries a word, so colour is never the only signal. */
+:root {
+  --radius: 0.5rem;
+  --background: #fafafa;
+  --foreground: #202020;
+  --card: #ffffff;
+  --card-foreground: #202020;
+  --popover: #ffffff;
+  --popover-foreground: #202020;
+  --primary: #2a5bff;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #202020;
+  --muted: #f5f5f5;
+  --muted-foreground: #666666;
+  --accent: #ecf2ff;
+  --accent-foreground: #2a5bff;
+  --destructive: #d82525;
+  --destructive-foreground: #ffffff;
+  --border: #e5e5e5;
+  --input: #d4d4d4;
+  --ring: #2a5bff;
+  --chart-1: #2a5bff;
+  --chart-2: #0e9767;
+  --chart-3: #dc990f;
+  --chart-4: #9157f1;
+  --chart-5: #dc4797;
+  --sidebar: #f7f7f7;
+  --sidebar-foreground: #202020;
+  --sidebar-accent: #ececec;
+  --sidebar-border: #e8e8e8;
 }
 
+.dark {
+  --background: #121212;
+  --foreground: #eeeeee;
+  --card: #1b1b1b;
+  --card-foreground: #eeeeee;
+  --popover: #1b1b1b;
+  --popover-foreground: #eeeeee;
+  --primary: #7aa1fc;
+  --primary-foreground: #000000;
+  --secondary: #242424;
+  --secondary-foreground: #eeeeee;
+  --muted: #242424;
+  --muted-foreground: #a3a3a3;
+  --accent: #162241;
+  --accent-foreground: #7aa1fc;
+  --destructive: #f87171;
+  --destructive-foreground: #000000;
+  --border: #303030;
+  --input: #4a4a4a;
+  --ring: #7aa1fc;
+  --chart-1: #7aa1fc;
+  --chart-2: #4fcf98;
+  --chart-3: #febd54;
+  --chart-4: #b192fa;
+  --chart-5: #f47cb6;
+  --sidebar: #161616;
+  --sidebar-foreground: #eeeeee;
+  --sidebar-accent: #242424;
+  --sidebar-border: #262626;
+}
+
+@theme inline {
+  --font-sans: var(--font-mona), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-border: var(--sidebar-border);
+
+  /* Helm names, kept so existing screens follow the palette */
+  --color-ink: var(--foreground);
+  --color-line: var(--border);
+  --color-line-soft: color-mix(in oklab, var(--border) 60%, transparent);
+  --color-control: var(--input);
+  --color-ground: var(--background);
+  --color-head: color-mix(in oklab, var(--muted) 70%, var(--card));
+  --color-rail: var(--sidebar);
+  --color-rail-hover: var(--sidebar-accent);
+  --color-link: var(--primary);
+  --color-brand: var(--primary);
+  --color-selected: var(--accent);
+
+  --color-good: #0e9767;
+  --color-good-ink: #0a7350;
+  --color-good-bg: #e6f6ef;
+  --color-info: #2a5bff;
+  --color-info-ink: #1f45c7;
+  --color-info-bg: #ecf2ff;
+  --color-warn: #dc990f;
+  --color-warn-ink: #8a5a00;
+  --color-warn-bg: #fdf4de;
+  --color-crit: #d82525;
+  --color-crit-ink: #a81c1c;
+  --color-crit-bg: #fdecec;
+  --color-review: #7a45e0;
+  --color-review-bg: #f3edfe;
+  --color-neutral-bg: #f0f0f0;
+  --color-neutral-ink: #555555;
+  --color-internal-bg: #f1f1f1;
+  --color-internal-ink: #444444;
+  --color-internal-line: #a3a3a3;
+  --color-shared-bg: #ecf2ff;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / .04), 0 2px 8px -2px rgb(0 0 0 / .05);
+  --shadow-pop: 0 12px 32px -8px rgb(0 0 0 / .18), 0 2px 8px rgb(0 0 0 / .06);
+
+  --animate-rise: rise .22s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+@keyframes rise { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: none } }
+
 @layer base {
+  * { border-color: var(--color-border); }
   html { color-scheme: light; }
   body {
-    background: var(--color-ground);
-    color: var(--color-ink);
+    background: var(--color-background);
+    color: var(--color-foreground);
     font-family: var(--font-sans);
     font-size: 13px;
+    line-height: 1.45;
     -webkit-font-smoothing: antialiased;
+    font-feature-settings: "ss01", "cv11";
   }
-  a { color: var(--color-link); }
-  a:hover { color: var(--color-ink); }
-  :focus-visible { outline: 2px solid var(--color-brand); outline-offset: 1px; }
+  a { color: var(--color-primary); text-underline-offset: 2px; }
+  a:hover { color: color-mix(in oklab, var(--color-primary) 80%, black); }
+  :focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
   .tabular { font-variant-numeric: tabular-nums; }
+  @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation-duration: 0s !important; transition-duration: 0s !important; } }
 }
 
 @layer components {
-  .label { @apply text-[11px] font-semibold uppercase tracking-[.06em] text-muted; }
-  .card { @apply rounded-lg border border-line bg-white shadow-card; }
-  .card-head { @apply flex min-h-10 items-center gap-2 border-b border-line-soft px-3.5 py-2; }
-  .btn { @apply inline-flex h-[30px] cursor-pointer items-center justify-center gap-1.5 rounded-md border border-[#d5dcdf] bg-white px-3 text-[13px] font-medium whitespace-nowrap text-ink no-underline shadow-[0_1px_1px_rgb(15_42_48/.04)] transition-colors hover:border-[#c3ccd0] hover:bg-head disabled:cursor-not-allowed disabled:opacity-50; }
-  .btn-primary { @apply border-ink bg-ink font-semibold text-white shadow-[0_1px_2px_rgb(15_42_48/.2)] hover:border-[#1d4750] hover:bg-[#1d4750] hover:text-white; }
-  .btn-ghost { @apply border-transparent bg-transparent text-link hover:bg-head; }
-  .input { @apply h-[30px] rounded-md border border-[#d5dcdf] bg-white px-2.5 text-[13px] text-ink outline-none transition-shadow placeholder:text-[#93a2a6] focus:border-brand focus:ring-3 focus:ring-brand/15; }
-  .textarea { @apply rounded-md border border-[#d5dcdf] bg-white px-2.5 py-2 text-[13px] text-ink outline-none transition-shadow placeholder:text-[#93a2a6] focus:border-brand focus:ring-3 focus:ring-brand/15; }
-  .row { @apply grid min-h-9 items-center gap-x-2 border-t border-line-soft px-3.5 text-[13px] transition-colors; }
-  .row-head { @apply min-h-8 border-t-0 bg-head text-[10.5px] font-semibold tracking-[.06em] text-muted uppercase; }
+  /* dense by default: 32px controls, 36px rows, 12px card padding; phones get 40px touch targets */
+  .label { @apply text-[11px] font-medium text-muted-foreground; }
+  .card { @apply rounded-lg border border-border bg-card shadow-card; }
+  .card-head { @apply flex min-h-10 items-center gap-2 border-b border-line-soft px-3.5 py-1.5; }
+  .btn { @apply inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-border bg-card px-3 text-[13px] font-medium whitespace-nowrap text-foreground no-underline shadow-[0_1px_1px_rgb(0_0_0/.04)] transition-[background-color,border-color] hover:border-control hover:bg-muted disabled:pointer-events-none disabled:opacity-50 max-sm:h-10; }
+  .btn-primary { @apply border-primary bg-primary font-semibold text-primary-foreground shadow-[0_1px_2px_rgb(42_91_255/.3)] hover:border-primary hover:bg-[color-mix(in_oklab,var(--color-primary)_88%,black)] hover:text-primary-foreground; }
+  .btn-ghost { @apply border-transparent bg-transparent text-primary shadow-none hover:border-transparent hover:bg-accent; }
+  .input { @apply h-8 rounded-md border border-control bg-card px-2.5 text-[13px] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-[#a3a3a3] focus:border-primary focus:ring-3 focus:ring-primary/15 max-sm:h-10 max-sm:text-base; }
+  .textarea { @apply rounded-md border border-control bg-card px-2.5 py-1.5 text-[13px] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-[#a3a3a3] focus:border-primary focus:ring-3 focus:ring-primary/15 max-sm:text-base; }
+  .row { @apply grid min-h-9 items-center gap-x-2.5 border-t border-line-soft px-3.5 text-[13px] transition-colors; }
+  .row-head { @apply min-h-8 border-t-0 bg-head text-[11px] font-medium text-muted-foreground; }
 }

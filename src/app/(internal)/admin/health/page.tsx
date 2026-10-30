@@ -42,7 +42,7 @@ export default async function SystemHealth() {
 
   return (
     <>
-      <PageHeader title="System health" meta={<Link href="/admin" className="text-xs text-muted no-underline hover:text-ink">← Admin</Link>} />
+      <PageHeader title="System health" meta={<Link href="/admin" className="text-xs text-muted-foreground no-underline hover:text-ink">← Admin</Link>} />
       <div className="flex max-w-[1100px] flex-col gap-3 p-4">
         {serverKey ? (
           <p role="alert" className="card m-0 p-3 text-[13px] text-crit-ink">
@@ -53,22 +53,22 @@ export default async function SystemHealth() {
         <div className="flex flex-wrap items-start gap-3">
           <Card className="min-w-0 flex-[1_1_320px]" title="Files">
             <dl className="m-0 grid grid-cols-[1fr_auto] gap-y-1.5 text-[13px]">
-              <dt className="text-muted">Waiting for the security check</dt>
-              <dd className={`m-0 font-mono ${filesWaiting ? 'text-warn-ink' : ''}`}>{filesWaiting}{waiting.data?.[0] ? <span className="text-muted"> · oldest {relativeTime(waiting.data[0].created_at)}</span> : null}</dd>
+              <dt className="text-muted-foreground">Waiting for the security check</dt>
+              <dd className={`m-0 font-mono ${filesWaiting ? 'text-warn-ink' : ''}`}>{filesWaiting}{waiting.data?.[0] ? <span className="text-muted-foreground"> · oldest {relativeTime(waiting.data[0].created_at)}</span> : null}</dd>
             </dl>
-            <p className={`mt-2 mb-2 text-xs ${scanner.ok ? 'text-muted' : 'text-crit-ink'}`} role={scanner.ok ? undefined : 'alert'}>{scanner.ok ? <>Checked by <b className="text-ink">{scanner.text}</b></> : scanner.text}</p>
+            <p className={`mt-2 mb-2 text-xs ${scanner.ok ? 'text-muted-foreground' : 'text-crit-ink'}`} role={scanner.ok ? undefined : 'alert'}>{scanner.ok ? <>Checked by <b className="text-ink">{scanner.text}</b></> : scanner.text}</p>
             {/* always shown: hiding it once nothing waits would also hide the result of the check that just emptied the list */}
             <ActionButton run={recheckFiles} className="btn h-8 text-xs">Check waiting files now</ActionButton>
           </Card>
           <Card className="min-w-0 flex-[1_1_320px]" title="Emails">
             <dl className="m-0 grid grid-cols-[1fr_auto] gap-y-1.5 text-[13px]">
-              <dt className="text-muted">Sent in the last 24 hours</dt><dd className="m-0 font-mono">{outbox?.sent_24h ?? 0}</dd>
-              <dt className="text-muted">Waiting to send</dt>
-              <dd className="m-0 font-mono">{outbox?.queued ?? 0}{outbox?.queued ? <span className={emailsStuck ? 'text-crit-ink' : 'text-muted'}> · oldest {oldestQueuedMin} min</span> : null}</dd>
-              <dt className="text-muted">Failed in the last 7 days</dt><dd className={`m-0 font-mono ${outbox?.failed_7d ? 'text-crit-ink' : ''}`}>{outbox?.failed_7d ?? 0}</dd>
+              <dt className="text-muted-foreground">Sent in the last 24 hours</dt><dd className="m-0 font-mono">{outbox?.sent_24h ?? 0}</dd>
+              <dt className="text-muted-foreground">Waiting to send</dt>
+              <dd className="m-0 font-mono">{outbox?.queued ?? 0}{outbox?.queued ? <span className={emailsStuck ? 'text-crit-ink' : 'text-muted-foreground'}> · oldest {oldestQueuedMin} min</span> : null}</dd>
+              <dt className="text-muted-foreground">Failed in the last 7 days</dt><dd className={`m-0 font-mono ${outbox?.failed_7d ? 'text-crit-ink' : ''}`}>{outbox?.failed_7d ?? 0}</dd>
             </dl>
             {emailsStuck ? <p role="alert" className="mt-2 mb-0 text-xs text-crit-ink">Emails have been waiting over 30 minutes. Check the email job below and the Resend dashboard.</p> : null}
-            <p className="mt-3 mb-2 text-xs text-muted">
+            <p className="mt-3 mb-2 text-xs text-muted-foreground">
               Sent through <b className="text-ink">{transport.kind === 'resend' ? `Resend (${transport.from})` : 'nothing yet: no email service set up'}</b>
             </p>
             <ActionForm action={sendTestEmail} submit="Send test email" primary={false} resetOnSuccess={false}>
@@ -84,9 +84,9 @@ export default async function SystemHealth() {
                 const failing = !!r?.last_error && (!r.last_ok_at || (r.last_finished_at ?? '') > r.last_ok_at)
                 return (
                   <div key={job} className="flex flex-wrap items-center gap-2 border-b border-line-soft pb-2 text-[13px] last:border-b-0 last:pb-0">
-                    <span className="min-w-[220px] flex-1"><b>{name}</b> <span className="text-xs text-muted">· {every}</span></span>
+                    <span className="min-w-[220px] flex-1"><b>{name}</b> <span className="text-xs text-muted-foreground">· {every}</span></span>
                     {failing ? <Chip tone="crit">Failing</Chip> : stale ? <Chip tone="warn">Not run lately</Chip> : <Chip tone="good">OK</Chip>}
-                    <span className="text-xs text-muted">{r?.last_ok_at ? `last OK ${relativeTime(r.last_ok_at)}` : 'never run'}</span>
+                    <span className="text-xs text-muted-foreground">{r?.last_ok_at ? `last OK ${relativeTime(r.last_ok_at)}` : 'never run'}</span>
                     {failing ? <span className="w-full text-xs text-crit-ink">{r!.last_error}</span> : null}
                   </div>
                 )
@@ -101,10 +101,10 @@ export default async function SystemHealth() {
                 <div className="row row-head grid-cols-[110px_80px_110px_minmax(0,1fr)]"><span>When</span><span>Level</span><span>Where</span><span>What</span></div>
                 {log.map((l) => (
                   <div key={l.id} className="row grid-cols-[110px_80px_110px_minmax(0,1fr)] text-xs">
-                    <span className="text-muted">{relativeTime(l.at)}</span>
+                    <span className="text-muted-foreground">{relativeTime(l.at)}</span>
                     <span><Chip tone={l.level === 'error' ? 'crit' : l.level === 'warn' ? 'warn' : 'neutral'}>{l.level}</Chip></span>
                     <span className="font-mono">{l.source}</span>
-                    <span className="min-w-0 break-words">{l.message}{(l.detail as { path?: string })?.path ? <span className="text-muted"> · {(l.detail as { path?: string }).path}</span> : null}</span>
+                    <span className="min-w-0 break-words">{l.message}{(l.detail as { path?: string })?.path ? <span className="text-muted-foreground"> · {(l.detail as { path?: string }).path}</span> : null}</span>
                   </div>
                 ))}
               </div>

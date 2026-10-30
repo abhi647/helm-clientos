@@ -11,7 +11,7 @@ export default async function Requests({ searchParams }: { searchParams: Promise
   const { filter } = await searchParams
   return (
     <>
-      <PageHeader title="Requests" meta={<span className="text-xs text-muted">All customers</span>} actions={<Link href="/requests/new" className="btn btn-primary">+ Log a request</Link>} />
+      <PageHeader title="Requests" meta={<span className="text-xs text-muted-foreground">All customers</span>} actions={<Link href="/requests/new" className="btn btn-primary">+ Log a request</Link>} />
       <div className="p-4"><RequestList me={me} filter={parseFilter(filter)} basePath="/requests" /></div>
     </>
   )

@@ -19,11 +19,11 @@ export function PasswordForm({ next, email }: { next: string; email: string }) {
       <label htmlFor="confirm" className="label">Type it again</label>
       <input id="confirm" name="confirm" type="password" required minLength={10} maxLength={72} autoComplete="new-password"
         value={confirm} onChange={(e) => setConfirm(e.target.value)} className="input h-10 text-sm" />
-      <p className="m-0 text-xs text-muted">At least 10 characters. A short sentence is easy to remember and hard to guess.</p>
+      <p className="m-0 text-xs text-muted-foreground">At least 10 characters. A short sentence is easy to remember and hard to guess.</p>
       {state.status === 'code' ? (
         <div className="flex flex-col gap-1.5 rounded-md border border-line bg-head p-2.5">
           <label htmlFor="nonce" className="label">Code from the email</label>
-          <p className="m-0 text-xs text-muted">To protect your account, we emailed a 6-digit code to {email}. Enter it to save the new password.</p>
+          <p className="m-0 text-xs text-muted-foreground">To protect your account, we emailed a 6-digit code to {email}. Enter it to save the new password.</p>
           <input id="nonce" name="nonce" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,12}" maxLength={12} autoFocus
             placeholder="123456" className="input h-10 text-center font-mono tracking-[.3em]" />
           {state.message ? <p role="alert" className="m-0 text-xs text-crit-ink">{state.message}</p> : null}
