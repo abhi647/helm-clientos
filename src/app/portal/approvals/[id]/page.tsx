@@ -6,7 +6,8 @@ export default async function PortalApproval({ params }: { params: Promise<{ id:
   await requireCustomer()
   const { id } = await params
   const supabase = await createClient()
-  const { data } = await supabase.from('approvals').select('request_id, project_id').eq('id', id).maybeSingle()
+  const { data } = await supabase.from('approvals').select('request_id, project_id, page_id').eq('id', id).maybeSingle()
   if (!data) notFound()
-  redirect(data.request_id ? `/portal/requests/${data.request_id}` : `/portal/projects/${data.project_id}`)
+  // a document's sign-off is decided on the document itself
+  redirect(data.page_id ? `/portal/documents/pages/${data.page_id}` : data.request_id ? `/portal/requests/${data.request_id}` : `/portal/projects/${data.project_id}`)
 }

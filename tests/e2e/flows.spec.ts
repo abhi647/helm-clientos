@@ -247,7 +247,7 @@ test('uploads are type-checked and virus-scanned before anyone can open them', a
   await signIn(page, 'rahul@example.com')
   await page.goto('/projects')
   await page.getByRole('link', { name: 'Power BI Implementation' }).click()
-  await page.getByRole('link', { name: 'Documents' }).click()
+  await page.getByRole('link', { name: 'Files', exact: true }).click()
   const upload = async (name: string, mimeType: string, body: string) => {
     await page.getByLabel('File', { exact: true }).setInputFiles({ name, mimeType, buffer: Buffer.from(body) })
     await page.getByRole('button', { name: 'Upload', exact: true }).click()

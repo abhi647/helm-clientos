@@ -9,6 +9,7 @@ export type Database = {
                   Row: {
                     "approval_id": string | null,"assignee_id": string | null,"completed_at": string | null,"created_at": string,"customer_id": string,"due_date": string | null,"form_key": string | null,"id": string,"priority": Database["public"]['Enums']["priority"],"project_id": string | null,"request_id": string | null,"status": Database["public"]['Enums']["action_status"],"task_id": string | null,"title": string,"type": Database["public"]['Enums']["action_type"]
                   }
+                  ComputedFields: never
                   Insert: {
                     "approval_id"?: string | null,"assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"customer_id": string,"due_date"?: string | null,"form_key"?: string | null,"id"?: string,"priority"?: Database["public"]['Enums']["priority"],"project_id"?: string | null,"request_id"?: string | null,"status"?: Database["public"]['Enums']["action_status"],"task_id"?: string | null,"title": string,"type": Database["public"]['Enums']["action_type"]
                   }
@@ -76,6 +77,7 @@ isOneToOne: false
                   Row: {
                     "actor_id": string | null,"created_at": string,"customer_id": string,"entity_id": string | null,"entity_type": string | null,"id": number,"project_id": string | null,"summary": string,"visibility": Database["public"]['Enums']["visibility"]
                   }
+                  ComputedFields: never
                   Insert: {
                     "actor_id"?: string | null,"created_at"?: string,"customer_id": string,"entity_id"?: string | null,"entity_type"?: string | null,"id"?: never,"project_id"?: string | null,"summary": string,"visibility"?: Database["public"]['Enums']["visibility"]
                   }
@@ -125,6 +127,7 @@ isOneToOne: false
                   Row: {
                     "action": Database["public"]['Enums']["approval_action"],"actor_id": string | null,"approval_id": string,"comment": string | null,"created_at": string,"customer_id": string,"id": number,"version": number
                   }
+                  ComputedFields: never
                   Insert: {
                     "action": Database["public"]['Enums']["approval_action"],"actor_id"?: string | null,"approval_id": string,"comment"?: string | null,"created_at"?: string,"customer_id": string,"id"?: never,"version": number
                   }
@@ -166,13 +169,14 @@ isOneToOne: false
                   ]
                 },"approvals": {
                   Row: {
-                    "approver_id": string,"created_at": string,"customer_id": string,"due_date": string | null,"effort": number | null,"effort_unit": string,"id": string,"kind": string,"project_id": string | null,"request_id": string | null,"requested_by": string | null,"status": Database["public"]['Enums']["approval_status"],"summary": string,"target_date": string | null,"task_id": string | null,"title": string,"version": number
+                    "approver_id": string,"created_at": string,"customer_id": string,"due_date": string | null,"effort": number | null,"effort_unit": string,"id": string,"kind": string,"page_id": string | null,"project_id": string | null,"request_id": string | null,"requested_by": string | null,"status": Database["public"]['Enums']["approval_status"],"summary": string,"target_date": string | null,"task_id": string | null,"title": string,"version": number
                   }
+                  ComputedFields: never
                   Insert: {
-                    "approver_id": string,"created_at"?: string,"customer_id": string,"due_date"?: string | null,"effort"?: number | null,"effort_unit"?: string,"id"?: string,"kind"?: string,"project_id"?: string | null,"request_id"?: string | null,"requested_by"?: string | null,"status"?: Database["public"]['Enums']["approval_status"],"summary"?: string,"target_date"?: string | null,"task_id"?: string | null,"title": string,"version"?: number
+                    "approver_id": string,"created_at"?: string,"customer_id": string,"due_date"?: string | null,"effort"?: number | null,"effort_unit"?: string,"id"?: string,"kind"?: string,"page_id"?: string | null,"project_id"?: string | null,"request_id"?: string | null,"requested_by"?: string | null,"status"?: Database["public"]['Enums']["approval_status"],"summary"?: string,"target_date"?: string | null,"task_id"?: string | null,"title": string,"version"?: number
                   }
                   Update: {
-                    "approver_id"?: string,"created_at"?: string,"customer_id"?: string,"due_date"?: string | null,"effort"?: number | null,"effort_unit"?: string,"id"?: string,"kind"?: string,"project_id"?: string | null,"request_id"?: string | null,"requested_by"?: string | null,"status"?: Database["public"]['Enums']["approval_status"],"summary"?: string,"target_date"?: string | null,"task_id"?: string | null,"title"?: string,"version"?: number
+                    "approver_id"?: string,"created_at"?: string,"customer_id"?: string,"due_date"?: string | null,"effort"?: number | null,"effort_unit"?: string,"id"?: string,"kind"?: string,"page_id"?: string | null,"project_id"?: string | null,"request_id"?: string | null,"requested_by"?: string | null,"status"?: Database["public"]['Enums']["approval_status"],"summary"?: string,"target_date"?: string | null,"task_id"?: string | null,"title"?: string,"version"?: number
                   }
                   Relationships: [
                     {
@@ -198,6 +202,12 @@ isOneToOne: false
       columns: ["customer_id"]
 isOneToOne: false
       referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "approvals_page_id_fkey"
+      columns: ["page_id"]
+isOneToOne: false
+      referencedRelation: "pages"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "approvals_project_id_fkey"
@@ -241,6 +251,7 @@ isOneToOne: false
                   Row: {
                     "enabled": boolean,"key": string,"org_id": string,"updated_at": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "enabled"?: boolean,"key": string,"org_id": string,"updated_at"?: string
                   }
@@ -260,6 +271,7 @@ isOneToOne: false
                   Row: {
                     "approved_for_customer": boolean,"created_at": string,"created_by": string | null,"customer_id": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"from_tasks": boolean,"id": string,"invoice_error": string | null,"invoiced_at": string | null,"note": string,"period_end": string,"period_start": string,"project_id": string,"rate_card_id": string,"status": Database["public"]['Enums']["statement_status"],"submitted_at": string | null,"submitted_by": string | null,"zoho_claimed_at": string | null,"zoho_invoice_id": string | null,"zoho_invoice_number": string | null
                   }
+                  ComputedFields: never
                   Insert: {
                     "approved_for_customer"?: boolean,"created_at"?: string,"created_by"?: string | null,"customer_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"from_tasks"?: boolean,"id"?: string,"invoice_error"?: string | null,"invoiced_at"?: string | null,"note"?: string,"period_end": string,"period_start": string,"project_id": string,"rate_card_id": string,"status"?: Database["public"]['Enums']["statement_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"zoho_claimed_at"?: string | null,"zoho_invoice_id"?: string | null,"zoho_invoice_number"?: string | null
                   }
@@ -339,6 +351,7 @@ isOneToOne: false
                   Row: {
                     "author_id": string,"body": string,"created_at": string,"customer_id": string,"entity_id": string,"entity_type": string,"id": string,"mentions": (string)[],"visibility": Database["public"]['Enums']["visibility"]
                   }
+                  ComputedFields: never
                   Insert: {
                     "author_id": string,"body": string,"created_at"?: string,"customer_id": string,"entity_id": string,"entity_type": string,"id"?: string,"mentions"?: (string)[],"visibility"?: Database["public"]['Enums']["visibility"]
                   }
@@ -376,6 +389,7 @@ isOneToOne: false
                   Row: {
                     "customer_id": string,"level": number,"period_start": string,"sent_at": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "customer_id": string,"level": number,"period_start": string,"sent_at"?: string
                   }
@@ -401,6 +415,7 @@ isOneToOne: false
                   Row: {
                     "customer_id": string,"kind": string,"monthly_hours": number | null,"rollover_cap": number | null,"starts_on": string,"updated_at": string,"updated_by": string | null
                   }
+                  ComputedFields: never
                   Insert: {
                     "customer_id": string,"kind": string,"monthly_hours"?: number | null,"rollover_cap"?: number | null,"starts_on"?: string,"updated_at"?: string,"updated_by"?: string | null
                   }
@@ -438,6 +453,7 @@ isOneToOne: false
                   Row: {
                     "added_by": string | null,"added_on": string,"created_at": string,"customer_id": string,"hours": number,"id": string,"note": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "added_by"?: string | null,"added_on"?: string,"created_at"?: string,"customer_id": string,"hours": number,"id"?: string,"note"?: string
                   }
@@ -475,6 +491,7 @@ isOneToOne: false
                   Row: {
                     "answered_at": string | null,"comment": string,"customer_id": string,"expires_at": string,"id": string,"kind": Database["public"]['Enums']["csat_kind"],"period": string | null,"project_id": string | null,"recipient_id": string,"request_id": string | null,"score": number | null,"sent_at": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "answered_at"?: string | null,"comment"?: string,"customer_id": string,"expires_at"?: string,"id"?: string,"kind": Database["public"]['Enums']["csat_kind"],"period"?: string | null,"project_id"?: string | null,"recipient_id": string,"request_id"?: string | null,"score"?: number | null,"sent_at"?: string
                   }
@@ -530,6 +547,7 @@ isOneToOne: false
                   Row: {
                     "customer_id": string,"tax_label": string,"updated_at": string,"updated_by": string | null,"zoho_tax_exemption_id": string | null,"zoho_tax_id": string | null
                   }
+                  ComputedFields: never
                   Insert: {
                     "customer_id": string,"tax_label"?: string,"updated_at"?: string,"updated_by"?: string | null,"zoho_tax_exemption_id"?: string | null,"zoho_tax_id"?: string | null
                   }
@@ -567,6 +585,7 @@ isOneToOne: false
                   Row: {
                     "created_at": string,"customer_id": string,"email": string,"external_id": string | null,"full_name": string,"id": string,"invited_at": string | null,"job_title": string | null,"phone": string | null,"source": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at"?: string,"customer_id": string,"email": string,"external_id"?: string | null,"full_name": string,"id"?: string,"invited_at"?: string | null,"job_title"?: string | null,"phone"?: string | null,"source"?: string
                   }
@@ -592,6 +611,7 @@ isOneToOne: false
                   Row: {
                     "added_at": string,"added_by": string | null,"customer_id": string,"profile_id": string,"role_label": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "added_at"?: string,"added_by"?: string | null,"customer_id": string,"profile_id": string,"role_label"?: string
                   }
@@ -641,6 +661,7 @@ isOneToOne: false
                   Row: {
                     "account_owner_id": string | null,"created_at": string,"hubspot_company_id": string | null,"id": string,"name": string,"org_id": string,"zoho_customer_id": string | null
                   }
+                  ComputedFields: never
                   Insert: {
                     "account_owner_id"?: string | null,"created_at"?: string,"hubspot_company_id"?: string | null,"id"?: string,"name": string,"org_id": string,"zoho_customer_id"?: string | null
                   }
@@ -672,6 +693,7 @@ isOneToOne: false
                   Row: {
                     "created_at": string,"customer_id": string,"decided_by": string,"decided_on": string,"decision": string,"id": string,"meeting_id": string | null,"number": string,"project_id": string | null,"visibility": Database["public"]['Enums']["visibility"]
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at"?: string,"customer_id": string,"decided_by"?: string,"decided_on"?: string,"decision": string,"id"?: string,"meeting_id"?: string | null,"number"?: string,"project_id"?: string | null,"visibility"?: Database["public"]['Enums']["visibility"]
                   }
@@ -715,6 +737,7 @@ isOneToOne: false
                   Row: {
                     "created_at": string,"customer_id": string,"document_id": string,"id": string,"name": string,"note": string,"scan_status": string,"storage_path": string,"uploaded_by": string | null,"version": number
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at": string,"customer_id": string,"document_id": string,"id"?: string,"name": string,"note"?: string,"scan_status"?: string,"storage_path": string,"uploaded_by"?: string | null,"version": number
                   }
@@ -758,6 +781,7 @@ isOneToOne: false
                   Row: {
                     "archived_at": string | null,"created_at": string,"customer_id": string,"folder": string,"id": string,"mime_type": string | null,"name": string,"note": string,"project_id": string | null,"request_id": string | null,"scan_status": string,"scanned_at": string | null,"size_bytes": number | null,"storage_path": string | null,"uploaded_by": string | null,"version": number,"visibility": Database["public"]['Enums']["visibility"]
                   }
+                  ComputedFields: never
                   Insert: {
                     "archived_at"?: string | null,"created_at"?: string,"customer_id": string,"folder"?: string,"id"?: string,"mime_type"?: string | null,"name": string,"note"?: string,"project_id"?: string | null,"request_id"?: string | null,"scan_status"?: string,"scanned_at"?: string | null,"size_bytes"?: number | null,"storage_path"?: string | null,"uploaded_by"?: string | null,"version"?: number,"visibility"?: Database["public"]['Enums']["visibility"]
                   }
@@ -813,6 +837,7 @@ isOneToOne: false
                   Row: {
                     "attempts": number,"created_at": string,"id": string,"last_error": string | null,"notification_id": string | null,"provider_id": string | null,"sent_at": string | null,"status": string,"to_email": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "attempts"?: number,"created_at"?: string,"id"?: string,"last_error"?: string | null,"notification_id"?: string | null,"provider_id"?: string | null,"sent_at"?: string | null,"status"?: string,"to_email": string
                   }
@@ -832,6 +857,7 @@ isOneToOne: false
                   Row: {
                     "company_name": string,"created_at": string,"deal_name": string,"hubspot_company_id": string | null,"hubspot_deal_id": string,"id": string,"org_id": string,"owner_email": string | null,"project_id": string | null,"service": string | null,"status": Database["public"]['Enums']["setup_status"],"suggested_template": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "company_name": string,"created_at"?: string,"deal_name": string,"hubspot_company_id"?: string | null,"hubspot_deal_id": string,"id"?: string,"org_id": string,"owner_email"?: string | null,"project_id"?: string | null,"service"?: string | null,"status"?: Database["public"]['Enums']["setup_status"],"suggested_template"?: string
                   }
@@ -863,6 +889,7 @@ isOneToOne: false
                   Row: {
                     "body": string,"created_at": string,"csat_id": string | null,"customer_id": string,"id": string,"kind": Database["public"]['Enums']["feedback_kind"],"number": string,"owner_id": string | null,"project_id": string | null,"source": string,"status": Database["public"]['Enums']["feedback_status"],"submitted_by": string | null,"updated_at": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "body": string,"created_at"?: string,"csat_id"?: string | null,"customer_id": string,"id"?: string,"kind"?: Database["public"]['Enums']["feedback_kind"],"number"?: string,"owner_id"?: string | null,"project_id"?: string | null,"source"?: string,"status"?: Database["public"]['Enums']["feedback_status"],"submitted_by"?: string | null,"updated_at"?: string
                   }
@@ -930,6 +957,7 @@ isOneToOne: false
                   Row: {
                     "action_item_id": string | null,"answers": NonNullable<Json>,"created_at": string,"customer_id": string,"form_key": string,"id": string,"project_id": string | null,"submitted_by": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "action_item_id"?: string | null,"answers"?: NonNullable<Json>,"created_at"?: string,"customer_id": string,"form_key": string,"id"?: string,"project_id"?: string | null,"submitted_by": string
                   }
@@ -985,6 +1013,7 @@ isOneToOne: false
                   Row: {
                     "created_at": string,"error": string | null,"external_id": string,"id": number,"payload": NonNullable<Json>,"processed_at": string | null,"source": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at"?: string,"error"?: string | null,"external_id": string,"id"?: never,"payload": NonNullable<Json>,"processed_at"?: string | null,"source": string
                   }
@@ -998,6 +1027,7 @@ isOneToOne: false
                   Row: {
                     "balance": number | null,"currency": string,"customer_id": string,"due_on": string | null,"id": string,"issued_on": string,"number": string,"project_id": string | null,"status": string,"synced_at": string,"total": number | null,"zoho_invoice_id": string | null
                   }
+                  ComputedFields: never
                   Insert: {
                     "balance"?: number | null,"currency"?: string,"customer_id": string,"due_on"?: string | null,"id"?: string,"issued_on": string,"number": string,"project_id"?: string | null,"status": string,"synced_at"?: string,"total"?: number | null,"zoho_invoice_id"?: string | null
                   }
@@ -1035,6 +1065,7 @@ isOneToOne: false
                   Row: {
                     "job": string,"last_error": string | null,"last_finished_at": string | null,"last_ok_at": string | null,"last_result": NonNullable<Json>,"last_started_at": string | null
                   }
+                  ComputedFields: never
                   Insert: {
                     "job": string,"last_error"?: string | null,"last_finished_at"?: string | null,"last_ok_at"?: string | null,"last_result"?: NonNullable<Json>,"last_started_at"?: string | null
                   }
@@ -1048,6 +1079,7 @@ isOneToOne: false
                   Row: {
                     "assignee_id": string | null,"created_at": string,"customer_id": string,"due_date": string | null,"id": string,"meeting_id": string,"owner_side": Database["public"]['Enums']["owner_side"],"position": number,"task_id": string | null,"text": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "assignee_id"?: string | null,"created_at"?: string,"customer_id": string,"due_date"?: string | null,"id"?: string,"meeting_id": string,"owner_side"?: Database["public"]['Enums']["owner_side"],"position"?: number,"task_id"?: string | null,"text": string
                   }
@@ -1097,6 +1129,7 @@ isOneToOne: false
                   Row: {
                     "attendees": string,"created_at": string,"customer_id": string,"held_on": string,"id": string,"project_id": string | null,"summary": string,"title": string,"visibility": Database["public"]['Enums']["visibility"]
                   }
+                  ComputedFields: never
                   Insert: {
                     "attendees"?: string,"created_at"?: string,"customer_id": string,"held_on": string,"id"?: string,"project_id"?: string | null,"summary"?: string,"title": string,"visibility"?: Database["public"]['Enums']["visibility"]
                   }
@@ -1134,6 +1167,7 @@ isOneToOne: false
                   Row: {
                     "body": string,"created_at": string,"id": string,"kind": string,"link": string | null,"needs_action": boolean,"read_at": string | null,"title": string,"user_id": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "body"?: string,"created_at"?: string,"id"?: string,"kind": string,"link"?: string | null,"needs_action"?: boolean,"read_at"?: string | null,"title": string,"user_id": string
                   }
@@ -1159,6 +1193,7 @@ isOneToOne: false
                   Row: {
                     "consultants_see_own_customers": boolean,"created_at": string,"id": string,"name": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "consultants_see_own_customers"?: boolean,"created_at"?: string,"id"?: string,"name": string
                   }
@@ -1168,10 +1203,147 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"page_versions": {
+                  Row: {
+                    "content": NonNullable<Json>,"customer_id": string,"discussions": NonNullable<Json>,"id": number,"note": string | null,"page_id": string,"saved_at": string,"saved_by": string | null,"title": string,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "content": NonNullable<Json>,"customer_id": string,"discussions"?: NonNullable<Json>,"id"?: never,"note"?: string | null,"page_id": string,"saved_at"?: string,"saved_by"?: string | null,"title": string,"version": number
+                  }
+                  Update: {
+                    "content"?: NonNullable<Json>,"customer_id"?: string,"discussions"?: NonNullable<Json>,"id"?: never,"note"?: string | null,"page_id"?: string,"saved_at"?: string,"saved_by"?: string | null,"title"?: string,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "page_versions_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "page_versions_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "page_versions_page_id_fkey"
+      columns: ["page_id"]
+isOneToOne: false
+      referencedRelation: "pages"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "page_versions_saved_by_fkey"
+      columns: ["saved_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "page_versions_saved_by_fkey"
+      columns: ["saved_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"pages": {
+                  Row: {
+                    "content": NonNullable<Json>,"created_at": string,"created_by": string | null,"customer_id": string,"discussions": NonNullable<Json>,"editing_by": string | null,"editing_until": string | null,"id": string,"kind": Database["public"]['Enums']["page_kind"],"meeting_id": string | null,"project_id": string,"signed_at": string | null,"signed_by": string | null,"signed_version": number | null,"status": Database["public"]['Enums']["page_status"],"title": string,"updated_at": string,"updated_by": string | null,"version": number,"visibility": Database["public"]['Enums']["visibility"]
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"customer_id": string,"discussions"?: NonNullable<Json>,"editing_by"?: string | null,"editing_until"?: string | null,"id"?: string,"kind"?: Database["public"]['Enums']["page_kind"],"meeting_id"?: string | null,"project_id": string,"signed_at"?: string | null,"signed_by"?: string | null,"signed_version"?: number | null,"status"?: Database["public"]['Enums']["page_status"],"title": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Update: {
+                    "content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"customer_id"?: string,"discussions"?: NonNullable<Json>,"editing_by"?: string | null,"editing_until"?: string | null,"id"?: string,"kind"?: Database["public"]['Enums']["page_kind"],"meeting_id"?: string | null,"project_id"?: string,"signed_at"?: string | null,"signed_by"?: string | null,"signed_version"?: number | null,"status"?: Database["public"]['Enums']["page_status"],"title"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"visibility"?: Database["public"]['Enums']["visibility"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "pages_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "pages_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "pages_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "pages_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "pages_editing_by_fkey"
+      columns: ["editing_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "pages_editing_by_fkey"
+      columns: ["editing_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "pages_meeting_id_fkey"
+      columns: ["meeting_id"]
+isOneToOne: false
+      referencedRelation: "meetings"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "pages_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "pages_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "projects_internal"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "pages_signed_by_fkey"
+      columns: ["signed_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "pages_signed_by_fkey"
+      columns: ["signed_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "pages_updated_by_fkey"
+      columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "pages_updated_by_fkey"
+      columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"payments": {
                   Row: {
                     "amount": number | null,"currency": string,"customer_id": string,"id": string,"invoice_id": string | null,"mode": string | null,"number": string | null,"paid_on": string,"reference": string | null,"synced_at": string,"zoho_payment_id": string | null
                   }
+                  ComputedFields: never
                   Insert: {
                     "amount"?: number | null,"currency"?: string,"customer_id": string,"id"?: string,"invoice_id"?: string | null,"mode"?: string | null,"number"?: string | null,"paid_on": string,"reference"?: string | null,"synced_at"?: string,"zoho_payment_id"?: string | null
                   }
@@ -1203,6 +1375,7 @@ isOneToOne: false
                   Row: {
                     "customer_id": string,"end_date": string | null,"id": string,"name": string,"position": number,"project_id": string,"rate_line_id": string | null,"start_date": string | null,"visibility": Database["public"]['Enums']["visibility"]
                   }
+                  ComputedFields: never
                   Insert: {
                     "customer_id": string,"end_date"?: string | null,"id"?: string,"name": string,"position"?: number,"project_id": string,"rate_line_id"?: string | null,"start_date"?: string | null,"visibility"?: Database["public"]['Enums']["visibility"]
                   }
@@ -1246,6 +1419,7 @@ isOneToOne: false
                   Row: {
                     "access_revoked_at": string | null,"can_view_invoices": boolean,"created_at": string,"customer_id": string | null,"customer_role": Database["public"]['Enums']["customer_role"] | null,"email": string,"full_name": string,"id": string,"internal_role": Database["public"]['Enums']["internal_role"] | null,"kind": Database["public"]['Enums']["user_kind"],"org_id": string | null
                   }
+                  ComputedFields: never
                   Insert: {
                     "access_revoked_at"?: string | null,"can_view_invoices"?: boolean,"created_at"?: string,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email": string,"full_name"?: string,"id": string,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"kind": Database["public"]['Enums']["user_kind"],"org_id"?: string | null
                   }
@@ -1277,6 +1451,7 @@ isOneToOne: false
                   Row: {
                     "billing_model": string | null,"contract_value": number | null,"currency": string,"customer_id": string,"notes": string | null,"po_number": string | null,"project_id": string,"updated_at": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "billing_model"?: string | null,"contract_value"?: number | null,"currency"?: string,"customer_id": string,"notes"?: string | null,"po_number"?: string | null,"project_id": string,"updated_at"?: string
                   }
@@ -1314,6 +1489,7 @@ isOneToOne: true
                   Row: {
                     "closed_on": string | null,"customer_id": string,"deal_name": string,"hubspot_deal_id": string,"id": string,"imported_at": string,"invoice_number": string | null,"project_id": string,"stage_label": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "closed_on"?: string | null,"customer_id": string,"deal_name": string,"hubspot_deal_id": string,"id"?: string,"imported_at"?: string,"invoice_number"?: string | null,"project_id": string,"stage_label"?: string
                   }
@@ -1351,6 +1527,7 @@ isOneToOne: false
                   Row: {
                     "created_at": string,"customer_id": string,"customer_lead_id": string | null,"end_date": string | null,"health": Database["public"]['Enums']["health"],"hubspot_deal_id": string | null,"id": string,"name": string,"pm_id": string | null,"start_date": string | null,"status": Database["public"]['Enums']["project_status"],"template_key": string | null
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at"?: string,"customer_id": string,"customer_lead_id"?: string | null,"end_date"?: string | null,"health"?: Database["public"]['Enums']["health"],"hubspot_deal_id"?: string | null,"id"?: string,"name": string,"pm_id"?: string | null,"start_date"?: string | null,"status"?: Database["public"]['Enums']["project_status"],"template_key"?: string | null
                   }
@@ -1400,6 +1577,7 @@ isOneToOne: false
                   Row: {
                     "customer_id": string,"description": string,"id": string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"planned_quantity": number | null,"position": number,"rate": number,"rate_card_id": string,"unit": string,"zoho_item_id": string | null
                   }
+                  ComputedFields: never
                   Insert: {
                     "customer_id": string,"description"?: string,"id"?: string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"planned_quantity"?: number | null,"position"?: number,"rate": number,"rate_card_id": string,"unit"?: string,"zoho_item_id"?: string | null
                   }
@@ -1431,6 +1609,7 @@ isOneToOne: false
                   Row: {
                     "approved_for_customer": boolean,"created_at": string,"created_by": string | null,"currency": string,"customer_id": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"id": string,"notes": string,"po_number": string | null,"project_id": string,"status": Database["public"]['Enums']["rate_card_status"],"submitted_at": string | null,"submitted_by": string | null,"version": number
                   }
+                  ComputedFields: never
                   Insert: {
                     "approved_for_customer"?: boolean,"created_at"?: string,"created_by"?: string | null,"currency"?: string,"customer_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"notes"?: string,"po_number"?: string | null,"project_id": string,"status"?: Database["public"]['Enums']["rate_card_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"version"?: number
                   }
@@ -1504,6 +1683,7 @@ isOneToOne: false
                   Row: {
                     "customer_id": string,"profile_id": string,"rate_card_line_id": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "customer_id": string,"profile_id": string,"rate_card_line_id": string
                   }
@@ -1547,6 +1727,7 @@ isOneToOne: false
                   Row: {
                     "actor_id": string | null,"created_at": string,"customer_id": string,"id": number,"note": string | null,"request_id": string,"status": Database["public"]['Enums']["request_status"]
                   }
+                  ComputedFields: never
                   Insert: {
                     "actor_id"?: string | null,"created_at"?: string,"customer_id": string,"id"?: never,"note"?: string | null,"request_id": string,"status": Database["public"]['Enums']["request_status"]
                   }
@@ -1590,6 +1771,7 @@ isOneToOne: false
                   Row: {
                     "created_at": string,"customer_id": string,"desired_date": string | null,"id": string,"number": string,"owner_id": string | null,"priority": Database["public"]['Enums']["priority"],"project_id": string | null,"raised_by": string | null,"requested_by": string | null,"status": Database["public"]['Enums']["request_status"],"title": string,"type": Database["public"]['Enums']["request_type"],"updated_at": string,"what": string,"why": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at"?: string,"customer_id": string,"desired_date"?: string | null,"id"?: string,"number"?: string,"owner_id"?: string | null,"priority"?: Database["public"]['Enums']["priority"],"project_id"?: string | null,"raised_by"?: string | null,"requested_by"?: string | null,"status"?: Database["public"]['Enums']["request_status"],"title": string,"type"?: Database["public"]['Enums']["request_type"],"updated_at"?: string,"what"?: string,"why"?: string
                   }
@@ -1663,6 +1845,7 @@ isOneToOne: false
                   Row: {
                     "customer_id": string,"entry_id": string,"statement_id": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "customer_id": string,"entry_id": string,"statement_id": string
                   }
@@ -1700,6 +1883,7 @@ isOneToOne: false
                   Row: {
                     "amount": number | null,"customer_id": string,"id": string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"note": string,"position": number,"quantity": number,"rate": number,"rate_card_line_id": string,"statement_id": string,"unit": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "amount"?: never,"customer_id": string,"id"?: string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"note"?: string,"position"?: number,"quantity"?: number,"rate": number,"rate_card_line_id": string,"statement_id": string,"unit": string
                   }
@@ -1737,6 +1921,7 @@ isOneToOne: false
                   Row: {
                     "customer_id": string,"statement_id": string,"task_id": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "customer_id": string,"statement_id": string,"task_id": string
                   }
@@ -1774,6 +1959,7 @@ isOneToOne: false
                   Row: {
                     "at": string,"detail": NonNullable<Json>,"id": number,"level": string,"message": string,"source": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "at"?: string,"detail"?: NonNullable<Json>,"id"?: never,"level"?: string,"message": string,"source": string
                   }
@@ -1787,6 +1973,7 @@ isOneToOne: false
                   Row: {
                     "customer_id": string,"estimate": number,"task_id": string,"unit": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "customer_id": string,"estimate": number,"task_id": string,"unit"?: string
                   }
@@ -1818,6 +2005,7 @@ isOneToOne: true
                   Row: {
                     "assignee_id": string | null,"completed_at": string | null,"created_at": string,"created_by": string | null,"customer_id": string,"description": string,"due_date": string | null,"id": string,"owner_side": Database["public"]['Enums']["owner_side"],"parent_id": string | null,"phase_id": string | null,"position": number,"project_id": string,"rate_line_id": string | null,"request_id": string | null,"spotlight": boolean,"start_date": string | null,"statement_id": string | null,"status": Database["public"]['Enums']["task_status"],"title": string,"updated_at": string,"visibility": Database["public"]['Enums']["visibility"]
                   }
+                  ComputedFields: never
                   Insert: {
                     "assignee_id"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"customer_id": string,"description"?: string,"due_date"?: string | null,"id"?: string,"owner_side"?: Database["public"]['Enums']["owner_side"],"parent_id"?: string | null,"phase_id"?: string | null,"position"?: number,"project_id": string,"rate_line_id"?: string | null,"request_id"?: string | null,"spotlight"?: boolean,"start_date"?: string | null,"statement_id"?: string | null,"status"?: Database["public"]['Enums']["task_status"],"title": string,"updated_at"?: string,"visibility"?: Database["public"]['Enums']["visibility"]
                   }
@@ -1909,6 +2097,7 @@ isOneToOne: false
                   Row: {
                     "approved_at": string | null,"approved_by": string | null,"billable": boolean,"created_at": string,"customer_id": string,"days": number | null,"hours": number,"id": string,"note": string | null,"returned_at": string | null,"returned_note": string | null,"statement_id": string | null,"task_id": string,"user_id": string,"worked_on": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "approved_at"?: string | null,"approved_by"?: string | null,"billable"?: boolean,"created_at"?: string,"customer_id": string,"days"?: never,"hours": number,"id"?: string,"note"?: string | null,"returned_at"?: string | null,"returned_note"?: string | null,"statement_id"?: string | null,"task_id": string,"user_id": string,"worked_on"?: string
                   }
@@ -1970,6 +2159,7 @@ isOneToOne: false
                   Row: {
                     "author_id": string | null,"completed": string,"created_at": string,"customer_id": string,"health": Database["public"]['Enums']["health"],"id": string,"in_progress": string,"next_week": string,"project_id": string,"published_at": string | null,"status": Database["public"]['Enums']["update_status"],"waiting_on_customer": string,"week_of": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "author_id"?: string | null,"completed"?: string,"created_at"?: string,"customer_id": string,"health": Database["public"]['Enums']["health"],"id"?: string,"in_progress"?: string,"next_week"?: string,"project_id": string,"published_at"?: string | null,"status"?: Database["public"]['Enums']["update_status"],"waiting_on_customer"?: string,"week_of": string
                   }
@@ -2020,8 +2210,9 @@ isOneToOne: false
           Views: {
             "customers_internal": {
                   Row: {
-                    "account_owner_id": string | null,"created_at": string | null,"hubspot_company_id": string | null,"id": string | null,"name": string | null,"org_id": string | null,"zoho_customer_id": string | null
+                    "account_owner_id": string | null,"created_at": string,"hubspot_company_id": string | null,"id": string,"name": string,"org_id": string,"zoho_customer_id": string | null
                   }
+                  ComputedFields: never
                   Insert: {
                            "account_owner_id"?: string | null,"created_at"?: string | null,"hubspot_company_id"?: string | null,"id"?: string | null,"name"?: string | null,"org_id"?: string | null,"zoho_customer_id"?: string | null
                          }
@@ -2051,8 +2242,9 @@ isOneToOne: false
                   ]
                 },"directory": {
                   Row: {
-                    "access_revoked_at": string | null,"can_view_invoices": boolean | null,"created_at": string | null,"customer_id": string | null,"customer_role": Database["public"]['Enums']["customer_role"] | null,"email": string | null,"full_name": string | null,"id": string | null,"internal_role": Database["public"]['Enums']["internal_role"] | null,"kind": Database["public"]['Enums']["user_kind"] | null,"org_id": string | null
+                    "access_revoked_at": string | null,"can_view_invoices": boolean,"created_at": string,"customer_id": string | null,"customer_role": Database["public"]['Enums']["customer_role"] | null,"email": string,"full_name": string,"id": string,"internal_role": Database["public"]['Enums']["internal_role"] | null,"kind": Database["public"]['Enums']["user_kind"],"org_id": string | null
                   }
+                  ComputedFields: never
                   Insert: {
                            "access_revoked_at"?: string | null,"can_view_invoices"?: boolean | null,"created_at"?: string | null,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email"?: string | null,"full_name"?: string | null,"id"?: string | null,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"kind"?: Database["public"]['Enums']["user_kind"] | null,"org_id"?: string | null
                          }
@@ -2082,8 +2274,9 @@ isOneToOne: false
                   ]
                 },"project_progress": {
                   Row: {
-                    "done": number | null,"project_id": string | null,"total": number | null
+                    "done": number | null,"project_id": string,"total": number | null
                   }
+                  ComputedFields: never
                   Relationships: [
                     {
       foreignKeyName: "tasks_project_id_fkey"
@@ -2101,8 +2294,9 @@ isOneToOne: false
                   ]
                 },"projects_internal": {
                   Row: {
-                    "customer_id": string | null,"hubspot_deal_id": string | null,"id": string | null,"template_key": string | null
+                    "customer_id": string,"hubspot_deal_id": string | null,"id": string,"template_key": string | null
                   }
+                  ComputedFields: never
                   Insert: {
                            "customer_id"?: string | null,"hubspot_deal_id"?: string | null,"id"?: string | null,"template_key"?: string | null
                          }
@@ -2158,6 +2352,9 @@ isOneToOne: false
 { Args: { "p_project": string }; Returns: {
               "current": boolean,"id": string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"unit": string
             }[]
+                           },
+"claim_page":
+{ Args: { "p_page": string,"p_release"?: boolean }; Returns: string
                            },
 "complete_action_item":
 { Args: { "p_action": string }; Returns: undefined
@@ -2254,14 +2451,23 @@ isOneToOne: false
 "remove_from_customer_team":
 { Args: { "p_customer": string,"p_person": string }; Returns: undefined
                            },
+"request_page_signoff":
+{ Args: { "p_approver": string,"p_due"?: string,"p_note"?: string,"p_page": string }; Returns: string
+                           },
 "request_to_task":
 { Args: { "p_assignee"?: string,"p_due"?: string,"p_estimate"?: number,"p_phase"?: string,"p_project"?: string,"p_request": string,"p_shared"?: boolean,"p_unit"?: string }; Returns: string
+                           },
+"restore_page_version":
+{ Args: { "p_page": string,"p_version": number }; Returns: number
                            },
 "resubmit_approval":
 { Args: { "p_approval": string,"p_comment"?: string,"p_effort": number,"p_summary": string,"p_target"?: string,"p_unit"?: string }; Returns: undefined
                            },
 "return_time":
 { Args: { "p_entries": (string)[],"p_note": string }; Returns: number
+                           },
+"save_page":
+{ Args: { "p_base": number,"p_content": Json,"p_discussions": Json,"p_page": string,"p_title"?: string }; Returns: number
                            },
 "send_csat_pulses":
 { Args: Record<PropertyKey, never>; Returns: number
@@ -2277,6 +2483,9 @@ isOneToOne: false
                            },
 "set_line_people":
 { Args: { "p_line": string,"p_people": (string)[] }; Returns: undefined
+                           },
+"set_page_sharing":
+{ Args: { "p_page": string,"p_shared": boolean }; Returns: undefined
                            },
 "set_request_status":
 { Args: { "p_note"?: string,"p_request": string,"p_status": Database["public"]['Enums']["request_status"] }; Returns: undefined
@@ -2300,7 +2509,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "action_status": "open"|"completed"|"cancelled","action_type": "approval"|"form"|"task"|"clarification"|"uat"|"upload"|"decision"|"invoice"|"meeting_action","approval_action": "requested"|"approved"|"changes_requested"|"resubmitted"|"cancelled","approval_status": "pending"|"approved"|"changes_requested"|"cancelled","billing_kind": "day_rate"|"delivery"|"unit"|"retainer","csat_kind": "request"|"pulse"|"closure","customer_role": "customer_exec"|"customer_member","feedback_kind": "praise"|"suggestion"|"issue"|"other","feedback_status": "new"|"acknowledged"|"actioned"|"closed","health": "on_track"|"needs_attention"|"at_risk","internal_role": "admin"|"ceo"|"pm"|"consultant"|"finance","owner_side": "seven_billion"|"customer","priority": "low"|"normal"|"high"|"critical","project_status": "active"|"on_hold"|"completed","rate_card_status": "draft"|"pending"|"approved"|"changes_requested"|"superseded","request_status": "submitted"|"under_review"|"clarification"|"estimated"|"approved"|"scheduled"|"in_development"|"uat"|"delivered"|"cancelled","request_type": "requirement"|"enhancement"|"change_request"|"bug"|"new_report"|"data_request"|"access_request"|"support"|"other","setup_status": "pending"|"created"|"dismissed","statement_status": "draft"|"pending"|"approved"|"changes_requested"|"invoiced","task_status": "todo"|"in_progress"|"in_review"|"waiting_customer"|"blocked"|"done","update_status": "draft"|"published","user_kind": "internal"|"customer","visibility": "internal"|"shared"
+            "action_status": "open"|"completed"|"cancelled","action_type": "approval"|"form"|"task"|"clarification"|"uat"|"upload"|"decision"|"invoice"|"meeting_action","approval_action": "requested"|"approved"|"changes_requested"|"resubmitted"|"cancelled","approval_status": "pending"|"approved"|"changes_requested"|"cancelled","billing_kind": "day_rate"|"delivery"|"unit"|"retainer","csat_kind": "request"|"pulse"|"closure","customer_role": "customer_exec"|"customer_member","feedback_kind": "praise"|"suggestion"|"issue"|"other","feedback_status": "new"|"acknowledged"|"actioned"|"closed","health": "on_track"|"needs_attention"|"at_risk","internal_role": "admin"|"ceo"|"pm"|"consultant"|"finance","owner_side": "seven_billion"|"customer","page_kind": "scope"|"requirements"|"meeting_notes"|"blank","page_status": "draft"|"in_review"|"signed_off","priority": "low"|"normal"|"high"|"critical","project_status": "active"|"on_hold"|"completed","rate_card_status": "draft"|"pending"|"approved"|"changes_requested"|"superseded","request_status": "submitted"|"under_review"|"clarification"|"estimated"|"approved"|"scheduled"|"in_development"|"uat"|"delivered"|"cancelled","request_type": "requirement"|"enhancement"|"change_request"|"bug"|"new_report"|"data_request"|"access_request"|"support"|"other","setup_status": "pending"|"created"|"dismissed","statement_status": "draft"|"pending"|"approved"|"changes_requested"|"invoiced","task_status": "todo"|"in_progress"|"in_review"|"waiting_customer"|"blocked"|"done","update_status": "draft"|"published","user_kind": "internal"|"customer","visibility": "internal"|"shared"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -2416,7 +2625,7 @@ export type CompositeTypes<
 export const Constants = {
   "public": {
           Enums: {
-            "action_status": ["open", "completed", "cancelled"],"action_type": ["approval", "form", "task", "clarification", "uat", "upload", "decision", "invoice", "meeting_action"],"approval_action": ["requested", "approved", "changes_requested", "resubmitted", "cancelled"],"approval_status": ["pending", "approved", "changes_requested", "cancelled"],"billing_kind": ["day_rate", "delivery", "unit", "retainer"],"csat_kind": ["request", "pulse", "closure"],"customer_role": ["customer_exec", "customer_member"],"feedback_kind": ["praise", "suggestion", "issue", "other"],"feedback_status": ["new", "acknowledged", "actioned", "closed"],"health": ["on_track", "needs_attention", "at_risk"],"internal_role": ["admin", "ceo", "pm", "consultant", "finance"],"owner_side": ["seven_billion", "customer"],"priority": ["low", "normal", "high", "critical"],"project_status": ["active", "on_hold", "completed"],"rate_card_status": ["draft", "pending", "approved", "changes_requested", "superseded"],"request_status": ["submitted", "under_review", "clarification", "estimated", "approved", "scheduled", "in_development", "uat", "delivered", "cancelled"],"request_type": ["requirement", "enhancement", "change_request", "bug", "new_report", "data_request", "access_request", "support", "other"],"setup_status": ["pending", "created", "dismissed"],"statement_status": ["draft", "pending", "approved", "changes_requested", "invoiced"],"task_status": ["todo", "in_progress", "in_review", "waiting_customer", "blocked", "done"],"update_status": ["draft", "published"],"user_kind": ["internal", "customer"],"visibility": ["internal", "shared"]
+            "action_status": ["open", "completed", "cancelled"],"action_type": ["approval", "form", "task", "clarification", "uat", "upload", "decision", "invoice", "meeting_action"],"approval_action": ["requested", "approved", "changes_requested", "resubmitted", "cancelled"],"approval_status": ["pending", "approved", "changes_requested", "cancelled"],"billing_kind": ["day_rate", "delivery", "unit", "retainer"],"csat_kind": ["request", "pulse", "closure"],"customer_role": ["customer_exec", "customer_member"],"feedback_kind": ["praise", "suggestion", "issue", "other"],"feedback_status": ["new", "acknowledged", "actioned", "closed"],"health": ["on_track", "needs_attention", "at_risk"],"internal_role": ["admin", "ceo", "pm", "consultant", "finance"],"owner_side": ["seven_billion", "customer"],"page_kind": ["scope", "requirements", "meeting_notes", "blank"],"page_status": ["draft", "in_review", "signed_off"],"priority": ["low", "normal", "high", "critical"],"project_status": ["active", "on_hold", "completed"],"rate_card_status": ["draft", "pending", "approved", "changes_requested", "superseded"],"request_status": ["submitted", "under_review", "clarification", "estimated", "approved", "scheduled", "in_development", "uat", "delivered", "cancelled"],"request_type": ["requirement", "enhancement", "change_request", "bug", "new_report", "data_request", "access_request", "support", "other"],"setup_status": ["pending", "created", "dismissed"],"statement_status": ["draft", "pending", "approved", "changes_requested", "invoiced"],"task_status": ["todo", "in_progress", "in_review", "waiting_customer", "blocked", "done"],"update_status": ["draft", "published"],"user_kind": ["internal", "customer"],"visibility": ["internal", "shared"]
           }
         }
 } as const
