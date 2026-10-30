@@ -5,7 +5,12 @@
  * (formatters and colours live here, not in props that cross the server boundary).
  */
 import { useRouter } from 'next/navigation'
+import { HeatmapChart } from '@/components/dashboardcn/ui/heatmap-chart'
+import { MetricList } from '@/components/dashboardcn/ui/metric-list'
+import { TickBar } from '@/components/dashboardcn/ui/tick-bar'
+import { TrendChart } from '@/components/dashboardcn/ui/trend-chart'
 import { ActivityHeatmap } from '@/components/overtrue/activity-heatmap'
+import { BarList } from '@/components/overtrue/bar-list'
 import { DonutChart } from '@/components/overtrue/donut-chart'
 import { EventCalendar } from '@/components/overtrue/event-calendar'
 import { DistributionBar } from '@/components/overtrue/distribution-bar'
@@ -128,4 +133,44 @@ export function CalendarLegend() {
       {items.map(([c, l]) => <span key={l} className="inline-flex items-center gap-1"><span aria-hidden className="size-2 rounded-sm" style={{ background: c }} />{l}</span>)}
     </span>
   )
+}
+
+// ---- dashboardcn charts -----------------------------------------------------------------------------------------
+
+/** Weekly series over time, e.g. tasks created against tasks completed. */
+export function WeeklyTrend({ data, series, type = 'bar', height = 200 }: {
+  data: Record<string, string | number>[]; series: { key: string; label: string; color?: string }[]; type?: 'bar' | 'area' | 'line'; height?: number
+}) {
+  return (
+    <TrendChart data={data} xKey="week" series={series} type={type} showLegend legendPosition="top" legendAlign="right" barRadius={3}
+      className="w-full" style={{ height }} yFormatter={(v) => v.toLocaleString('en-IN')} />
+  )
+}
+
+/** Requests at each stage right now: one compact bar per stage, in workflow order. */
+export function StageFunnel({ steps }: { steps: { name: string; value: number }[] }) {
+  return <BarList data={steps} sortOrder="none" showPercentage valueFormatter={(v) => v.toLocaleString('en-IN')} className="text-xs" />
+}
+
+/** People × weeks: planned days, darker when fuller. */
+export function LoadMatrix({ rows, columns, capacity }: { rows: { label: string; values: number[] }[]; columns: string[]; capacity: number }) {
+  return (
+    <HeatmapChart rows={rows} columns={columns} max={capacity} gap={2} unit="days" showLegend
+      valueFormatter={(v) => `${+v.toFixed(1)}`}
+      renderTooltip={(d) => <span><b>{d.rowLabel}</b>, week of {d.columnLabel}: {+d.value.toFixed(1)} of {capacity} days{d.value > capacity ? ' (over)' : ''}</span>} />
+  )
+}
+
+/** Compact rows: label, 8-week sparkline, this week's figure and the change on last week. */
+export function WeeklyMetrics({ items }: { items: { label: string; values: number[]; invert?: boolean }[] }) {
+  return (
+    <MetricList variant="area" showDivider items={items.map((i) => {
+      const now = i.values.at(-1) ?? 0, prev = i.values.at(-2) ?? 0
+      return { key: i.label, label: i.label, value: now, trend: i.values, invertDelta: i.invert, delta: prev ? (now - prev) / prev : undefined }
+    })} />
+  )
+}
+
+export function Ticks({ value, color }: { value: number; color?: string }) {
+  return <TickBar value={Math.max(0, Math.min(100, value))} max={100} segments={20} color={color} className="h-3.5 w-20" aria-label={`${Math.round(value)}% done`} />
 }

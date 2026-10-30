@@ -7,7 +7,7 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Vendored component source (shadcn/ui and the overtrue/ui registry): kept close to upstream so updates stay easy
   {
-    files: ["src/components/ui/**", "src/components/overtrue/**"],
+    files: ["src/components/ui/**", "src/components/overtrue/**", "src/components/dashboardcn/**"],
     rules: {
       "react-hooks/preserve-manual-memoization": "off",
       "react-hooks/exhaustive-deps": "off",

@@ -4,9 +4,9 @@ import { createEngagement, dismissEngagement } from '@/app/_actions/admin'
 import { ActionButton, ActionForm } from '@/components/forms'
 import { Greeting } from '@/components/shell/greeting'
 import { HeartPulse, Hourglass, Receipt, Siren, Stamp, TriangleAlert } from 'lucide-react'
-import { Avatar, Card, Empty, Health, Progress, Stat, cn } from '@/components/ui'
-import { ActivityCalendar, HealthDonut } from '@/components/viz'
-import { isOverdue, relativeTime, shortDate } from '@/lib/format'
+import { Avatar, Card, Empty, Health, Stat, cn } from '@/components/ui'
+import { ActivityCalendar, HealthDonut, LoadMatrix, StageFunnel, Ticks, WeeklyMetrics, WeeklyTrend } from '@/components/viz'
+import { isOverdue, isoDaysAgo, label, relativeTime, shortDate } from '@/lib/format'
 import { loadPortfolio } from '@/lib/portfolio'
 import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
@@ -20,7 +20,12 @@ const WEEKLY_CAPACITY_DAYS = 5
 export default async function Home() {
   const me = await requireStaff()
   const supabase = await createClient()
-  const [{ rows, exceptions, counts }, setups, staff, load, events, pending, recent] = await Promise.all([
+  // weekly figures run Monday to Sunday; the last 12 weeks, this one included
+  const monday = new Date()
+  monday.setUTCHours(0, 0, 0, 0)
+  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7))
+  const since12 = new Date(monday.getTime() - 11 * 7 * 86_400_000).toISOString()
+  const [{ rows, exceptions, counts }, setups, staff, load, events, pending, recent, taskFlow, logged, reqs] = await Promise.all([
     loadPortfolio(),
     supabase.from('engagement_setups').select('*').eq('status', 'pending').order('created_at', { ascending: false }),
     supabase.from('directory').select('id, full_name, internal_role').eq('kind', 'internal').order('full_name')
@@ -28,29 +33,46 @@ export default async function Home() {
     supabase.from('tasks').select('assignee_id, due_date, task_estimates(estimate, unit)').neq('status', 'done').not('assignee_id', 'is', null),
     supabase.from('activity').select('created_at').gte('created_at', new Date(Date.now() - 182 * 86_400_000).toISOString()).limit(20_000),
     supabase.from('approvals').select('id, title, due_date, request_id, customers(name), approver:profiles!approvals_approver_id_fkey(full_name)').eq('status', 'pending').order('due_date', { ascending: true, nullsFirst: false }).limit(8),
-    supabase.from('activity').select('id, summary, created_at, project_id, actor:profiles!activity_actor_id_fkey(full_name), projects(name)').order('created_at', { ascending: false }).limit(14),
+    supabase.from('activity').select('id, summary, created_at, project_id, actor:profiles!activity_actor_id_fkey(full_name), projects(name)').order('created_at', { ascending: false }).limit(8),
+    supabase.from('tasks').select('created_at, completed_at').or(`created_at.gte.${since12},completed_at.gte.${since12}`).limit(20_000),
+    supabase.from('time_entries').select('worked_on, hours').gte('worked_on', since12.slice(0, 10)).limit(20_000),
+    supabase.from('requests').select('status, created_at, updated_at').limit(5_000),
   ])
 
   // planned days per person for the next four weeks (from estimates in days; billed-unit estimates aren't time)
   const weekStart = new Date()
   weekStart.setUTCHours(0, 0, 0, 0)
   weekStart.setUTCDate(weekStart.getUTCDate() - ((weekStart.getUTCDay() + 6) % 7))
-  const weeks = [0, 1, 2, 3].map((i) => new Date(weekStart.getTime() + i * 7 * 86_400_000))
+  const weeks = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => new Date(weekStart.getTime() + i * 7 * 86_400_000))
   const people = (staff.data ?? []).filter((p) => ['pm', 'consultant'].includes(p.internal_role ?? ''))
-  const hours = new Map<string, number[]>(people.map((p) => [p.id, [0, 0, 0, 0]]))
+  const hours = new Map<string, number[]>(people.map((p) => [p.id, weeks.map(() => 0)]))
   for (const t of load.data ?? []) {
     if (!t.due_date || !hours.has(t.assignee_id!)) continue
     const w = Math.floor((Date.parse(`${t.due_date}T00:00:00Z`) - weekStart.getTime()) / (7 * 86_400_000))
     const est = t.task_estimates?.unit === 'day' ? Number(t.task_estimates.estimate ?? 0) : 0
-    if (w >= 0 && w < 4) hours.get(t.assignee_id!)![w]! += est
+    if (w >= 0 && w < weeks.length) hours.get(t.assignee_id!)![w]! += est
   }
   const crit = exceptions.filter((e) => e.severity === 'crit').length
   const perDay = new Map<string, number>()
   for (const e of events.data ?? []) { const d = e.created_at.slice(0, 10); perDay.set(d, (perDay.get(d) ?? 0) + 1) }
   const activity = [...perDay].map(([date, value]) => ({ date, value }))
   const byHealth = (h: string) => rows.filter((r) => r.health === h).length
-  const workload = people.map((p) => ({ id: p.id, name: p.full_name, role: p.internal_role === 'pm' ? 'Project manager' : 'Consultant',
-    allocated: Math.round(hours.get(p.id)!.reduce((a, b) => a + b, 0) * 10) / 10, capacity: WEEKLY_CAPACITY_DAYS * 4 }))
+  const weekLabel = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+  const weekIndex = (iso: string | null) => iso ? Math.floor((Date.parse(iso.length === 10 ? `${iso}T00:00:00Z` : iso) - Date.parse(since12)) / (7 * 86_400_000)) : -1
+  const perWeek = <T,>(list: T[], at: (x: T) => string | null, amount: (x: T) => number = () => 1) => {
+    const out = Array.from({ length: 12 }, () => 0)
+    for (const x of list) { const w = weekIndex(at(x)); if (w >= 0 && w < 12) out[w]! += amount(x) }
+    return out
+  }
+  const created = perWeek(taskFlow.data ?? [], (t) => t.created_at)
+  const completed = perWeek(taskFlow.data ?? [], (t) => t.completed_at)
+  const hoursLogged = perWeek(logged.data ?? [], (e) => e.worked_on, (e) => Number(e.hours))
+  const raised = perWeek(reqs.data ?? [], (r) => r.created_at)
+  const touched = perWeek(events.data ?? [], (e) => e.created_at)
+  const trend = created.map((c, i) => ({ week: weekLabel(new Date(Date.parse(since12) + i * 7 * 86_400_000)), Created: c, Completed: completed[i]! }))
+  const STAGES = ['submitted', 'under_review', 'clarification', 'estimated', 'approved', 'scheduled', 'in_development', 'uat', 'delivered'] as const
+  const recentCutoff = isoDaysAgo(90)
+  const funnel = STAGES.map((st) => ({ name: label(st), value: (reqs.data ?? []).filter((r) => r.status === st && (st !== 'delivered' || (r.updated_at ?? r.created_at) >= recentCutoff)).length }))
   const first = me.full_name.split(' ')[0] ?? me.full_name
 
   return (
@@ -127,7 +149,7 @@ export default async function Home() {
               <Link href={`/customers/${p.customerId}`} className="truncate font-semibold text-ink no-underline">{p.customer}</Link>
               <Link href={`/projects/${p.id}`} className="truncate font-medium text-ink no-underline hover:underline">{p.name}</Link>
               <Health health={p.health} />
-              <Progress value={p.progress} width={48} />
+              <span className="flex items-center gap-1.5"><Ticks value={p.progress} /><span className="tabular text-[11px] text-muted-foreground">{Math.round(p.progress)}%</span></span>
               <span className="truncate">{p.pm ?? '–'}</span>
               <span className="truncate text-xs">{p.nextMilestone ? <>{p.nextMilestone.title} <span className={cn('font-mono', p.nextMilestone.overdue ? 'font-semibold text-crit-ink' : 'text-muted-foreground')}>{shortDate(p.nextMilestone.due)}</span></> : '–'}</span>
               <span className={cn('truncate text-xs', p.blocker ? 'text-warn-ink' : 'text-muted-foreground')}>{p.blocker ?? 'None'}</span>
@@ -137,6 +159,18 @@ export default async function Home() {
           ))}
         </div>
       </Card>
+          <div className="grid gap-3 lg:grid-cols-2">
+            <Card title="Throughput" description="Tasks created and completed per week, last 12 weeks">
+              <WeeklyTrend data={trend} series={[{ key: 'Created', label: 'Created', color: 'var(--color-chart-4)' }, { key: 'Completed', label: 'Completed', color: 'var(--color-chart-2)' }]} />
+            </Card>
+            <Card title="Request pipeline" description="Requests at each stage now; delivered = last 90 days">
+              <StageFunnel steps={funnel} />
+            </Card>
+          </div>
+          <Card title="Team load" description={`Planned days per person per week, from task estimates · capacity ${WEEKLY_CAPACITY_DAYS} days`}>
+            {people.length ? <LoadMatrix capacity={WEEKLY_CAPACITY_DAYS} columns={weeks.map(weekLabel)} rows={people.map((p) => ({ label: p.full_name, values: hours.get(p.id)!.map((d) => +d.toFixed(1)) }))} />
+              : <Empty title="No team members yet" />}
+          </Card>
           <Card title="Delivery activity" description="Updates, comments and status changes, last 6 months">
             <ActivityCalendar data={activity} unit="events" />
           </Card>
@@ -157,23 +191,15 @@ export default async function Home() {
             )) : <Empty title="Nothing waiting" />}
           </Card>
 
-          <Card flush title="Team workload" description={`Planned days per week · capacity ${WEEKLY_CAPACITY_DAYS}`}>
-            <div className="row row-head grid-cols-[minmax(0,1fr)_repeat(4,36px)_40px]"><span>Person</span>{weeks.map((w) => <span key={w.toISOString()} className="text-center">{shortDate(w.toISOString().slice(0, 10)).replace(/^(\w+) /, '$1\u00a0')}</span>)}<span className="text-right">Total</span></div>
-            {workload.map((p) => (
-              <div key={p.id} className="row grid-cols-[minmax(0,1fr)_repeat(4,36px)_40px]">
-                <span className="truncate">{p.name}</span>
-                {hours.get(p.id)!.map((d, i) => {
-                  const pct = Math.min(100, Math.round((100 * d) / WEEKLY_CAPACITY_DAYS))
-                  const over = d > WEEKLY_CAPACITY_DAYS
-                  return (
-                    <span key={i} title={`${+d.toFixed(1)} of ${WEEKLY_CAPACITY_DAYS} days`} className="flex h-5 items-end justify-center rounded-sm bg-muted">
-                      <span className={cn('w-full rounded-sm', over ? 'bg-crit' : pct >= 85 ? 'bg-primary' : 'bg-primary/45')} style={{ height: `${Math.max(pct, d ? 8 : 0)}%` }} />
-                    </span>
-                  )
-                })}
-                <span className={cn('tabular text-right text-xs', p.allocated > p.capacity ? 'font-semibold text-crit-ink' : 'text-muted-foreground')}>{p.allocated}d</span>
-              </div>
-            ))}
+          <Card flush title="This week" description="Against last week · 12-week trend">
+            <div className="px-3.5 py-1">
+              <WeeklyMetrics items={[
+                { label: 'Tasks completed', values: completed },
+                { label: 'Hours logged', values: hoursLogged.map((h) => +h.toFixed(1)) },
+                { label: 'Requests raised', values: raised },
+                { label: 'Activity', values: touched },
+              ]} />
+            </div>
           </Card>
 
           <Card flush title="Recent activity">
