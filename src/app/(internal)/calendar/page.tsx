@@ -41,8 +41,8 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     ...(doneTasks ?? []).map((t) => ({ id: t.id, title: t.title, date: t.completed_at!, href: `/projects/${t.project_id}?task=${t.id}`, kind: 'done' as const, context: ctx(t) })),
     ...(meetings ?? []).map((m) => ({ id: `m-${m.id}`, title: m.title, date: m.held_on, href: `/meetings/${m.id}`, kind: 'meeting' as const, context: m.projects?.name })),
   ]
-  const weekAhead = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10)
-  const today = new Date().toISOString().slice(0, 10)
+  const weekAhead = isoDaysAgo(-7).slice(0, 10)
+  const today = isoDaysAgo(0).slice(0, 10)
   const overdue = items.filter((i) => i.overdue).length
   const dueWeek = items.filter((i) => i.kind === 'due' && !i.overdue && i.date <= weekAhead).length
   const done30 = (doneTasks ?? []).filter((t) => t.completed_at! >= isoDaysAgo(30)).length

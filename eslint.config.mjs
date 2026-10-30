@@ -10,6 +10,7 @@ const eslintConfig = defineConfig([
     files: ["src/components/ui/**", "src/components/overtrue/**", "src/components/dashboardcn/**"],
     rules: {
       "react-hooks/preserve-manual-memoization": "off",
+      "react-hooks/refs": "off",
       "react-hooks/exhaustive-deps": "off",
       "@next/next/no-img-element": "off",
     },
