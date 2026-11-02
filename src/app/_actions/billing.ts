@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { createZohoInvoice } from '@/lib/integrations/zoho'
 import { canSeeFinance, requireCustomer, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
-import { type ActionResult, dbFail, done, fail, uuid } from './shared'
+import { type ActionResult, dbFail, done, fail, ok, uuid } from './shared'
 import { CURRENCY_CODES } from '@/lib/currencies'
 import { lookupZohoCustomer } from '@/lib/integrations/lookup'
 
@@ -313,8 +313,9 @@ export async function decideStatement(_prev: ActionResult | null, form: FormData
 // ---------------------------------------------------------------- billing set-up by model (one step, from the wizard)
 const setupSchema = z.object({
   project_id: uuid,
-  model: z.enum(['time_materials', 'fixed_price', 'retainer']),
-  unit: z.enum(['hour', 'day']),
+  model: z.enum(['time_materials', 'dedicated', 'fixed_price', 'retainer']),
+  unit: z.enum(['hour', 'day', 'month']),
+  cap: z.preprocess((v) => (v === '' || v == null ? undefined : v), z.coerce.number().min(0).optional()),
   currency: z.string().regex(/^[A-Z]{3}$/, 'Choose a currency.'),
   po_number: z.string().trim().max(80).default(''),
   notes: z.string().trim().max(2000).default(''),
@@ -322,8 +323,13 @@ const setupSchema = z.object({
   milestones: z.array(z.object({
     label: z.string().trim().min(1, 'Name each milestone.').max(200), amount: z.coerce.number().min(0).max(1e12),
     phase_id: z.preprocess((v) => (v === '' ? undefined : v), uuid.optional()),
+    bill_on: z.preprocess((v) => (v === '' ? undefined : v), z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()),
   })).max(100).default([]),
-  retainer: z.object({ fee: z.coerce.number().min(0), hours: z.coerce.number().min(0).max(10_000), rollover: z.preprocess((v) => (v === '' || v == null ? undefined : v), z.coerce.number().min(0).optional()) }).optional(),
+  retainer: z.object({
+    fee: z.coerce.number().min(0), hours: z.coerce.number().min(0).max(10_000),
+    rollover: z.preprocess((v) => (v === '' || v == null ? undefined : v), z.coerce.number().min(0).optional()),
+    overage_rate: z.preprocess((v) => (v === '' || v == null ? undefined : v), z.coerce.number().min(0).optional()),
+  }).optional(),
 })
 export type BillingSetup = z.input<typeof setupSchema>
 
@@ -335,10 +341,10 @@ export async function setupBilling(input: BillingSetup): Promise<ActionResult> {
   const d = parsed.data
   const { error } = await (await createClient()).rpc('setup_billing', {
     p_project: d.project_id, p_model: d.model, p_unit: d.unit, p_currency: d.currency, p_po: d.po_number, p_notes: d.notes,
-    p_people: d.people as never, p_milestones: d.milestones as never, p_retainer: (d.retainer ?? null) as never,
+    p_people: d.people as never, p_milestones: d.milestones as never, p_retainer: (d.retainer ?? null) as never, p_cap: d.cap,
   })
   if (error) {
-    const m = error.message.match(/add at least one (person and their rate|milestone)|enter the monthly fee|each person can have one rate|each milestone needs a name and an amount|the customer is reviewing the rates.*|only Seven Billion people can be billed on a line|enter a rate for .+/i)
+    const m = error.message.match(/add at least one (person and their rate|milestone)|enter the monthly fee|dedicated people are billed per month or per day|each person can have one rate|each milestone needs a name and an amount|the customer is reviewing the rates.*|only Seven Billion people can be billed on a line|enter a rate for .+/i)
     return m ? fail(m[0].charAt(0).toUpperCase() + m[0].slice(1) + '.') : dbFail(error)
   }
   return done('Billing set up. Send the rates to the customer, or approve them for the customer if already agreed.')
@@ -352,4 +358,63 @@ export async function billMilestone(lineId: string, projectId: string): Promise<
   if (error) return dbFail(error, /already on a statement/i.test(error.message) ? 'This milestone is already on a statement.' : undefined)
   done()
   redirect(`/projects/${projectId}/billing/${data}`)
+}
+
+// ---------------------------------------------------------------- the monthly billing run (finance, admin, CEO)
+const runSchema = z.object({
+  period_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), period_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  send: z.preprocess((v) => v === 'on', z.boolean()),
+})
+
+/**
+ * Creates the ticked statements in one go: one statement for the period per ticked project (time, dedicated people,
+ * retainer and overage), and one per ticked milestone that is due. With "send", each goes to the customer for approval.
+ */
+export async function runBilling(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!canSeeFinance(me)) return fail('Only finance, admins and the CEO run billing.')
+  const parsed = runSchema.safeParse(Object.fromEntries(form))
+  if (!parsed.success) return fail('Choose the month to bill.')
+  const projects = form.getAll('project').map(String).filter((v) => uuid.safeParse(v).success)
+  const milestones = form.getAll('milestone').map(String).filter((v) => uuid.safeParse(v).success)
+  if (!projects.length && !milestones.length) return fail('Tick what to bill first.')
+  const supabase = await createClient()
+  const made: string[] = [], problems: string[] = []
+  for (const p of projects) {
+    const { data, error } = await supabase.rpc('create_statement', { p_project: p, p_start: parsed.data.period_start, p_end: parsed.data.period_end })
+    if (error) problems.push(error.message); else made.push(data)
+  }
+  for (const l of milestones) {
+    const { data, error } = await supabase.rpc('bill_milestone', { p_line: l })
+    if (error) problems.push(error.message); else made.push(data)
+  }
+  if (parsed.data.send) for (const id of made) {
+    const { error } = await supabase.rpc('submit_statement', { p_statement: id })
+    if (error) problems.push(error.message)
+  }
+  if (!made.length) return fail(problems[0] ?? 'Nothing was billed.')
+  done()
+  const n = `${made.length} ${made.length === 1 ? 'statement' : 'statements'}`
+  return ok(`${n} created${parsed.data.send ? ' and sent to the customers' : ''}.${problems.length ? ` ${problems.length} could not be made: ${problems[0]}` : ''}`)
+}
+
+/** Finance: what an hour of each person costs (salary and overheads), for margins. Never shown outside finance. */
+export async function saveCostRates(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const me = await requireStaff()
+  if (!canSeeFinance(me)) return fail('Only finance, admins and the CEO set cost rates.')
+  const rows: { profile_id: string; hourly_cost: number }[] = []
+  for (const [k, v] of form.entries()) {
+    if (!k.startsWith('cost_') || String(v).trim() === '') continue
+    const id = k.slice(5), n = Number(String(v).replace(/,/g, ''))
+    if (!uuid.safeParse(id).success || !(n >= 0) || n > 1e7) return fail('Enter cost rates as positive numbers.')
+    rows.push({ profile_id: id, hourly_cost: n })
+  }
+  const cleared = [...form.entries()].filter(([k, v]) => k.startsWith('cost_') && String(v).trim() === '').map(([k]) => k.slice(5))
+  const supabase = await createClient()
+  if (rows.length) {
+    const { error } = await supabase.from('cost_rates').upsert(rows.map((r) => ({ ...r, updated_by: me.id, updated_at: new Date().toISOString() })))
+    if (error) return dbFail(error)
+  }
+  if (cleared.length) await supabase.from('cost_rates').delete().in('profile_id', cleared)
+  return done('Cost rates saved.')
 }

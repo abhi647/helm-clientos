@@ -695,7 +695,7 @@ test('fixed price: milestones agreed once, each billed once when delivered', asy
   await page.getByRole('link', { name: /Nesma Group/ }).click()
   await page.getByRole('link', { name: 'Management Reporting' }).first().click()
   await page.getByRole('link', { name: 'Billing', exact: true }).click()
-  await page.getByRole('radio', { name: /Fixed price/ }).click()
+  await page.getByRole('radio', { name: /Fixed fee/ }).click()
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByLabel('Milestone 1 name').fill('Discovery sign-off')
   await page.getByLabel('Milestone 1 amount').fill('200000')
@@ -717,7 +717,49 @@ test('fixed price: milestones agreed once, each billed once when delivered', asy
   await expect(page.getByLabel('Quantity for Discovery sign-off')).toHaveValue('1')
   await page.getByRole('link', { name: '← Billing' }).click()
   await expect(milestones.locator('.row', { hasText: 'Discovery sign-off' }).getByRole('link', { name: 'Open statement →' })).toBeVisible()
-  await expect(milestones.locator('.row', { hasText: 'Go-live' }).getByRole('button', { name: 'Bill milestone' })).toBeVisible()
+  await expect(milestones.locator('.row', { hasText: 'Go-live' }).getByRole('button', { name: 'Bill early' })).toBeVisible()   // not due yet: no phase, no date
+})
+
+test('dedicated people: billed by the month less leave, through the monthly billing run', async ({ page }) => {
+  page.on('dialog', (d) => d.accept())
+  const now = new Date()
+  const today = now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', timeZone: 'UTC' })
+  const month = now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+  const weekday = now.getUTCDay() % 6 !== 0
+
+  // the consultant marks today as leave on their timesheet
+  await signIn(page, 'sahil@example.com')
+  await page.goto('/timesheets')
+  await page.getByRole('button', { name: `${today}: working` }).click()
+  await expect(page.getByRole('button', { name: `${today}: on leave` })).toBeVisible()
+
+  // finance sets Support Engagement up as one dedicated engineer, billed by the month
+  await signIn(page, 'finance@example.com')
+  await page.goto('/customers')
+  await page.getByRole('link', { name: /Customer X/ }).click()
+  await page.getByRole('link', { name: 'Support Engagement' }).first().click()
+  await page.getByRole('link', { name: 'Billing', exact: true }).click()
+  await page.getByRole('radio', { name: /Dedicated people/ }).click()
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByRole('radio', { name: 'Month' })).toHaveAttribute('aria-checked', 'true')
+  await page.getByLabel('Add a person').selectOption({ label: 'Sahil · consultant' })
+  await page.getByLabel('Rate for Sahil').fill('450000')
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByRole('button', { name: 'Save billing set-up' }).click()
+  await page.getByText('✓ Approve the rates for the customer').click()
+  await page.getByRole('button', { name: 'Approve the rates for the customer' }).click()
+  const bill = page.locator('.card', { has: page.getByRole('heading', { name: `Bill ${month}` }) })
+  await expect(bill.getByText(/Sahil: \d+ working days/)).toBeVisible()
+  if (weekday) await expect(bill.getByText(/1 on leave/)).toBeVisible()
+
+  // the monthly billing run lists it with the reason, and creates the statement
+  await page.goto('/finance')
+  const run = page.locator('.card', { has: page.getByRole('heading', { name: 'Billing run' }) })
+  await expect(run.getByLabel(`Bill Support Engagement for ${month}`)).toBeChecked()
+  await shot(page, '43-billing-run')
+  await run.getByRole('button', { name: /^Create the ticked statements/ }).click()
+  await expect(toast(page, 'created')).toBeVisible()
+  await expect(run.getByText(`Already on a statement for ${month}.`).first()).toBeVisible()
 })
 
 test('admin previews and runs the HubSpot + Zoho import', async ({ page }) => {

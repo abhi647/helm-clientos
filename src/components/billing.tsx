@@ -7,10 +7,12 @@ export const KIND_LABEL: Record<Enums<'billing_kind'>, string> = {
   delivery: 'Per delivery / milestone',
   unit: 'Per unit delivered',
   retainer: 'Monthly retainer',
+  resource: 'Dedicated person',
+  overage: 'Hours over the allowance',
 }
-export const KIND_UNIT: Record<Enums<'billing_kind'>, string> = { day_rate: 'day', delivery: 'delivery', unit: 'unit', retainer: 'month' }
+export const KIND_UNIT: Record<Enums<'billing_kind'>, string> = { day_rate: 'day', delivery: 'delivery', unit: 'unit', retainer: 'month', resource: 'month', overage: 'hour' }
 // what "planned quantity" means for each model
-export const PLANNED_LABEL: Record<Enums<'billing_kind'>, string | null> = { day_rate: 'Resources', delivery: null, unit: 'Planned units', retainer: null }
+export const PLANNED_LABEL: Record<Enums<'billing_kind'>, string | null> = { day_rate: 'Resources', delivery: null, unit: 'Planned units', retainer: null, resource: null, overage: null }
 
 const CARD_TONE = { draft: 'neutral', pending: 'info', approved: 'good', changes_requested: 'warn', superseded: 'neutral' } as const
 const CARD_TEXT = { draft: 'Draft', pending: 'Waiting for customer', approved: 'Approved', changes_requested: 'Changes requested', superseded: 'Replaced' }

@@ -5,7 +5,7 @@ import { syncZohoNow } from '@/app/_actions/admin'
 import { ActionButton } from '@/components/forms'
 import { StatementStatus, period } from '@/components/billing'
 import { PaymentsCard } from '@/components/payments'
-import { ReadyToBillQueue } from '@/components/ready-to-bill'
+import { BillingRun } from '@/components/billing-run'
 import { UnbilledTime } from '@/components/time-billing'
 import { Card, Chip, Empty, PageHeader, cn } from '@/components/ui'
 import { daysFromToday, label, money, relativeTime, shortDate } from '@/lib/format'
@@ -15,7 +15,8 @@ import { createClient } from '@/lib/supabase/server'
 export const metadata: Metadata = { title: 'Finance' }
 
 /** Invoices and payments come from Zoho Books (synced). Nothing financial is calculated or typed in this app. */
-export default async function Finance() {
+export default async function Finance({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+  const { month } = await searchParams
   const me = await requireStaff()
   if (!canSeeFinance(me)) notFound()
   const supabase = await createClient()
@@ -31,9 +32,9 @@ export default async function Finance() {
   return (
     <>
       <PageHeader title="Finance" meta={<span className="text-xs text-muted-foreground">Synced from Zoho Books{lastSync ? ` · last sync ${relativeTime(lastSync)}` : ''}</span>}
-        actions={<ActionButton run={syncZohoNow}>Sync now</ActionButton>} />
+        actions={<><Link href="/finance/costs" className="btn">Cost rates</Link><ActionButton run={syncZohoNow}>Sync now</ActionButton></>} />
       <div className="flex flex-col gap-3 p-4">
-        <ReadyToBillQueue />
+        <BillingRun month={month} />
         <Card flush title="Invoices" className="overflow-x-auto">
           {invoices?.length ? (
             <div className="min-w-[760px]">

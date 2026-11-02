@@ -42,23 +42,35 @@ const setup = async (p, body) => {
   const card = ok(await finance.rpc('setup_billing', { p_project: p.id, p_currency: 'INR', p_notes: 'As per the signed SOW', ...body }), 'setup_billing')
   ok(await finance.rpc('approve_rate_card_for_customer', { p_card: card, p_note: 'Rates in the signed SOW' }), 'approve rates')
 }
-await setup(pbi, { p_model: 'time_materials', p_unit: 'hour', p_people: [
+await setup(pbi, { p_model: 'time_materials', p_unit: 'hour', p_cap: 600000, p_people: [
   { profile_id: people['sahil@example.com'].id, rate: 2500 }, { profile_id: people['rahul@example.com'].id, rate: 3500 },
 ] })
+// a dedicated engineer on Infor LN: billed by the month, less leave
+const infor = await project('Infor LN Integration')
+await setup(infor, { p_model: 'dedicated', p_unit: 'month', p_people: [{ profile_id: people['sahil@example.com'].id, rate: 450000 }] })
 const phases = ok(await admin.from('phases').select('id, name').eq('project_id', mgmt.id).order('position'), 'phases')
 await setup(mgmt, { p_model: 'fixed_price', p_unit: 'hour',
   p_milestones: [
-    { label: 'Discovery sign-off', amount: 250000, phase_id: phases[0]?.id }, { label: 'Data model live', amount: 400000, phase_id: phases[1]?.id },
-    { label: 'Dashboards accepted', amount: 450000, phase_id: phases[2]?.id }, { label: 'Go-live and handover', amount: 300000, phase_id: phases.at(-1)?.id },
+    { label: 'Advance on signing (20%)', amount: 280000, bill_on: iso(daysAgo(70)) },
+    { label: 'Discovery sign-off (15%)', amount: 210000, phase_id: phases[0]?.id }, { label: 'Data model live (25%)', amount: 350000, phase_id: phases[1]?.id },
+    { label: 'Dashboards accepted (25%)', amount: 350000, phase_id: phases[2]?.id }, { label: 'Go-live and handover (15%)', amount: 210000, phase_id: phases.at(-1)?.id },
   ],
   p_people: [{ profile_id: people['sahil@example.com'].id, rate: 2800 }] })
-if (support) await setup(support, { p_model: 'retainer', p_unit: 'hour', p_retainer: { fee: 180000, hours: 60, rollover: 20 } })
+if (support) await setup(support, { p_model: 'retainer', p_unit: 'hour', p_retainer: { fee: 180000, hours: 60, rollover: 20, overage_rate: 3500 } })
+
+// what an hour costs us, for margins (finance only)
+ok(await finance.from('cost_rates').upsert([
+  { profile_id: people['sahil@example.com'].id, hourly_cost: 1100 }, { profile_id: people['rahul@example.com'].id, hourly_cost: 1600 },
+]), 'cost rates')
+// Sahil was on leave two days last month (deducted from the dedicated billing)
+const lastMonthDay = (n) => { const d = new Date(); return iso(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, n))) }
+ok(await sahil.from('leave_days').insert([{ profile_id: people['sahil@example.com'].id, day: lastMonthDay(12) }, { profile_id: people['sahil@example.com'].id, day: lastMonthDay(13) }]), 'leave')
 
 // ---------------------------------------------------------------- eight weeks of timesheets
 console.log('timesheets…')
 const tasksOf = async (email, projectIds) => ok(await admin.from('tasks').select('id, customer_id, project_id, title')
   .eq('assignee_id', people[email].id).in('project_id', projectIds).is('parent_id', null), `tasks of ${email}`)
-const projectIds = [pbi.id, mgmt.id, ...(support ? [support.id] : [])]
+const projectIds = [pbi.id, mgmt.id, infor.id, ...(support ? [support.id] : [])]
 const logged = { sahil: [], rahul: [] }
 for (const [who, client, email] of [['sahil', sahil, 'sahil@example.com'], ['rahul', rahul, 'rahul@example.com']]) {
   const tasks = await tasksOf(email, projectIds)
@@ -99,9 +111,9 @@ const last = ok(await finance.rpc('create_statement', { p_project: pbi.id, p_sta
 ok(await finance.rpc('submit_statement', { p_statement: last }), 'send last month')
 // fixed price: the first phase is delivered and its milestone billed and approved
 await admin.from('tasks').update({ status: 'done', completed_at: daysAgo(40).toISOString() }).eq('project_id', mgmt.id).eq('phase_id', phases[0].id)
-const discovery = ok(await admin.from('rate_card_lines').select('id, rate_cards!inner(project_id, status)').eq('rate_cards.project_id', mgmt.id).eq('rate_cards.status', 'approved').eq('label', 'Discovery sign-off').single(), 'milestone line')
+const discovery = ok(await admin.from('rate_card_lines').select('id, rate_cards!inner(project_id, status)').eq('rate_cards.project_id', mgmt.id).eq('rate_cards.status', 'approved').eq('label', 'Advance on signing (20%)').single(), 'milestone line')
 const ms = ok(await finance.rpc('bill_milestone', { p_line: discovery.id }), 'bill milestone')
-ok(await finance.rpc('approve_statement_for_customer', { p_statement: ms, p_note: 'Discovery accepted in the steering meeting' }), 'approve milestone')
+ok(await finance.rpc('approve_statement_for_customer', { p_statement: ms, p_note: 'Advance invoiced on signing' }), 'approve milestone')
 // retainer: last month's fee approved
 if (support) {
   const r = ok(await finance.rpc('create_statement', { p_project: support.id, p_start: s1, p_end: e1 }), 'retainer statement')

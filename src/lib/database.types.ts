@@ -385,6 +385,44 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"cost_rates": {
+                  Row: {
+                    "currency": string,"hourly_cost": number,"profile_id": string,"updated_at": string,"updated_by": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "currency"?: string,"hourly_cost": number,"profile_id": string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Update: {
+                    "currency"?: string,"hourly_cost"?: number,"profile_id"?: string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "cost_rates_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: true
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "cost_rates_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: true
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "cost_rates_updated_by_fkey"
+      columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "cost_rates_updated_by_fkey"
+      columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"credit_alerts": {
                   Row: {
                     "customer_id": string,"level": number,"period_start": string,"sent_at": string
@@ -1075,6 +1113,32 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"leave_days": {
+                  Row: {
+                    "created_at": string,"day": string,"kind": string,"note": string | null,"profile_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"day": string,"kind"?: string,"note"?: string | null,"profile_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"day"?: string,"kind"?: string,"note"?: string | null,"profile_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "leave_days_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "leave_days_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"meeting_actions": {
                   Row: {
                     "assignee_id": string | null,"created_at": string,"customer_id": string,"due_date": string | null,"id": string,"meeting_id": string,"owner_side": Database["public"]['Enums']["owner_side"],"position": number,"task_id": string | null,"text": string
@@ -1575,14 +1639,14 @@ isOneToOne: false
                   ]
                 },"rate_card_lines": {
                   Row: {
-                    "customer_id": string,"description": string,"id": string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"planned_quantity": number | null,"position": number,"rate": number,"rate_card_id": string,"unit": string,"zoho_item_id": string | null
+                    "bill_on": string | null,"customer_id": string,"description": string,"id": string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"planned_quantity": number | null,"position": number,"rate": number,"rate_card_id": string,"unit": string,"zoho_item_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "customer_id": string,"description"?: string,"id"?: string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"planned_quantity"?: number | null,"position"?: number,"rate": number,"rate_card_id": string,"unit"?: string,"zoho_item_id"?: string | null
+                    "bill_on"?: string | null,"customer_id": string,"description"?: string,"id"?: string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"planned_quantity"?: number | null,"position"?: number,"rate": number,"rate_card_id": string,"unit"?: string,"zoho_item_id"?: string | null
                   }
                   Update: {
-                    "customer_id"?: string,"description"?: string,"id"?: string,"kind"?: Database["public"]['Enums']["billing_kind"],"label"?: string,"planned_quantity"?: number | null,"position"?: number,"rate"?: number,"rate_card_id"?: string,"unit"?: string,"zoho_item_id"?: string | null
+                    "bill_on"?: string | null,"customer_id"?: string,"description"?: string,"id"?: string,"kind"?: Database["public"]['Enums']["billing_kind"],"label"?: string,"planned_quantity"?: number | null,"position"?: number,"rate"?: number,"rate_card_id"?: string,"unit"?: string,"zoho_item_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -1607,14 +1671,14 @@ isOneToOne: false
                   ]
                 },"rate_cards": {
                   Row: {
-                    "approved_for_customer": boolean,"created_at": string,"created_by": string | null,"currency": string,"customer_id": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"id": string,"notes": string,"po_number": string | null,"project_id": string,"status": Database["public"]['Enums']["rate_card_status"],"submitted_at": string | null,"submitted_by": string | null,"version": number
+                    "approved_for_customer": boolean,"created_at": string,"created_by": string | null,"currency": string,"customer_id": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"id": string,"monthly_cap": number | null,"notes": string,"po_number": string | null,"project_id": string,"status": Database["public"]['Enums']["rate_card_status"],"submitted_at": string | null,"submitted_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "approved_for_customer"?: boolean,"created_at"?: string,"created_by"?: string | null,"currency"?: string,"customer_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"notes"?: string,"po_number"?: string | null,"project_id": string,"status"?: Database["public"]['Enums']["rate_card_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"version"?: number
+                    "approved_for_customer"?: boolean,"created_at"?: string,"created_by"?: string | null,"currency"?: string,"customer_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"monthly_cap"?: number | null,"notes"?: string,"po_number"?: string | null,"project_id": string,"status"?: Database["public"]['Enums']["rate_card_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "approved_for_customer"?: boolean,"created_at"?: string,"created_by"?: string | null,"currency"?: string,"customer_id"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"notes"?: string,"po_number"?: string | null,"project_id"?: string,"status"?: Database["public"]['Enums']["rate_card_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"version"?: number
+                    "approved_for_customer"?: boolean,"created_at"?: string,"created_by"?: string | null,"currency"?: string,"customer_id"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"monthly_cap"?: number | null,"notes"?: string,"po_number"?: string | null,"project_id"?: string,"status"?: Database["public"]['Enums']["rate_card_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -2356,6 +2420,11 @@ isOneToOne: false
               "current": boolean,"id": string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"unit": string
             }[]
                            },
+"billing_preview":
+{ Args: { "p_end": string,"p_start": string }; Returns: {
+              "amount": number,"basis": string,"cap": number,"currency": string,"customer_name": string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"line_id": string,"milestone": boolean,"model": Database["public"]['Enums']["billing_model"],"project_id": string,"project_name": string,"quantity": number,"rate": number,"statement_id": string,"unit": string
+            }[]
+                           },
 "claim_page":
 { Args: { "p_page": string,"p_release"?: boolean }; Returns: string
                            },
@@ -2494,7 +2563,7 @@ isOneToOne: false
 { Args: { "p_note"?: string,"p_request": string,"p_status": Database["public"]['Enums']["request_status"] }; Returns: undefined
                            },
 "setup_billing":
-{ Args: { "p_currency": string,"p_milestones"?: Json,"p_model": Database["public"]['Enums']["billing_model"],"p_notes"?: string,"p_people"?: Json,"p_po"?: string,"p_project": string,"p_retainer"?: Json,"p_unit": string }; Returns: string
+{ Args: { "p_cap"?: number,"p_currency": string,"p_milestones"?: Json,"p_model": Database["public"]['Enums']["billing_model"],"p_notes"?: string,"p_people"?: Json,"p_po"?: string,"p_project": string,"p_retainer"?: Json,"p_unit": string }; Returns: string
                            },
 "start_rate_card":
 { Args: { "p_project": string }; Returns: string
@@ -2515,7 +2584,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "action_status": "open"|"completed"|"cancelled","action_type": "approval"|"form"|"task"|"clarification"|"uat"|"upload"|"decision"|"invoice"|"meeting_action","approval_action": "requested"|"approved"|"changes_requested"|"resubmitted"|"cancelled","approval_status": "pending"|"approved"|"changes_requested"|"cancelled","billing_kind": "day_rate"|"delivery"|"unit"|"retainer","billing_model": "time_materials"|"fixed_price"|"retainer","csat_kind": "request"|"pulse"|"closure","customer_role": "customer_exec"|"customer_member","feedback_kind": "praise"|"suggestion"|"issue"|"other","feedback_status": "new"|"acknowledged"|"actioned"|"closed","health": "on_track"|"needs_attention"|"at_risk","internal_role": "admin"|"ceo"|"pm"|"consultant"|"finance","owner_side": "seven_billion"|"customer","page_kind": "scope"|"requirements"|"meeting_notes"|"blank","page_status": "draft"|"in_review"|"signed_off","priority": "low"|"normal"|"high"|"critical","project_status": "active"|"on_hold"|"completed","rate_card_status": "draft"|"pending"|"approved"|"changes_requested"|"superseded","request_status": "submitted"|"under_review"|"clarification"|"estimated"|"approved"|"scheduled"|"in_development"|"uat"|"delivered"|"cancelled","request_type": "requirement"|"enhancement"|"change_request"|"bug"|"new_report"|"data_request"|"access_request"|"support"|"other","setup_status": "pending"|"created"|"dismissed","statement_status": "draft"|"pending"|"approved"|"changes_requested"|"invoiced","task_status": "todo"|"in_progress"|"in_review"|"waiting_customer"|"blocked"|"done","update_status": "draft"|"published","user_kind": "internal"|"customer","visibility": "internal"|"shared"
+            "action_status": "open"|"completed"|"cancelled","action_type": "approval"|"form"|"task"|"clarification"|"uat"|"upload"|"decision"|"invoice"|"meeting_action","approval_action": "requested"|"approved"|"changes_requested"|"resubmitted"|"cancelled","approval_status": "pending"|"approved"|"changes_requested"|"cancelled","billing_kind": "day_rate"|"delivery"|"unit"|"retainer"|"resource"|"overage","billing_model": "time_materials"|"fixed_price"|"retainer"|"dedicated","csat_kind": "request"|"pulse"|"closure","customer_role": "customer_exec"|"customer_member","feedback_kind": "praise"|"suggestion"|"issue"|"other","feedback_status": "new"|"acknowledged"|"actioned"|"closed","health": "on_track"|"needs_attention"|"at_risk","internal_role": "admin"|"ceo"|"pm"|"consultant"|"finance","owner_side": "seven_billion"|"customer","page_kind": "scope"|"requirements"|"meeting_notes"|"blank","page_status": "draft"|"in_review"|"signed_off","priority": "low"|"normal"|"high"|"critical","project_status": "active"|"on_hold"|"completed","rate_card_status": "draft"|"pending"|"approved"|"changes_requested"|"superseded","request_status": "submitted"|"under_review"|"clarification"|"estimated"|"approved"|"scheduled"|"in_development"|"uat"|"delivered"|"cancelled","request_type": "requirement"|"enhancement"|"change_request"|"bug"|"new_report"|"data_request"|"access_request"|"support"|"other","setup_status": "pending"|"created"|"dismissed","statement_status": "draft"|"pending"|"approved"|"changes_requested"|"invoiced","task_status": "todo"|"in_progress"|"in_review"|"waiting_customer"|"blocked"|"done","update_status": "draft"|"published","user_kind": "internal"|"customer","visibility": "internal"|"shared"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -2631,7 +2700,7 @@ export type CompositeTypes<
 export const Constants = {
   "public": {
           Enums: {
-            "action_status": ["open", "completed", "cancelled"],"action_type": ["approval", "form", "task", "clarification", "uat", "upload", "decision", "invoice", "meeting_action"],"approval_action": ["requested", "approved", "changes_requested", "resubmitted", "cancelled"],"approval_status": ["pending", "approved", "changes_requested", "cancelled"],"billing_kind": ["day_rate", "delivery", "unit", "retainer"],"billing_model": ["time_materials", "fixed_price", "retainer"],"csat_kind": ["request", "pulse", "closure"],"customer_role": ["customer_exec", "customer_member"],"feedback_kind": ["praise", "suggestion", "issue", "other"],"feedback_status": ["new", "acknowledged", "actioned", "closed"],"health": ["on_track", "needs_attention", "at_risk"],"internal_role": ["admin", "ceo", "pm", "consultant", "finance"],"owner_side": ["seven_billion", "customer"],"page_kind": ["scope", "requirements", "meeting_notes", "blank"],"page_status": ["draft", "in_review", "signed_off"],"priority": ["low", "normal", "high", "critical"],"project_status": ["active", "on_hold", "completed"],"rate_card_status": ["draft", "pending", "approved", "changes_requested", "superseded"],"request_status": ["submitted", "under_review", "clarification", "estimated", "approved", "scheduled", "in_development", "uat", "delivered", "cancelled"],"request_type": ["requirement", "enhancement", "change_request", "bug", "new_report", "data_request", "access_request", "support", "other"],"setup_status": ["pending", "created", "dismissed"],"statement_status": ["draft", "pending", "approved", "changes_requested", "invoiced"],"task_status": ["todo", "in_progress", "in_review", "waiting_customer", "blocked", "done"],"update_status": ["draft", "published"],"user_kind": ["internal", "customer"],"visibility": ["internal", "shared"]
+            "action_status": ["open", "completed", "cancelled"],"action_type": ["approval", "form", "task", "clarification", "uat", "upload", "decision", "invoice", "meeting_action"],"approval_action": ["requested", "approved", "changes_requested", "resubmitted", "cancelled"],"approval_status": ["pending", "approved", "changes_requested", "cancelled"],"billing_kind": ["day_rate", "delivery", "unit", "retainer", "resource", "overage"],"billing_model": ["time_materials", "fixed_price", "retainer", "dedicated"],"csat_kind": ["request", "pulse", "closure"],"customer_role": ["customer_exec", "customer_member"],"feedback_kind": ["praise", "suggestion", "issue", "other"],"feedback_status": ["new", "acknowledged", "actioned", "closed"],"health": ["on_track", "needs_attention", "at_risk"],"internal_role": ["admin", "ceo", "pm", "consultant", "finance"],"owner_side": ["seven_billion", "customer"],"page_kind": ["scope", "requirements", "meeting_notes", "blank"],"page_status": ["draft", "in_review", "signed_off"],"priority": ["low", "normal", "high", "critical"],"project_status": ["active", "on_hold", "completed"],"rate_card_status": ["draft", "pending", "approved", "changes_requested", "superseded"],"request_status": ["submitted", "under_review", "clarification", "estimated", "approved", "scheduled", "in_development", "uat", "delivered", "cancelled"],"request_type": ["requirement", "enhancement", "change_request", "bug", "new_report", "data_request", "access_request", "support", "other"],"setup_status": ["pending", "created", "dismissed"],"statement_status": ["draft", "pending", "approved", "changes_requested", "invoiced"],"task_status": ["todo", "in_progress", "in_review", "waiting_customer", "blocked", "done"],"update_status": ["draft", "published"],"user_kind": ["internal", "customer"],"visibility": ["internal", "shared"]
           }
         }
 } as const

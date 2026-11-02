@@ -875,7 +875,7 @@ describe('time to billing', () => {
     expect((await finance.rpc('refill_statement', { p_statement: st2 })).error).toBeNull()
     const line = (await finance.from('statement_lines').select('quantity, note').eq('statement_id', st2).eq('label', 'Engineer').single()).data!
     expect(Number(line.quantity)).toBe(0)
-    expect(line.note).toBe('No approved days in this period')
+    expect(line.note).toBe('No approved time in this period')
   })
 
   it('a new version of the rate card keeps who each line bills', async () => {
@@ -1398,5 +1398,38 @@ describe('hours credit', () => {
     expect(await balance()).toMatchObject({ kind: 'prepaid', available: 2, used: 32, remaining: -30 })
     await finance.from('credit_topups').insert({ customer_id: cbd, hours: 40, note: 'Block of 40' })
     expect(await balance()).toMatchObject({ available: 42, used: 32, remaining: 10, used_pct: 76.2 })
+  })
+})
+
+describe('cost rates, leave and the billing run', () => {
+  const sahilId = async () => (await service.from('profiles').select('id').eq('email', 'sahil@example.com').single()).data!.id
+
+  it('only finance (and admins, the CEO) see or set what an hour costs', async () => {
+    const id = await sahilId()
+    expect((await finance.from('cost_rates').upsert({ profile_id: id, hourly_cost: 1000 })).error).toBeNull()
+    expect((await rahul.from('cost_rates').select('hourly_cost')).data).toEqual([])
+    expect((await sahil.from('cost_rates').select('hourly_cost')).data).toEqual([])
+    expect((await michel.from('cost_rates').select('hourly_cost')).data).toEqual([])
+    expect((await rahul.from('cost_rates').upsert({ profile_id: id, hourly_cost: 1 })).error).not.toBeNull()
+    await service.from('cost_rates').delete().eq('profile_id', id)
+  })
+
+  it('people record their own leave; customers never see it; a PM cannot record someone else’s', async () => {
+    const id = await sahilId()
+    const day = '2030-01-07'
+    expect((await sahil.from('leave_days').insert({ profile_id: id, day })).error).toBeNull()
+    expect((await rahul.from('leave_days').select('day').eq('profile_id', id)).data).toHaveLength(1)
+    expect((await michel.from('leave_days').select('day')).data).toEqual([])
+    const rahulId = (await service.from('profiles').select('id').eq('email', 'rahul@example.com').single()).data!.id
+    expect((await sahil.from('leave_days').insert({ profile_id: rahulId, day })).error).not.toBeNull()
+    await service.from('leave_days').delete().eq('day', day)
+  })
+
+  it('the billing run and set-up are finance-only', async () => {
+    const { data } = await rahul.rpc('billing_preview', { p_start: '2026-01-01', p_end: '2026-01-31' })
+    expect(data ?? []).toEqual([])
+    const { data: p } = await service.from('projects').select('id').eq('name', 'Power BI Implementation').single()
+    const { error } = await rahul.rpc('setup_billing', { p_project: p!.id, p_model: 'dedicated', p_unit: 'month', p_currency: 'INR', p_people: [] })
+    expect(error?.message).toMatch(/not allowed/)
   })
 })
