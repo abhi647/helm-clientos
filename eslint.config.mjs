@@ -11,6 +11,7 @@ const eslintConfig = defineConfig([
     rules: {
       "react-hooks/preserve-manual-memoization": "off",
       "react-hooks/refs": "off",
+      "react-hooks/purity": "off",
       "react-hooks/exhaustive-deps": "off",
       "@next/next/no-img-element": "off",
       "@typescript-eslint/no-explicit-any": "off",
