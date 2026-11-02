@@ -1671,14 +1671,14 @@ isOneToOne: false
                   ]
                 },"rate_cards": {
                   Row: {
-                    "approved_for_customer": boolean,"created_at": string,"created_by": string | null,"currency": string,"customer_id": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"id": string,"monthly_cap": number | null,"notes": string,"po_number": string | null,"project_id": string,"status": Database["public"]['Enums']["rate_card_status"],"submitted_at": string | null,"submitted_by": string | null,"version": number
+                    "approved_for_customer": boolean,"contract_value": number | null,"created_at": string,"created_by": string | null,"currency": string,"customer_id": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"id": string,"monthly_cap": number | null,"notes": string,"po_number": string | null,"project_id": string,"status": Database["public"]['Enums']["rate_card_status"],"submitted_at": string | null,"submitted_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "approved_for_customer"?: boolean,"created_at"?: string,"created_by"?: string | null,"currency"?: string,"customer_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"monthly_cap"?: number | null,"notes"?: string,"po_number"?: string | null,"project_id": string,"status"?: Database["public"]['Enums']["rate_card_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"version"?: number
+                    "approved_for_customer"?: boolean,"contract_value"?: number | null,"created_at"?: string,"created_by"?: string | null,"currency"?: string,"customer_id": string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"monthly_cap"?: number | null,"notes"?: string,"po_number"?: string | null,"project_id": string,"status"?: Database["public"]['Enums']["rate_card_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "approved_for_customer"?: boolean,"created_at"?: string,"created_by"?: string | null,"currency"?: string,"customer_id"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"monthly_cap"?: number | null,"notes"?: string,"po_number"?: string | null,"project_id"?: string,"status"?: Database["public"]['Enums']["rate_card_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"version"?: number
+                    "approved_for_customer"?: boolean,"contract_value"?: number | null,"created_at"?: string,"created_by"?: string | null,"currency"?: string,"customer_id"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"id"?: string,"monthly_cap"?: number | null,"notes"?: string,"po_number"?: string | null,"project_id"?: string,"status"?: Database["public"]['Enums']["rate_card_status"],"submitted_at"?: string | null,"submitted_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -2552,6 +2552,9 @@ isOneToOne: false
                            },
 "set_consultants_see_own_customers":
 { Args: { "p_on": boolean }; Returns: undefined
+                           },
+"set_contract_value":
+{ Args: { "p_project": string,"p_value": number }; Returns: undefined
                            },
 "set_line_people":
 { Args: { "p_line": string,"p_people": (string)[] }; Returns: undefined

@@ -9,10 +9,12 @@ import { BillingRun } from '@/components/billing-run'
 import { UnbilledTime } from '@/components/time-billing'
 import { Card, Chip, Empty, PageHeader, cn } from '@/components/ui'
 import { daysFromToday, label, money, relativeTime, shortDate } from '@/lib/format'
-import { canSeeCommercials, canSeeFinance, requireStaff } from '@/lib/session'
+import { canSeeFinance, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { title: 'Finance' }
+
+const MODEL_NAME: Record<string, string> = { time_materials: 'T&M', dedicated: 'Dedicated', fixed_price: 'Fixed fee', retainer: 'Retainer' }
 
 /** Invoices and payments come from Zoho Books (synced). Nothing financial is calculated or typed in this app. */
 export default async function Finance({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
@@ -20,14 +22,19 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
   const me = await requireStaff()
   if (!canSeeFinance(me)) notFound()
   const supabase = await createClient()
-  const [{ data: invoices }, { data: commercials }, { data: statements }, { data: unbilled }] = await Promise.all([
+  const [{ data: invoices }, { data: cards }, { data: statements }, { data: unbilled }] = await Promise.all([
     supabase.from('invoices').select('*, customers(name)').order('due_on', { ascending: true }),
-    canSeeCommercials(me) ? supabase.from('project_commercials').select('*, projects(name, customers(name))') : Promise.resolve({ data: null }),
+    // every project's agreement, from its billing set-up (latest card, the approved one first)
+    supabase.from('rate_cards').select('project_id, status, version, currency, contract_value, po_number, projects!inner(name, status, billing_model, customers(name)), billing_statements(status, statement_lines(amount))').eq('projects.status', 'active').in('status', ['approved', 'draft', 'pending', 'changes_requested']).order('version', { ascending: false }),
     // statements still moving: being prepared, with the customer, or approved but not yet a Zoho draft
     supabase.from('billing_statements').select('id, project_id, period_start, period_end, status, invoice_error, zoho_invoice_number, projects(name, customers(name))')
       .neq('status', 'invoiced').order('period_start', { ascending: false }).limit(50),
     supabase.rpc('unbilled_time', {}),
   ])
+  // one row per project: its approved card, else the one being agreed
+  const seen = new Set<string>()
+  const contracts = (cards ?? []).sort((a, b) => Number(b.status === 'approved') - Number(a.status === 'approved')).filter((c) => !seen.has(c.project_id) && seen.add(c.project_id))
+    .map((c) => ({ ...c, billed: c.billing_statements.filter((s) => ['approved', 'invoiced'].includes(s.status)).reduce((a, s) => a + s.statement_lines.reduce((b, l) => b + Number(l.amount ?? 0), 0), 0) }))
   const lastSync = invoices?.reduce<string | null>((a, i) => (!a || i.synced_at > a ? i.synced_at : a), null)
   return (
     <>
@@ -69,18 +76,21 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
           ))}</div> : <Empty title="Nothing waiting">Statements appear here from the project Billing tabs until they become Zoho invoices.</Empty>}
         </Card>
         <PaymentsCard staff />
-        {commercials ? (
-          <Card flush title="Commercials" extra="Internal · CEO, finance and admin" className="overflow-x-auto">
-            {commercials.length ? <div className="min-w-[640px]">{commercials.map((c) => (
-              <div key={c.project_id} className="row grid-cols-[minmax(0,1fr)_220px_140px_120px]">
-                <span className="truncate">{c.projects?.customers?.name} · {c.projects?.name}</span>
-                <span className="truncate text-xs">{c.billing_model ?? '–'}</span>
-                <span className="text-right font-mono text-xs">{money(c.contract_value, c.currency)}</span>
-                <span className="font-mono text-xs text-muted-foreground">{c.po_number ?? 'No PO'}</span>
-              </div>
-            ))}</div> : <Empty title="No commercials recorded" />}
-          </Card>
-        ) : null}
+        <Card flush title="Contracts" description="Active projects: the agreed value, what is billed and approved, and what is left" className="overflow-x-auto">
+          {contracts.length ? <div className="min-w-[760px]">
+            <div className="row row-head grid-cols-[minmax(0,1fr)_110px_140px_140px_140px_120px]"><span>Project</span><span>Model</span><span className="text-right">Contract</span><span className="text-right">Billed</span><span className="text-right">Left</span><span>PO</span></div>
+            {contracts.map((c) => (
+              <Link key={c.project_id} href={`/projects/${c.project_id}/billing`} className="row grid-cols-[minmax(0,1fr)_110px_140px_140px_140px_120px] text-ink no-underline hover:bg-head">
+                <span className="truncate"><span className="text-muted-foreground">{c.projects.customers?.name} · </span>{c.projects.name}</span>
+                <span className="text-xs">{MODEL_NAME[c.projects.billing_model ?? ''] ?? '–'}</span>
+                <span className="tabular text-right text-xs">{c.contract_value != null ? money(Number(c.contract_value), c.currency) : <span className="text-muted-foreground">Not set</span>}</span>
+                <span className="tabular text-right text-xs">{money(c.billed, c.currency)}</span>
+                <span className={cn('tabular text-right text-xs', c.contract_value != null && c.billed > Number(c.contract_value) && 'font-semibold text-crit-ink')}>{c.contract_value != null ? money(Number(c.contract_value) - c.billed, c.currency) : '–'}</span>
+                <span className="truncate font-mono text-xs text-muted-foreground">{c.po_number ?? 'No PO'}</span>
+              </Link>
+            ))}
+          </div> : <Empty title="No billing set up yet" />}
+        </Card>
       </div>
     </>
   )

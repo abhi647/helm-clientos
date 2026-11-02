@@ -6,7 +6,7 @@ import { Building2, CalendarRange, ChevronRight, LayoutTemplate, UserRound } fro
 import { Chip, Health } from '@/components/ui'
 import { ProgressRing } from '@/components/viz'
 import { shortDate } from '@/lib/format'
-import { canManage, canSeeCommercials, canSeeFinance, requireStaff } from '@/lib/session'
+import { canManage, canSeeFinance, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { templateByKey } from '@/lib/templates'
 
@@ -58,7 +58,6 @@ export default async function ProjectLayout({ children, params }: { children: Re
           { href: `${base}/forms`, label: 'Forms' },
           { href: `${base}/activity`, label: 'Activity' },
           ...(canSeeFinance(me) ? [{ href: `${base}/billing`, label: 'Billing' }] : []),
-          ...(canSeeCommercials(me) ? [{ href: `${base}/commercials`, label: <>Commercials <Chip className="ml-1 h-4 border border-dashed border-internal-line bg-internal-bg px-1.5 text-internal-ink">Internal</Chip></> }] : []),
           ...(['admin', 'ceo'].includes(me.internal_role ?? '') ? [{ href: `${base}/settings`, label: 'Settings' }] : []),
         ]} />
       </header>

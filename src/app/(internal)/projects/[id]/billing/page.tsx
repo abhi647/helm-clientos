@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { CalendarClock, Clock, Flag, Hourglass, Receipt, UserCheck, Wallet } from 'lucide-react'
-import { approveRateCardForCustomer, billMilestone, createStatement, discardRateCard, submitRateCard } from '@/app/_actions/billing'
+import { approveRateCardForCustomer, billMilestone, createStatement, discardRateCard, setContractValue, submitRateCard } from '@/app/_actions/billing'
 import { RateCardStatus, StatementStatus } from '@/components/billing'
 import { BillingSetupWizard, type SetupInitial, type Unit } from '@/components/billing-setup'
 import { ActionButton, ActionForm, ApproveForCustomer } from '@/components/forms'
@@ -109,6 +109,8 @@ export default async function ProjectBilling({ params, searchParams }: { params:
     return { line: l, phase, pct, statement: st }
   })
   const contract = milestones.reduce((a, m) => a + Number(m.line.rate), 0)
+  // the agreed total: entered from the SOW, or for a fixed fee the schedule's total
+  const contractValue = card?.contract_value != null ? Number(card.contract_value) : model === 'fixed_price' && contract ? contract : null
   const billed = milestones.filter((m) => m.statement && ['approved', 'invoiced'].includes(m.statement.status)).reduce((a, m) => a + Number(m.line.rate), 0)
 
   // retainer: the customer's hours bank this month
@@ -121,7 +123,7 @@ export default async function ProjectBilling({ params, searchParams }: { params:
   const ModelIcon = model ? MODEL[model].icon : Receipt
 
   const initial: SetupInitial | undefined = model && card ? {
-    model, unit: (project.rate_unit as Unit) ?? 'hour', currency, po: card.po_number ?? '', notes: card.notes ?? '', cap: card.monthly_cap != null ? String(card.monthly_cap) : '',
+    model, unit: (project.rate_unit as Unit) ?? 'hour', currency, po: card.po_number ?? '', notes: card.notes ?? '', cap: card.monthly_cap != null ? String(card.monthly_cap) : '', contract: card.contract_value != null ? String(card.contract_value) : '',
     rates: lines.filter((l) => (l.kind === 'day_rate' || l.kind === 'resource') && l.rate_line_people.length === 1).map((l) => ({ profile_id: l.rate_line_people[0]!.profile_id, rate: String(l.rate) })),
     milestones: lines.filter((l) => l.kind === 'delivery').map((l) => ({ label: l.label, amount: String(l.rate), phase_id: (phases ?? []).find((p) => p.rate_line_id === l.id)?.id ?? '', bill_on: l.bill_on ?? '' })),
     retainer: { fee: String(lines.find((l) => l.kind === 'retainer')?.rate ?? ''), hours: b ? String(b.allowance ?? '') : '', rollover: '', overage: String(lines.find((l) => l.kind === 'overage')?.rate ?? '') },
@@ -150,6 +152,19 @@ export default async function ProjectBilling({ params, searchParams }: { params:
             { id: 'rates', label: 'Rates', value: <span className="flex items-center gap-1.5">v{card.version} <RateCardStatus status={card.status} /></span> },
             { id: 'cur', label: 'Currency', value: <span className="font-mono">{currency}{model !== 'fixed_price' || lines.some((l) => l.kind === 'day_rate') ? ` · per ${project.rate_unit}` : ''}</span> },
             { id: 'po', label: 'PO', value: <span className="font-mono">{card.po_number || '–'}</span> },
+            { id: 'cv', label: 'Contract', value: (
+              <details className="group/cv relative">
+                <summary className="tabular cursor-pointer list-none font-medium">{contractValue != null ? money(contractValue, currency) : <span className="text-primary">Add value</span>}
+                  {contractValue ? <span className="ml-1.5 text-xs font-normal text-muted-foreground">{money(revenue, currency)} billed · {money(Math.max(contractValue - revenue, 0), currency)} left</span> : null}</summary>
+                <div className="absolute z-10 mt-1 w-64 rounded-md border border-border bg-card p-2.5 shadow-pop">
+                  <ActionForm action={setContractValue} submit="Save" resetOnSuccess={false}>
+                    <input type="hidden" name="project_id" value={id} />
+                    <label className="label" htmlFor="cv-in">Contract value ({currency}), from the SOW</label>
+                    <input id="cv-in" name="contract_value" defaultValue={card.contract_value ?? ''} inputMode="decimal" className="input tabular" placeholder="Empty: not set" />
+                  </ActionForm>
+                </div>
+              </details>
+            ) },
           ]} />
         ) : null}
         <span className="ml-auto flex flex-wrap items-center gap-2">

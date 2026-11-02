@@ -16,7 +16,7 @@ type Phase = { id: string; name: string }
 type PersonRate = { profile_id: string; rate: string }
 type Milestone = { label: string; amount: string; phase_id: string; bill_on: string }
 export type SetupInitial = {
-  model: Model | null; unit: Unit; currency: string; po: string; notes: string; cap: string
+  model: Model | null; unit: Unit; currency: string; po: string; notes: string; cap: string; contract: string
   rates: PersonRate[]; milestones: Milestone[]; retainer?: { fee: string; hours: string; rollover: string; overage: string }
 }
 
@@ -51,7 +51,7 @@ export function BillingSetupWizard({ projectId, people, phases, initial }: { pro
   const [cap, setCap] = useState(initial?.cap ?? '')
   const [rates, setRates] = useState<PersonRate[]>(initial?.rates ?? [])
   const [extras, setExtras] = useState(Boolean(initial?.model === 'fixed_price' && initial.rates.length))
-  const [contract, setContract] = useState(() => initial?.milestones.reduce((a, m) => a + (Number(m.amount) || 0), 0).toString() ?? '')
+  const [contract, setContract] = useState(() => initial?.contract || (initial?.milestones.length ? initial.milestones.reduce((a, m) => a + (Number(m.amount) || 0), 0).toString() : ''))
   const [byPercent, setByPercent] = useState(false)
   const [milestones, setMilestones] = useState<Milestone[]>(initial?.milestones.length ? initial.milestones : [{ label: '', amount: '', phase_id: '', bill_on: '' }])
   const [retainer, setRetainer] = useState(initial?.retainer ?? { fee: '', hours: '', rollover: '', overage: '' })
@@ -91,6 +91,7 @@ export function BillingSetupWizard({ projectId, people, phases, initial }: { pro
     const payload: BillingSetup = {
       project_id: projectId, model: model!, unit: model === 'retainer' ? 'hour' : unit, currency, po_number: po, notes,
       cap: model === 'time_materials' && cap ? num(cap) : undefined,
+      contract_value: contract ? num(contract) : model === 'fixed_price' ? total : undefined,
       people: usesPeople ? rates.map((r) => ({ profile_id: r.profile_id, rate: num(r.rate) })) : [],
       milestones: model === 'fixed_price' ? milestones.map((m) => ({ label: m.label, amount: amountOf(m), phase_id: m.phase_id, bill_on: m.bill_on })) : [],
       retainer: model === 'retainer' ? { fee: num(retainer.fee), hours: num(retainer.hours || '0'), rollover: retainer.rollover, overage_rate: retainer.overage } : undefined,
@@ -215,14 +216,16 @@ export function BillingSetupWizard({ projectId, people, phases, initial }: { pro
         ) : null}
 
         {step === 2 ? (
-          <div className="grid max-w-3xl gap-3 sm:grid-cols-[160px_220px_minmax(0,1fr)]">
+          <div className="grid max-w-3xl gap-3 sm:grid-cols-[160px_180px_180px_minmax(0,1fr)]">
             <label className="flex flex-col gap-1"><span className="label">Currency</span>
               <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="input font-mono">{CURRENCIES.map(([c, n]) => <option key={c} value={c}>{c} · {n}</option>)}</select></label>
+            <label className="flex flex-col gap-1"><span className="label">Contract value</span>
+              <input value={contract} onChange={(e) => setContract(e.target.value)} inputMode="decimal" className="input tabular" placeholder={model === 'fixed_price' ? String(total) : 'From the SOW'} /></label>
             <label className="flex flex-col gap-1"><span className="label">Customer PO number</span>
               <input value={po} onChange={(e) => setPo(e.target.value)} className="input font-mono" placeholder="Optional" /></label>
             <label className="flex flex-col gap-1"><span className="label">Notes for the customer</span>
               <input value={notes} onChange={(e) => setNotes(e.target.value)} className="input" placeholder="Payment terms, what is included" /></label>
-            <div className="rounded-md bg-head p-3 text-xs sm:col-span-3">
+            <div className="rounded-md bg-head p-3 text-xs sm:col-span-4">
               <b>{MODELS.find((m) => m.model === model)?.title}</b>
               {model === 'fixed_price' ? <> · {milestones.length} milestone{milestones.length === 1 ? '' : 's'}, {currency} {total.toLocaleString('en-IN')}{extras ? ` · change requests for ${rates.length} people per ${unit}` : ''}</> : null}
               {model === 'time_materials' ? <> · {rates.length} {rates.length === 1 ? 'person' : 'people'}, {currency} per {unit}{cap ? `, capped at ${currency} ${num(cap).toLocaleString('en-IN')} a month` : ''}</> : null}

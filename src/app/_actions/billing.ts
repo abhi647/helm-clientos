@@ -316,6 +316,7 @@ const setupSchema = z.object({
   model: z.enum(['time_materials', 'dedicated', 'fixed_price', 'retainer']),
   unit: z.enum(['hour', 'day', 'month']),
   cap: z.preprocess((v) => (v === '' || v == null ? undefined : v), z.coerce.number().min(0).optional()),
+  contract_value: z.preprocess((v) => (v === '' || v == null ? undefined : v), z.coerce.number().min(0).max(1e13).optional()),
   currency: z.string().regex(/^[A-Z]{3}$/, 'Choose a currency.'),
   po_number: z.string().trim().max(80).default(''),
   notes: z.string().trim().max(2000).default(''),
@@ -343,6 +344,10 @@ export async function setupBilling(input: BillingSetup): Promise<ActionResult> {
     p_project: d.project_id, p_model: d.model, p_unit: d.unit, p_currency: d.currency, p_po: d.po_number, p_notes: d.notes,
     p_people: d.people as never, p_milestones: d.milestones as never, p_retainer: (d.retainer ?? null) as never, p_cap: d.cap,
   })
+  if (!error) {
+    const { error: cv } = await (await createClient()).rpc('set_contract_value', { p_project: d.project_id, p_value: d.contract_value ?? null as never })
+    if (cv) return dbFail(cv)
+  }
   if (error) {
     const m = error.message.match(/add at least one (person and their rate|milestone)|enter the monthly fee|dedicated people are billed per month or per day|each person can have one rate|each milestone needs a name and an amount|the customer is reviewing the rates.*|only Seven Billion people can be billed on a line|enter a rate for .+/i)
     return m ? fail(m[0].charAt(0).toUpperCase() + m[0].slice(1) + '.') : dbFail(error)
@@ -417,4 +422,15 @@ export async function saveCostRates(_prev: ActionResult | null, form: FormData):
   }
   if (cleared.length) await supabase.from('cost_rates').delete().in('profile_id', cleared)
   return done('Cost rates saved.')
+}
+
+/** The contract's agreed total, from the signed SOW (finance, admins, the CEO). */
+export async function setContractValue(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  await requireStaff()
+  const id = uuid.safeParse(form.get('project_id'))
+  const raw = String(form.get('contract_value') ?? '').replace(/,/g, '').trim()
+  const value = raw === '' ? null : Number(raw)
+  if (!id.success || (value != null && !(value >= 0))) return fail('Enter the contract value as a number.')
+  const { error } = await (await createClient()).rpc('set_contract_value', { p_project: id.data, p_value: value as never })
+  return error ? dbFail(error) : done(value == null ? 'Contract value cleared.' : 'Contract value saved.')
 }
