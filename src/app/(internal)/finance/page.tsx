@@ -5,6 +5,7 @@ import { syncZohoNow } from '@/app/_actions/admin'
 import { ActionButton } from '@/components/forms'
 import { StatementStatus, period } from '@/components/billing'
 import { PaymentsCard } from '@/components/payments'
+import { ReadyToBillQueue } from '@/components/ready-to-bill'
 import { UnbilledTime } from '@/components/time-billing'
 import { Card, Chip, Empty, PageHeader, cn } from '@/components/ui'
 import { daysFromToday, label, money, relativeTime, shortDate } from '@/lib/format'
@@ -32,6 +33,7 @@ export default async function Finance() {
       <PageHeader title="Finance" meta={<span className="text-xs text-muted-foreground">Synced from Zoho Books{lastSync ? ` · last sync ${relativeTime(lastSync)}` : ''}</span>}
         actions={<ActionButton run={syncZohoNow}>Sync now</ActionButton>} />
       <div className="flex flex-col gap-3 p-4">
+        <ReadyToBillQueue />
         <Card flush title="Invoices" className="overflow-x-auto">
           {invoices?.length ? (
             <div className="min-w-[760px]">

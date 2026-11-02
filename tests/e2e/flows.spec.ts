@@ -585,48 +585,37 @@ test('privacy and terms are public; the CEO exports a customer\'s data, then del
   expect((await page.request.get(`/api/customers/${data.customer.id}/export`)).status()).toBe(403)
 })
 
-test('billing (finance only): rate card approved by the customer, a statement approved, then sent to Zoho', async ({ page }) => {
+test('billing set-up: finance picks time & materials in the wizard, the customer approves the rates, the PM never sees billing', async ({ page }) => {
   page.on('dialog', (d) => d.accept())
-  const openBilling = async () => {
+  const openBilling = async (project: string) => {
     await page.goto('/customers')
     await page.getByRole('link', { name: /Nesma Group/ }).click()
-    await page.getByRole('link', { name: 'Infor LN Integration' }).first().click()
-    await page.getByRole('link', { name: 'Billing' }).click()
+    await page.getByRole('link', { name: project }).first().click()
+    await page.getByRole('link', { name: 'Billing', exact: true }).click()
   }
 
-  // finance sets the rates from the contract: a day rate and a per-delivery price
+  // finance: one choice of model, then each person's hourly rate
   await signIn(page, 'finance@example.com')
-  await openBilling()
-  await page.getByRole('button', { name: 'Start the rate card' }).click()
-  const add = page.locator('form', { has: page.getByRole('button', { name: 'Add line' }) })
-  await add.getByLabel('Role, delivery or unit').fill('Data engineer')
-  await add.getByLabel('Rate', { exact: true }).fill('90')
-  await add.getByLabel('Planned quantity').fill('2')
-  await add.getByRole('button', { name: 'Add line' }).click()
-  await expect(page.getByText('Line added.')).toBeVisible()
-  // "Charged per" follows the billing model
-  await add.getByLabel('Billing model').selectOption('retainer')
-  await expect(add.getByLabel('Unit', { exact: true })).toHaveValue('month')
-  await add.getByLabel('Billing model').selectOption('unit')
-  await expect(add.getByLabel('Unit', { exact: true })).toHaveValue('')
-  await add.getByLabel('Billing model').selectOption('delivery')
-  await expect(add.getByLabel('Unit', { exact: true })).toHaveValue('delivery')
-  await add.getByLabel('Role, delivery or unit').fill('Sales dashboard')
-  await add.getByLabel('Rate', { exact: true }).fill('500')
-  await add.getByRole('button', { name: 'Add line' }).click()
-  await expect(page.locator('details summary', { hasText: 'Sales dashboard' }).first()).toBeVisible()
-  await shot(page, '21-billing-rate-card')
-  await page.getByRole('button', { name: 'Send to customer for approval' }).click()
-  await expect(page.getByText('Waiting for customer')).toBeVisible()
+  await openBilling('Infor LN Integration')
+  await expect(page.getByText('Billing not set up')).toBeVisible()
+  await page.getByRole('radio', { name: /Time & materials/ }).click()
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByLabel('Add a person').selectOption({ label: 'Sahil · consultant' })
+  await page.getByLabel('Rate for Sahil').fill('2500')
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByRole('button', { name: 'Save billing set-up' }).click()
+  await expect(page.getByText('Time & materials', { exact: true })).toBeVisible()
+  await shot(page, '21-billing-set-up')
+  await page.getByRole('button', { name: 'Send to customer' }).click()
+  await expect(page.getByText('Waiting for customer').first()).toBeVisible()
 
   // the customer's executive approves the rates in the portal
   await signIn(page, 'michel@nesma.example.com')
   await page.goto('/portal/billing')
   const card = page.locator('.card', { hasText: 'Rates for Infor LN Integration' })
-  await expect(card.getByText('Data engineer')).toBeVisible()
+  await expect(card.getByText('Sahil')).toBeVisible()
   await card.getByRole('button', { name: 'Approve' }).click()
-  await expect(card).toHaveCount(0)   // moves from "waiting" to the approved rates
-  await expect(page.locator('.card', { hasText: 'Approved rates' }).getByText('Data engineer')).toBeVisible()
+  await expect(card).toHaveCount(0)
 
   // the PM sees the project's delivery, but no billing at all
   await signIn(page, 'rahul@example.com')
@@ -636,186 +625,97 @@ test('billing (finance only): rate card approved by the customer, a statement ap
   await expect(page.getByRole('link', { name: 'Plan', exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Billing', exact: true })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Finance', exact: true })).toHaveCount(0)
-
-  // finance bills the month: days worked (checked against the hours logged) and the delivery accepted
-  await signIn(page, 'finance@example.com')
-  await openBilling()
-  await page.getByRole('button', { name: 'Statement for a period' }).click()
-  await page.waitForURL(/\/billing\/[0-9a-f-]{36}$/)
-  await page.getByLabel('Quantity for Data engineer').fill('38')
-  await page.getByLabel('Note for Data engineer').fill('2 days leave')
-  await page.getByLabel('Quantity for Sales dashboard').fill('1')
-  await page.getByRole('button', { name: 'Save', exact: true }).click()
-  await expect(page.getByText('Saved.')).toBeVisible()
-  await expect(page.getByText('Days logged in this period')).toBeVisible()
-  await shot(page, '22-billing-statement')
-  await page.getByRole('button', { name: 'Send to customer for approval' }).click()
-  await expect(page.getByText('Waiting for approval')).toBeVisible()
-  const statementUrl = page.url()
-
-  // the customer approves the statement; approving no longer invoices it
-  await signIn(page, 'michel@nesma.example.com')
-  await page.goto('/portal/billing')
-  const st = page.locator('.card', { hasText: 'Waiting for approval' })
-  await expect(st.getByText('2 days leave')).toBeVisible()
-  await shot(page, '23-portal-billing')
-  await st.getByRole('button', { name: 'Approve' }).click()
-  await expect(st).toHaveCount(0)
-  await expect(page.locator('.card', { hasText: 'Statements' }).getByText('Approved', { exact: true })).toBeVisible()
-
-  // finance ticks approved statements and creates one invoice (Zoho is not connected locally, so it says why)
-  await signIn(page, 'finance@example.com')
-  await page.goto(statementUrl)
-  await expect(page.getByText(/Draft invoice/)).toHaveCount(0)
-  await openBilling()
-  const statements = page.locator('.card', { has: page.getByRole('heading', { name: 'Statements' }) })
-  await expect(statements.getByText('Ready to invoice')).toBeVisible()
-  await statements.getByRole('checkbox').first().check()
-  await statements.getByRole('button', { name: 'Create invoice in Zoho for the ticked statements' }).click()
-  await expect(statements.getByText(/Zoho is not connected|has no Zoho customer id|Set the GST/).first()).toBeVisible()
 })
 
-test('time to billing: logged, returned and approved, then billed once on the statement', async ({ page }) => {
+test('time to billing: hours typed in the week grid, one returned, the rest approved, then billed by the hour once', async ({ page }) => {
   page.on('dialog', (d) => d.accept())
-  // the consultant logs a full day (8 hours) and a half day (4 hours) on a task
-  await signIn(page, 'sahil@example.com')
-  await page.goto('/projects')
-  await page.getByRole('link', { name: 'Management Reporting' }).click()
-  await page.getByRole('link', { name: /: Build$/ }).first().click()
-  const log = async (hours: string, note: string) => {
-    await page.locator('summary', { hasText: 'Log time' }).click()
-    await page.getByLabel('Hours worked').fill(hours)
-    await page.getByLabel('Note', { exact: true }).fill(note)
-    await page.getByRole('button', { name: 'Log time' }).click()
-    await expect(page.getByText(/logged\.$/)).toBeVisible()
-  }
-  await log('8', 'e2e full day')
-  await page.reload()
-  await log('4', 'e2e half day')
-  await page.goto('/my-work')
-  await expect(page.locator('.card', { hasText: 'My time' }).locator('.row', { hasText: 'Management Reporting' }).getByText('Waiting', { exact: true })).toHaveCount(2)
+  const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', timeZone: 'UTC' })
+  const cell = (task: string) => page.getByLabel(`${task}, ${today}`, { exact: true })
 
-  // the PM returns the half day with a note and approves the rest
-  await signIn(page, 'rahul@example.com')
+  // the consultant types today's hours on two tasks; each saves as they leave the cell
+  await signIn(page, 'sahil@example.com')
   await page.goto('/timesheets')
-  const sheet = page.locator('.card', { hasText: 'e2e full day' })
+  await cell('API Development: Build').fill('8')
+  await cell('Testing: Build').fill('4')
+  await cell('API Development: Build').focus()   // leaving Testing saves it
+  await page.waitForLoadState('networkidle')
+  await page.reload()
+  await expect(cell('API Development: Build')).toHaveValue('8')
+  await expect(cell('Testing: Build')).toHaveValue('4')
+  await shot(page, '39-week-grid')
+
+  // the PM returns the 4 hours with a note and approves the rest
+  await signIn(page, 'rahul@example.com')
+  await page.goto('/timesheets/approve')
+  const sheet = page.locator('.card', { hasText: 'Testing: Build' })
   await sheet.getByLabel("Tick all of Sahil's entries").uncheck()
-  await sheet.locator('label.row', { hasText: 'e2e half day' }).getByRole('checkbox').check()
+  await sheet.locator('label.row', { hasText: 'Testing: Build' }).getByRole('checkbox').check()
   await sheet.getByRole('button', { name: 'Return ticked…' }).click()
-  await sheet.getByLabel('What should change').fill('Half days go on the review task')
+  await sheet.getByLabel('What should change').fill('Log testing on the UAT task')
   await sheet.getByRole('button', { name: 'Return with this note' }).click()
-  await expect(page.locator('.card', { hasText: 'Returned' }).getByText(/Half days go on the review task/)).toBeVisible()
-  await shot(page, '39-timesheets')
-  await page.locator('.card', { hasText: 'e2e full day' }).getByRole('button', { name: 'Approve ticked' }).click()
-  await expect(page.locator('.card', { hasText: 'Recently approved' }).getByText(/Management Reporting/).first()).toBeVisible()
+  await expect(page.locator('.card', { hasText: 'Returned' }).getByText(/Log testing on the UAT task/)).toBeVisible()
+  await page.locator('.card', { hasText: 'API Development: Build' }).getByRole('button', { name: 'Approve ticked' }).click()
+  await expect(page.locator('.card', { hasText: 'Recently approved' }).getByText(/Infor LN Integration/).first()).toBeVisible()
 
-  // the consultant sees why the half day came back
+  // the consultant sees the approved hours locked and the returned ones in amber
   await signIn(page, 'sahil@example.com')
-  await page.goto('/my-work')
-  const mine = page.locator('.card', { hasText: 'My time' })
-  await expect(mine.getByText('Half days go on the review task')).toBeVisible()
-  await expect(mine.locator('.row', { hasText: 'Management Reporting' }).getByText('Approved', { exact: true })).toBeVisible()
-  await shot(page, '40-my-time')
+  await page.goto('/timesheets')
+  await expect(page.getByRole('gridcell', { name: `API Development: Build, ${today}: 8 hours, approved` })).toBeVisible()
+  await expect(cell('Testing: Build')).toHaveAttribute('title', /Log testing on the UAT task/)
 
-  // finance names Sahil on the day rate; the statement fills from the approved day
+  // finance bills the month: Sahil's approved 8 hours at the hourly rate
+  await signIn(page, 'finance@example.com')
+  await page.goto('/customers')
+  await page.getByRole('link', { name: /Nesma Group/ }).click()
+  await page.getByRole('link', { name: 'Infor LN Integration' }).first().click()
+  await page.getByRole('link', { name: 'Billing', exact: true }).click()
+  const unbilled = page.locator('.card', { has: page.getByRole('heading', { name: 'Unbilled time' }) })
+  await expect(unbilled.getByText('Sahil')).toBeVisible()
+  await shot(page, '41-unbilled-time')
+  await page.getByRole('button', { name: /^Create statement for / }).click()
+  await page.waitForURL(/\/billing\/[0-9a-f-]{36}$/)
+  await expect(page.getByLabel('Quantity for Sahil')).toHaveValue('8')
+  await expect(page.getByLabel('Note for Sahil')).toHaveValue('From approved timesheets: Sahil 8 hours')
+  await page.getByText('✓ Approve the statement for the customer').click()
+  await page.getByRole('button', { name: 'Approve the statement for the customer' }).click()
+  await expect(page.getByRole('heading', { name: /Statement · .* Approved/ })).toBeVisible()
+
+  // billed hours are locked for good
+  await signIn(page, 'sahil@example.com')
+  await page.goto('/timesheets')
+  await expect(page.getByRole('gridcell', { name: `API Development: Build, ${today}: 8 hours, billed` })).toBeVisible()
+})
+
+test('fixed price: milestones agreed once, each billed once when delivered', async ({ page }) => {
+  page.on('dialog', (d) => d.accept())
   await signIn(page, 'finance@example.com')
   await page.goto('/customers')
   await page.getByRole('link', { name: /Nesma Group/ }).click()
   await page.getByRole('link', { name: 'Management Reporting' }).first().click()
-  await page.getByRole('link', { name: 'Billing' }).click()
-  await page.getByRole('button', { name: 'Start the rate card' }).click()
-  // the currency saves itself: no "Save details" needed
-  await page.getByLabel('Currency').selectOption('EUR')
-  await expect(page.getByText('Saved.')).toBeVisible()
-  const add = page.locator('form', { has: page.getByRole('button', { name: 'Add line' }) })
-  await expect(add.getByText('Rate (EUR)')).toBeVisible()
-  await add.getByLabel('Role, delivery or unit').fill('Engineer')
-  await add.getByLabel('Rate', { exact: true }).fill('100')
-  await add.getByRole('button', { name: 'Add line' }).click()
-  await expect(page.getByText('1 line on this rate card')).toBeVisible()
-  // a PO number typed but not saved stops the approval, so it is never lost
-  await page.getByLabel('PO number').fill('PO-77')
-  let warning = ''
-  page.on('dialog', (d) => { warning = d.message() })   // accepted by the handler at the top of this test
+  await page.getByRole('link', { name: 'Billing', exact: true }).click()
+  await page.getByRole('radio', { name: /Fixed price/ }).click()
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByLabel('Milestone 1 name').fill('Discovery sign-off')
+  await page.getByLabel('Milestone 1 amount').fill('200000')
+  await page.getByLabel('Milestone 1 phase').selectOption({ label: 'Discovery' })
+  await page.getByRole('button', { name: 'Add milestone' }).click()
+  await page.getByLabel('Milestone 2 name').fill('Go-live')
+  await page.getByLabel('Milestone 2 amount').fill('500000')
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByText(/2 milestones, INR 7,00,000/)).toBeVisible()
+  await page.getByRole('button', { name: 'Save billing set-up' }).click()
+  // agreed in the signed contract: approved here, the customer is told
   await page.getByText('✓ Approve the rates for the customer').click()
   await page.getByRole('button', { name: 'Approve the rates for the customer' }).click()
-  await expect.poll(() => warning).toContain('not saved')
-  await page.getByRole('button', { name: 'Save details' }).click()
-  // saved once the page shows PO-77 as the stored value
-  await expect.poll(() => page.getByLabel('PO number').evaluate((el) => (el as HTMLInputElement).defaultValue)).toBe('PO-77')
-  await page.getByRole('button', { name: 'Approve the rates for the customer' }).click()
-  await expect(page.getByRole('heading', { name: /Approved rates v1/ })).toBeVisible()
-  await expect(page.getByText(/EUR · PO PO-77/)).toBeVisible()
-  const people = page.locator('details', { hasText: 'Choose people' })
-  await people.locator('summary').click()
-  await people.getByLabel('Sahil').check()
-  await people.getByRole('button', { name: 'Save people' }).click()
-  await expect(page.getByText('Their approved days fill this line')).toBeVisible()
-  const unbilled = page.locator('.card', { has: page.getByRole('heading', { name: 'Unbilled work' }) })
-  await expect(unbilled.getByText('Sahil')).toBeVisible()
-  await expect(unbilled.getByText('Engineer')).toBeVisible()
-  await shot(page, '41-unbilled-work')
-
-  // finance ticks the work to bill: the statement bills exactly that task's approved day
-  const work = page.locator('.card', { has: page.getByRole('heading', { name: 'Work to bill' }) })
-  await work.getByLabel(/^Bill .*: Build$/).first().check()
-  await work.getByRole('button', { name: 'Create statement from the ticked tasks' }).click()
+  const milestones = page.locator('.card', { has: page.getByRole('heading', { name: 'Milestones' }) })
+  await expect(milestones.getByText('Discovery sign-off')).toBeVisible()
+  await shot(page, '42-fixed-price-milestones')
+  await milestones.locator('.row', { hasText: 'Discovery sign-off' }).getByRole('button').click()
   await page.waitForURL(/\/billing\/[0-9a-f-]{36}$/)
-  await expect(page.getByLabel('Quantity for Engineer')).toHaveValue('1')
-  await expect(page.getByLabel('Note for Engineer')).toHaveValue(/^From tasks: .*: Build 1 day$/)
-  await shot(page, '42-statement-from-timesheets')
-  await page.getByText('✓ Approve the statement for the customer').click()
-  await page.getByRole('button', { name: 'Approve the statement for the customer' }).click()
-  await expect(page.getByRole('heading', { name: /Statement · .* Approved/ })).toBeVisible()
-  await expect(page.locator('.card', { hasText: 'Days logged in this period' }).locator('.row', { hasText: 'Sahil' })).toContainText('1.5 1.5 1 0 1'.replace(/ /g, ''))
+  await expect(page.getByLabel('Quantity for Discovery sign-off')).toHaveValue('1')
   await page.getByRole('link', { name: '← Billing' }).click()
-  await expect(page.locator('.card', { has: page.getByRole('heading', { name: 'Unbilled work' }) })).toHaveCount(0)
-
-  // billed days are locked for good
-  await signIn(page, 'sahil@example.com')
-  await page.goto('/my-work')
-  await expect(page.locator('.card', { hasText: 'My time' }).locator('.row', { hasText: 'Management Reporting' }).getByText('Billed', { exact: true })).toBeVisible()
-})
-
-test('billed as: the PM attaches rate card lines to a phase and a task by name, never seeing a rate', async ({ page }) => {
-  await signIn(page, 'rahul@example.com')
-  await page.goto('/projects')
-  await page.getByRole('link', { name: 'Management Reporting' }).click()
-  // the lines of the approved card, by name; no amounts on the plan
-  const phaseRow = page.locator('summary').filter({ has: page.getByLabel(/ billed as$/) }).first()
-  const phaseSelect = phaseRow.getByLabel(/ billed as$/)
-  await expect(phaseSelect.locator('option')).toHaveText(['Not billed separately', 'Engineer'])
-  await phaseSelect.selectOption({ label: 'Engineer' })
-  await page.waitForLoadState('networkidle')
-  await expect(page.getByText(/EUR|100\.00/)).toHaveCount(0)
-
-  // a task with no line of its own uses its phase's
-  await page.getByRole('link', { name: /: Plan$/ }).first().click()
-  const panel = page.getByRole('complementary', { name: 'Task details' })
-  await page.waitForLoadState('networkidle')
-  await expect(panel.getByText(/Uses the phase's line: Engineer|Hours use the line the person is named on/)).toBeVisible()
-  await panel.getByLabel('Task billed as').selectOption({ label: 'Engineer' })
-  await page.waitForLoadState('networkidle')
-  await page.reload()
-  await expect(panel.getByLabel('Task billed as')).toHaveValue(/[0-9a-f-]{36}/)
-  await shot(page, '46-billed-as')
-
-  // days on this task are approved and billed: the PM can no longer change its line
-  await page.getByRole('link', { name: /: Build$/ }).first().click()
-  await expect(panel.getByText('12 h logged', { exact: false })).toBeVisible()
-  await page.waitForLoadState('networkidle')
-  await panel.getByLabel('Task billed as').selectOption({ label: 'Engineer' })
-  await expect(panel.getByText(/only finance, an admin or the CEO can change what it is billed as/)).toBeVisible()
-  await expect(panel.getByLabel('Task billed as')).toHaveValue('')
-
-  // finance sees finished work that is not billed yet, and why
-  await signIn(page, 'finance@example.com')
-  await page.goto('/projects')
-  await page.getByRole('link', { name: 'Management Reporting' }).click()
-  await page.getByRole('link', { name: 'Billing' }).click()
-  const done = page.locator('.card', { has: page.getByRole('heading', { name: 'Work to bill' }) })
-  await expect(done.locator('.row', { hasText: 'Data Engineering: Plan' })).toContainText('no hours logged')
-  await shot(page, '47-done-not-billed')
+  await expect(milestones.locator('.row', { hasText: 'Discovery sign-off' }).getByRole('link', { name: 'Open statement →' })).toBeVisible()
+  await expect(milestones.locator('.row', { hasText: 'Go-live' }).getByRole('button', { name: 'Bill milestone' })).toBeVisible()
 })
 
 test('admin previews and runs the HubSpot + Zoho import', async ({ page }) => {
@@ -1094,69 +994,6 @@ test.describe('on a phone', () => {
     }
   })
 })
-
-test.describe('on a phone, billing', () => {
-  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
-  test('several deliveries and several people on one rate card; the model stays as chosen', async ({ page }) => {
-    await signIn(page, 'finance@example.com')
-    await page.goto('/customers')
-    await page.getByRole('link', { name: /Nesma Group/ }).click()
-    await page.getByRole('link', { name: 'Power BI Implementation' }).first().click()
-    await page.getByRole('link', { name: 'Billing' }).click()
-    await page.getByRole('button', { name: 'Start the rate card' }).click()
-    // billed in US dollars
-    await page.getByLabel('Currency').selectOption('USD')
-    await page.getByRole('button', { name: 'Save details' }).click()
-    await expect(page.getByText('Saved.')).toBeVisible()
-    const add = page.locator('form', { has: page.getByRole('button', { name: 'Add line' }) })
-    await expect(add.getByText('Rate (USD)')).toBeVisible()
-    const addLine = async (label: string, rate: string, n: number) => {
-      await add.getByLabel('Role, delivery or unit').fill(label)
-      await add.getByLabel('Rate', { exact: true }).fill(rate)
-      await add.getByRole('button', { name: 'Add line' }).click()
-      await expect(page.getByText(`${n} ${n === 1 ? 'line' : 'lines'} on this rate card`)).toBeVisible()
-    }
-    // three deliveries, choosing the model once
-    await add.getByLabel('Billing model').selectOption('delivery')
-    await addLine('Sales dashboard', '500', 1)
-    await expect(add.getByLabel('Billing model')).toHaveValue('delivery')
-    await expect(add.getByLabel('Unit', { exact: true })).toHaveValue('delivery')
-    await addLine('Inventory dashboard', '400', 2)
-    await addLine('Finance dashboard', '450', 3)
-    // two people on day rates
-    await add.getByLabel('Billing model').selectOption('day_rate')
-    await addLine('Data engineer', '90', 4)
-    await addLine('BI developer', '80', 5)
-    const list = page.locator('details', { has: page.locator('input[name="line_id"]') }).locator('summary')
-    await expect(list).toHaveCount(5)
-    await expect(list.filter({ hasText: 'Per delivery' })).toHaveCount(3)
-    await expect(list.filter({ hasText: 'Sales dashboard' })).toContainText('$500.00')
-    await expect(list.filter({ hasText: 'Day rate per resource' })).toHaveCount(2)
-    await shot(page, '37-phone-rate-card-lines')
-    // a line opens for editing
-    await list.filter({ hasText: 'Inventory dashboard' }).click()
-    await expect(page.locator('details[open] input[name="label"]')).toHaveValue('Inventory dashboard')
-    await list.filter({ hasText: 'Inventory dashboard' }).click()
-
-    // a line typed but not added stops the send, so it is never lost
-    await add.getByLabel('Role, delivery or unit').fill('Forgotten line')
-    let warning = ''
-    page.once('dialog', (d) => { warning = d.message(); void d.accept() })
-    await page.getByRole('button', { name: 'Send to customer for approval' }).click()
-    await expect.poll(() => warning).toContain('has not been added yet')
-    await expect(page.getByText('Rate card v1')).toBeVisible()
-    await add.getByLabel('Role, delivery or unit').fill('')
-
-    // agreed in the contract: approved here, the customer is told
-    await page.getByText('✓ Approve the rates for the customer').click()
-    await page.getByLabel('How the customer agreed').fill('Signed SOW')
-    await page.getByRole('button', { name: 'Approve the rates for the customer' }).click()
-    await expect(page.getByRole('heading', { name: /Approved rates v1/ })).toBeVisible()   // the draft is replaced by the approved rates
-    await expect(page.getByText('Rate card v1')).toHaveCount(0)
-    await shot(page, '38-phone-rates-approved-for-customer')
-  })
-})
-
 
 test('Google or Microsoft with an account nobody invited lands back on sign-in with a clear message; staff need no authenticator', async ({ page }) => {
   await page.goto('/auth/confirm?error=access_denied&error_description=Signups+not+allowed+for+this+instance')

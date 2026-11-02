@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { effort, hrs } from '@/lib/format'
 import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
-import { type ActionResult, dbFail, done, fail, formObject, optionalDate, uuid, visibility } from './shared'
+import { type ActionResult, dbFail, done, fail, formObject, ok, optionalDate, uuid, visibility } from './shared'
 
 const STATUSES = ['todo', 'in_progress', 'in_review', 'waiting_customer', 'blocked', 'done'] as const
 
@@ -175,4 +175,41 @@ export async function setProjectState(projectId: string, change: z.input<typeof 
   const supabase = await createClient()
   const { error } = await supabase.from('projects').update(parsed.data).eq('id', projectId)
   return error ? dbFail(error) : done()
+}
+
+// ---------------------------------------------------------------- the weekly timesheet: one cell is one task on one day
+const cellSchema = z.object({
+  task_id: uuid,
+  day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  hours: z.coerce.number().min(0).max(24, 'At most 24 hours in a day.').multipleOf(0.25, 'Use quarter hours (0.25, 0.5, 0.75).'),
+})
+
+/**
+ * Sets your hours on a task for a day, from the weekly grid. Hours nobody has approved yet are replaced; approved or
+ * billed hours are locked (the PM can undo an approval). Whether they are billable follows the project's billing
+ * model: time & materials and retainer time is billable; fixed-price time is effort only, unless it is extra work
+ * outside the milestone phases and the project bills extras.
+ */
+export async function setDayHours(taskId: string, day: string, hours: number): Promise<ActionResult> {
+  const me = await requireStaff()
+  const parsed = cellSchema.safeParse({ task_id: taskId, day, hours })
+  if (!parsed.success) return fail(parsed.error.issues[0]!.message)
+  const supabase = await createClient()
+  const { data: task } = await supabase.from('tasks').select('customer_id, project_id, phase_id, parent_id, projects(billing_model), phases(rate_line_id)').eq('id', taskId).single()
+  if (!task) return fail('Task not found.')
+  const { data: existing } = await supabase.from('time_entries').select('id, approved_at, statement_id').eq('task_id', taskId).eq('user_id', me.id).eq('worked_on', day)
+  if ((existing ?? []).some((e) => e.approved_at || e.statement_id)) return fail('These hours are approved. Ask the PM to undo the approval to change them.')
+  if (existing?.length) {
+    const { error } = await supabase.from('time_entries').delete().in('id', existing.map((e) => e.id))
+    if (error) return dbFail(error)
+  }
+  if (!parsed.data.hours) return ok()
+  let billable = true
+  if (task.projects?.billing_model === 'fixed_price') {
+    const { data: lines } = await supabase.rpc('billing_lines', { p_project: task.project_id })
+    billable = !task.phases?.rate_line_id && (lines ?? []).some((l) => l.current && l.kind === 'day_rate')
+  }
+  const { error } = await supabase.from('time_entries').insert({ task_id: taskId, customer_id: task.customer_id, user_id: me.id, worked_on: day, hours: parsed.data.hours, billable })
+  if (error) return dbFail(error)
+  return ok()
 }
