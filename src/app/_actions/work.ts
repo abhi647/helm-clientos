@@ -207,7 +207,8 @@ export async function setDayHours(taskId: string, day: string, hours: number): P
   let billable = true
   if (task.projects?.billing_model === 'fixed_price') {
     const { data: lines } = await supabase.rpc('billing_lines', { p_project: task.project_id })
-    billable = !task.phases?.rate_line_id && (lines ?? []).some((l) => l.current && l.kind === 'day_rate')
+    // extra work is billable only for someone with their own rate on the project (lines are named after the person)
+    billable = !task.phases?.rate_line_id && (lines ?? []).some((l) => l.current && l.kind === 'day_rate' && l.label.trim().toLowerCase() === me.full_name.trim().toLowerCase())
   }
   const { error } = await supabase.from('time_entries').insert({ task_id: taskId, customer_id: task.customer_id, user_id: me.id, worked_on: day, hours: parsed.data.hours, billable })
   if (error) return dbFail(error)
