@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { deletePhase, deleteTask } from '@/app/_actions/delete'
-import { createTask, logTime, setBilledAs, setSpotlight, setTaskStatus, setTaskOwner } from '@/app/_actions/work'
+import { createTask, logTime, setSpotlight, setTaskStatus, setTaskOwner } from '@/app/_actions/work'
 import { ActionButton, ActionForm, StatusSelect } from '@/components/forms'
 import { Thread } from '@/components/thread'
 import { Avatar, Chip, StatusLegend, TASK_STRIPE, TaskStatusChip, Visibility, cn } from '@/components/ui'
@@ -38,7 +38,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
     supabase.from('time_entries').select('task_id, hours').in('task_id', (await supabase.from('tasks').select('id').eq('project_id', id)).data?.map((t) => t.id) ?? []),
     supabase.from('comments').select('entity_id').eq('entity_type', 'task'),
     supabase.rpc('effort_units', { p_project: id }),   // the project's billing units: effort is estimated in these
-    supabase.rpc('billing_lines', { p_project: id }),  // rate card line names (no rates) for "Billed as"
+    supabase.rpc('billing_lines', { p_project: id }),  // rate card line names (no rates): which milestone a phase delivers
   ])
   if (!project) return null
   const people = (await supabase.from('profiles').select('id, full_name, kind').or(`kind.eq.internal,customer_id.eq.${project.customer_id}`).order('kind').order('full_name')).data ?? []
@@ -79,10 +79,8 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
     const s = next.toString()
     return `/projects/${id}${s ? `?${s}` : ''}`
   }
-  // "Billed as": the lines of the project's rate card, by name only (PMs and consultants never see rates)
+  // rate card line names (never rates), to show which fixed-price milestone a phase delivers
   const lineName = new Map((lines ?? []).map((l) => [l.id, l.label]))
-  const billedOptions = [{ value: '', label: 'Not billed separately' }, ...(lines ?? []).filter((l) => l.current).map((l) => ({ value: l.id, label: l.label }))]
-  const withCurrent = (v: string | null) => (v && !billedOptions.some((o) => o.value === v) ? [...billedOptions, { value: v, label: `${lineName.get(v) ?? 'Earlier line'} (earlier rate card)` }] : billedOptions)
   const statusOptions = (Object.keys(TASK_STATUS) as Enums<'task_status'>[]).map((v) => ({ value: v, label: TASK_STATUS[v] }))
 
   // each row's left edge carries the colour of its state (see the legend)
@@ -100,7 +98,6 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
             )}
             <span aria-hidden className={cn('size-[13px] flex-none rounded-sm', t.status === 'done' ? 'bg-good' : 'border-[1.5px] border-[#b9c4c8]')} />
             <Link href={link({ task: t.id })} scroll={false} className={cn('truncate no-underline hover:underline', t.status === 'done' ? 'text-muted-foreground' : sub ? 'text-ink' : 'font-medium text-ink')}>{t.title}</Link>
-            {!preview && t.rate_line_id ? <span className="flex-none rounded bg-head px-1.5 text-[11px] text-muted-foreground" title="Billed as">{lineName.get(t.rate_line_id) ?? 'Billed'}</span> : null}
             {kids.length ? <span className="flex-none text-[11px] text-muted-foreground" title="Subtasks done">{kids.filter((k) => k.status === 'done').length}/{kids.length} subtasks</span> : null}
             {commentCount.get(t.id) ? <span className="text-[11px] text-muted-foreground">{commentCount.get(t.id)} comments</span> : null}
           </span>
@@ -252,9 +249,9 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                       })()}
                       {pct}% done
                     </span>
-                    <span className="font-normal">{!preview && lines?.length ? (
-                      <StatusSelect key={`ph-${phase.id}-${phase.rate_line_id ?? ''}`} label={`${phase.name} billed as`} value={phase.rate_line_id ?? ''} options={withCurrent(phase.rate_line_id)} onChange={setBilledAs.bind(null, 'phase', phase.id)} />
-                    ) : null}</span>
+                    {/* a fixed-price milestone delivered with this phase (set in Billing; nothing to choose here) */}
+                    <span className="font-normal">{!preview && phase.rate_line_id && lineName.has(phase.rate_line_id)
+                      ? <Chip tone="review">Milestone: {lineName.get(phase.rate_line_id)}</Chip> : null}</span>
                     <span className="font-mono text-xs font-normal text-muted-foreground">{shortDate(allPhase[0]?.start_date)}</span>
                     <span className="font-mono text-xs font-normal text-muted-foreground">{shortDate(allPhase.at(-1)?.due_date)}</span>
                     {!preview ? <><span className="text-right font-mono text-xs">{effortPhase.reduce((a, t) => a + est(t), 0) || ''}</span><span className="text-right font-mono text-xs">{effortPhase.reduce((a, t) => a + (logged.get(t.id) ?? 0), 0) || ''}</span></> : null}
@@ -324,17 +321,6 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                 <dt className="text-muted-foreground">Owner</dt><dd className="m-0">{sel.assignee?.full_name ?? 'Unassigned'} · {sel.owner_side === 'customer' ? 'Customer' : 'Seven Billion'}</dd>
                 {sel.request ? <><dt className="text-muted-foreground">Request</dt><dd className="m-0"><Link href={`/requests/${sel.request.id}`} className="font-mono">{sel.request.number}</Link></dd></> : null}
                 <dt className="text-muted-foreground">Start → Due</dt><dd className="m-0 font-mono">{shortDate(sel.start_date)} → {shortDate(sel.due_date)}</dd>
-                {!preview && lines?.length ? <><dt className="text-muted-foreground">Billed as</dt><dd className="m-0">
-                  {sel.parent_id ? <span className="text-muted-foreground">Through its task{selParent?.rate_line_id ? `: ${lineName.get(selParent.rate_line_id)}` : ''}</span> : (
-                    <span className="flex flex-col gap-1">
-                      <StatusSelect key={`bill-${sel.id}-${sel.rate_line_id ?? ''}`} label="Task billed as" value={sel.rate_line_id ?? ''} options={withCurrent(sel.rate_line_id)} onChange={setBilledAs.bind(null, 'task', sel.id)} />
-                      {!sel.rate_line_id ? <span className="text-xs text-muted-foreground">{(() => {
-                        const ph = phases?.find((p) => p.id === sel.phase_id)
-                        return ph?.rate_line_id ? `Uses the phase's line: ${lineName.get(ph.rate_line_id)}` : 'Hours use the line the person is named on'
-                      })()}</span> : null}
-                    </span>
-                  )}
-                </dd></> : null}
                 {!preview ? <><dt className="text-muted-foreground">Effort</dt><dd className="m-0 font-mono">{hrs(logged.get(sel.id) ?? 0)} logged · estimate {est(sel) ? effort(est(sel), unitOf(sel)) : '–'}</dd></> : null}
               </dl>
               {sel.description ? <p className="m-0 text-[13px] leading-relaxed">{sel.description}</p> : null}

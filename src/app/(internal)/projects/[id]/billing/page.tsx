@@ -1,207 +1,276 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import {
-  addRateCardLine, approveRateCardForCustomer, createInvoice, createStatement, discardRateCard, removeRateCardLine, saveRateCard, startRateCard, submitRateCard,
-  updateRateCardLine,
-} from '@/app/_actions/billing'
-import { KIND_LABEL, KIND_UNIT, PLANNED_LABEL, RateCardStatus, RateLines, StatementStatus, period } from '@/components/billing'
-import { ActionButton, ActionForm, ApproveForCustomer, AutoSaveSelect } from '@/components/forms'
-import { Card, Empty } from '@/components/ui'
-import { LineFields } from '@/components/rate-line-fields'
-import { LinePeople, ReadyToBill, UnbilledTime, type ReadyRow } from '@/components/time-billing'
-import { CURRENCIES, CURRENCY_CODES } from '@/lib/currencies'
-import { money, relativeTime } from '@/lib/format'
+import { CalendarClock, Clock, Flag, Hourglass, Receipt, Wallet } from 'lucide-react'
+import { approveRateCardForCustomer, billMilestone, createStatement, discardRateCard, submitRateCard } from '@/app/_actions/billing'
+import { RateCardStatus, StatementStatus } from '@/components/billing'
+import { BillingSetupWizard } from '@/components/billing-setup'
+import { ActionButton, ActionForm, ApproveForCustomer } from '@/components/forms'
+import { DetailList } from '@/components/overtrue/detail-list'
+import { ResourceProgress } from '@/components/overtrue/resource-progress'
+import { StatementsTable, type StatementRow } from '@/components/statements-table'
+import { UnbilledTime } from '@/components/time-billing'
+import { Card, Chip, Empty, Stat, cn } from '@/components/ui'
+import { Ticks } from '@/components/viz'
+import { hrs, money, shortDate } from '@/lib/format'
 import { canSeeFinance, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { title: 'Billing' }
 
-// a line typed into "Add a line" but not added yet
-const UNSAVED_LINE = { selector: '[data-add-line] input[name="label"], [data-add-line] input[name="rate"]', message: 'There is a line in "Add a line" that has not been added yet. Press Add line first, or clear it.' }
-// the PO number or notes changed but "Save details" not pressed (the currency saves itself)
-const UNSAVED_DETAILS = { selector: '[data-card-details] input, [data-card-details] select', mode: 'changed' as const, message: 'The PO number or notes have changes that are not saved. Press Save details first.' }
-const GUARDS = [UNSAVED_LINE, UNSAVED_DETAILS]
+const MODEL = {
+  time_materials: { label: 'Time & materials', icon: Clock, tone: 'info' as const, hint: 'Approved timesheet hours are billed at each person’s rate.' },
+  fixed_price: { label: 'Fixed price', icon: Flag, tone: 'review' as const, hint: 'Milestones are billed when delivered. Time tracks effort against the budget.' },
+  retainer: { label: 'Retainer', icon: CalendarClock, tone: 'good' as const, hint: 'A monthly fee; approved hours use up the monthly allowance.' },
+}
 
+type Search = { setup?: string; period?: string }
+const monthBounds = (offset: number) => {
+  const d = new Date()
+  const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + offset, 1))
+  const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + offset + 1, 0))
+  return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10), name: start.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }) }
+}
 
 /**
- * Billing for one project (admin, CEO and finance only). Finance keeps the rate card; the customer approves it once. Each
- * period finance prepares a statement on the approved rates; once the customer approves it, a draft invoice is created in Zoho.
+ * Billing for one project (admin, CEO and finance only), shaped by how the project is billed. A project without a
+ * billing model starts with the set-up wizard; after that the page shows what that model needs and nothing else.
  */
-export default async function ProjectBilling({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProjectBilling({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Search> }) {
   const { id } = await params
+  const sp = await searchParams
   const me = await requireStaff()
-  if (!canSeeFinance(me)) notFound()   // admin, CEO and finance only
+  if (!canSeeFinance(me)) notFound()
   const supabase = await createClient()
-  const [{ data: project }, { data: cards }, { data: statements }, { data: deals }, { data: invoices }] = await Promise.all([
-    supabase.from('projects').select('id, name').eq('id', id).maybeSingle(),
-    supabase.from('rate_cards').select('*, rate_card_lines(*)').eq('project_id', id).order('version', { ascending: false }),
-    supabase.from('billing_statements').select('id, period_start, period_end, status, zoho_invoice_number, invoice_error, created_at, rate_cards(currency), statement_lines(amount, quantity)')
-      .eq('project_id', id).order('period_start', { ascending: false }),
-    // history imported from HubSpot (one deal per billing period) and Zoho (the invoices)
-    supabase.from('project_deals').select('id, deal_name, stage_label, closed_on, invoice_number').eq('project_id', id).order('closed_on', { ascending: false }),
-    supabase.from('invoices').select('number, total, balance, currency, status, issued_on').eq('project_id', id),
-  ])
-  const lineIds = (cards ?? []).filter((c) => c.status !== 'superseded').flatMap((c) => c.rate_card_lines.map((l) => l.id))
-  const [{ data: staff }, { data: covers }, { data: unbilled }, { data: allTasks }, { data: phaseLines }, { data: allLines }, { data: held }] = await Promise.all([
-    supabase.from('profiles').select('id, full_name').eq('kind', 'internal').order('full_name'),
-    lineIds.length ? supabase.from('rate_line_people').select('rate_card_line_id, profile_id').in('rate_card_line_id', lineIds) : Promise.resolve({ data: [] }),
+  const [{ data: project }, { data: cards }, { data: statements }, { data: staff }, { data: phases }, { data: tasks }, { data: unbilled }, { data: deals }, { data: invoices }] = await Promise.all([
+    supabase.from('projects').select('id, name, customer_id, billing_model, rate_unit').eq('id', id).maybeSingle(),
+    supabase.from('rate_cards').select('*, rate_card_lines(*, rate_line_people(profile_id))').eq('project_id', id).order('version', { ascending: false }),
+    supabase.from('billing_statements').select('id, period_start, period_end, status, note, zoho_invoice_number, invoice_error, rate_cards(currency), statement_lines(amount, kind, unit, label, quantity)')
+      .eq('project_id', id).order('created_at', { ascending: false }),
+    supabase.from('directory').select('id, full_name, internal_role').eq('kind', 'internal').is('access_revoked_at', null).order('full_name'),
+    supabase.from('phases').select('id, name, rate_line_id, position').eq('project_id', id).order('position'),
+    supabase.from('tasks').select('id, phase_id, status, parent_id, task_estimates(estimate, unit), time_entries(hours, billable, approved_at, returned_at, statement_id)').eq('project_id', id).limit(2000),
     supabase.rpc('unbilled_time', { p_project: id }),
-    // finished tasks not billed yet, with what they are billed as (their own line, else their phase's)
-    supabase.from('tasks').select('id, title, status, completed_at, rate_line_id, phase_id, parent_id, statement_id, task_estimates(estimate, unit), time_entries(id, days, approved_at, returned_at, statement_id, billable, user_id)')
-      .eq('project_id', id).order('position').limit(1000),
-    supabase.from('phases').select('id, rate_line_id').eq('project_id', id),
-    supabase.from('rate_card_lines').select('id, kind, label, unit, rate, rate_card_id, rate_cards!inner(project_id)').eq('rate_cards.project_id', id),
-    // tasks already on a statement that is being prepared or waiting for the customer
-    supabase.from('statement_tasks').select('task_id, billing_statements!inner(status, project_id)').eq('billing_statements.project_id', id).in('billing_statements.status', ['draft', 'pending', 'changes_requested']),
+    supabase.from('project_deals').select('id, deal_name, stage_label, closed_on, invoice_number').eq('project_id', id).order('closed_on', { ascending: false }),
+    supabase.from('invoices').select('number, total, currency, status').eq('project_id', id),
   ])
-  const covered = new Map<string, string[]>()
-  for (const c of covers ?? []) covered.set(c.rate_card_line_id, [...(covered.get(c.rate_card_line_id) ?? []), c.profile_id])
-  const invoiceByNumber = new Map((invoices ?? []).map((i) => [i.number, i]))
   if (!project) notFound()
+  const model = project.billing_model
   const live = cards?.find((c) => c.status === 'approved')
   const open = cards?.find((c) => ['draft', 'pending', 'changes_requested'].includes(c.status))
-  const editable = open && ['draft', 'changes_requested'].includes(open.status)
-  const sortLines = <T extends { position: number }>(l: T[]) => [...l].sort((a, b) => a.position - b.position)
+  const card = open ?? live
+  const lines = [...(card?.rate_card_lines ?? [])].sort((a, b) => a.position - b.position)
+  const liveLines = [...(live?.rate_card_lines ?? [])].sort((a, b) => a.position - b.position)
+  const currency = card?.currency ?? 'INR'
+  const nameOf = new Map((staff ?? []).map((p) => [p.id!, p.full_name!]))
+  const people = (staff ?? []).map((p) => ({ id: p.id!, name: p.full_name!, role: p.internal_role }))
 
-  // what each finished task is billed as, matched to the approved card by kind and name (lines keep their meaning across versions)
-  const lineById = new Map((allLines ?? []).map((l) => [l.id, l]))
-  const key = (l?: { kind: string; label: string }) => (l ? `${l.kind}:${l.label.trim().toLowerCase()}` : '')
-  const liveByKey = new Map((live?.rate_card_lines ?? []).map((l) => [key(l), l]))
-  const phaseLine = new Map((phaseLines ?? []).map((p) => [p.id, p.rate_line_id]))
-  const heldOn = new Map((held ?? []).map((h) => [h.task_id, h.billing_statements.status]))
-  // a task's days include its subtasks' (billing is on tasks, not subtasks)
-  // (returned days are not counted: the person deletes and logs them again)
-  const entriesOf = (tid: string) => (allTasks ?? []).filter((x) => x.id === tid || x.parent_id === tid).flatMap((x) => x.time_entries).filter((e) => !e.returned_at)
-  const candidates = (allTasks ?? []).filter((t) => !t.parent_id && !t.statement_id && (t.status === 'done'
-    || entriesOf(t.id).some((e) => e.billable && !e.statement_id)))
-  const readyRows: ReadyRow[] = candidates.map((t) => {
-    const own = t.rate_line_id ?? (t.phase_id ? phaseLine.get(t.phase_id) : null) ?? null
-    const entries = entriesOf(t.id)
-    // no line on the task or its phase: its days bill on the day-rate line that names the person (as on statements)
-    const byPerson = !own ? (live?.rate_card_lines ?? []).find((l) => l.kind === 'day_rate'
-      && entries.some((e) => e.billable && !e.statement_id && (covered.get(l.id) ?? []).includes(e.user_id))) : undefined
-    const line = own ? lineById.get(own) : byPerson
-    const current = line ? liveByKey.get(key(line)) : undefined
-    const unbilledDays = entries.filter((e) => e.billable && e.approved_at && !e.statement_id).reduce((a, e) => a + Number(e.days), 0)
-    const waitingDays = entries.filter((e) => e.billable && !e.approved_at).reduce((a, e) => a + Number(e.days), 0)
-    const est = t.task_estimates
-    const qty = current?.kind === 'unit' && est && est.unit.trim().toLowerCase() === current.unit.trim().toLowerCase() ? Number(est.estimate) : 1
-    return { id: t.id, title: t.title, completedAt: t.completed_at, lineLabel: line ? `${line.label}${byPerson ? ' (by person)' : ''}` : null, kind: (current ?? line)?.kind ?? null,
-      onLiveCard: !!current, quantity: qty, unit: current?.unit ?? null, rate: current ? Number(current.rate) : null, unbilledDays, waitingDays,
-      done: t.status === 'done', heldBy: heldOn.get(t.id) ?? null }
+  // time on the project
+  const entries = (tasks ?? []).flatMap((t) => t.time_entries)
+  const logged = entries.filter((e) => !e.returned_at).reduce((a, e) => a + Number(e.hours), 0)
+  const waiting = entries.filter((e) => e.billable && !e.approved_at && !e.returned_at).reduce((a, e) => a + Number(e.hours), 0)
+  const planned = (tasks ?? []).filter((t) => !t.parent_id).reduce((a, t) => a + (t.task_estimates?.unit === 'day' ? Number(t.task_estimates.estimate) * 8 : t.task_estimates?.unit === 'hour' ? Number(t.task_estimates.estimate) : 0), 0)
+  const unbilledTotal = (unbilled ?? []).reduce((a, r) => a + Number(r.amount ?? 0), 0)
+  const unbilledHours = (unbilled ?? []).reduce((a, r) => a + Number(r.hours ?? 0), 0)
+
+  const rows: StatementRow[] = (statements ?? []).map((s) => {
+    const milestone = s.statement_lines.find((l) => l.kind === 'delivery' && l.unit === 'milestone')
+    return {
+      id: s.id, start: s.period_start, end: s.period_end, status: s.status, currency: s.rate_cards?.currency ?? currency,
+      subtotal: s.statement_lines.reduce((a, l) => a + Number(l.amount ?? 0), 0), invoice: s.zoho_invoice_number, error: s.invoice_error,
+      label: milestone ? `Milestone: ${milestone.label}` : s.statement_lines.some((l) => l.kind === 'retainer') ? 'Monthly retainer' : 'Time billed',
+    }
   })
-  const today = new Date()
-  const firstOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)).toISOString().slice(0, 10)
-  const endOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0)).toISOString().slice(0, 10)
+
+  // fixed price: each milestone, its phase's progress and where it stands
+  const milestones = liveLines.filter((l) => l.kind === 'delivery' && l.unit === 'milestone').map((l) => {
+    const phase = (phases ?? []).find((p) => p.rate_line_id && liveLines.concat(lines).some((x) => x.id === p.rate_line_id && x.label === l.label))
+    const work = (tasks ?? []).filter((t) => !t.parent_id && phase && t.phase_id === phase.id)
+    const pct = work.length ? (100 * work.filter((t) => t.status === 'done').length) / work.length : 0
+    const st = (statements ?? []).find((s) => s.statement_lines.some((x) => x.kind === 'delivery' && x.unit === 'milestone' && x.label === l.label))
+    return { line: l, phase, pct, statement: st }
+  })
+  const contract = milestones.reduce((a, m) => a + Number(m.line.rate), 0)
+  const billed = milestones.filter((m) => m.statement && ['approved', 'invoiced'].includes(m.statement.status)).reduce((a, m) => a + Number(m.line.rate), 0)
+
+  // retainer: the customer's hours bank this month
+  const { data: bank } = model === 'retainer' ? await supabase.rpc('credit_balance', { p_customer: project.customer_id }) : { data: null }
+  const b = bank?.[0]
+
+  const thisMonth = monthBounds(0), lastMonth = monthBounds(-1)
+  const chosen = sp.period === 'last' ? lastMonth : thisMonth
+  const showWizard = !model || !card || sp.setup === '1'
+  const ModelIcon = model ? MODEL[model].icon : Receipt
+
+  const initial = model && card ? {
+    model, unit: (project.rate_unit as 'hour' | 'day') ?? 'hour', currency, po: card.po_number ?? '', notes: card.notes ?? '',
+    rates: lines.filter((l) => l.kind === 'day_rate' && l.rate_line_people.length === 1).map((l) => ({ profile_id: l.rate_line_people[0]!.profile_id, rate: String(l.rate) })),
+    milestones: lines.filter((l) => l.kind === 'delivery').map((l) => ({ label: l.label, amount: String(l.rate), phase_id: (phases ?? []).find((p) => p.rate_line_id === l.id)?.id ?? '' })),
+    retainer: { fee: String(lines.find((l) => l.kind === 'retainer')?.rate ?? ''), hours: b ? String(b.allowance ?? '') : '', rollover: '' },
+  } : undefined
 
   return (
-    <div className="flex max-w-[1100px] flex-col gap-3 p-4">
-      {/* ------------------------------------------------ rate card being prepared or waiting for the customer */}
-      {open ? (
-        <Card title={<span className="flex items-center gap-2">Rate card v{open.version} <RateCardStatus status={open.status} /></span>}
-          extra={open.status === 'pending' && open.submitted_at ? `Sent ${relativeTime(open.submitted_at)}` : 'Typed from the signed contract'}>
-          {open.status === 'changes_requested' && open.decision_note ? (
-            <p role="alert" className="mt-0 mb-3 rounded-md bg-warn-bg p-2.5 text-xs text-warn-ink"><b>The customer asked for changes:</b> {open.decision_note}</p>
+    <div className="flex flex-col gap-3 p-4">
+      {/* ------------------------------------------------ how this project is billed, and where its rates stand */}
+      <section className="card flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3" aria-label="Billing set-up">
+        <span className="flex items-center gap-2.5">
+          <span className="grid size-8 place-items-center rounded-lg bg-accent text-primary"><ModelIcon aria-hidden className="size-4" /></span>
+          <span className="flex flex-col leading-tight">
+            <span className="text-[13px] font-semibold">{model ? MODEL[model].label : 'Billing not set up'}</span>
+            <span className="text-xs text-muted-foreground">{model ? MODEL[model].hint : 'Choose how this project is billed to start.'}</span>
+          </span>
+        </span>
+        {card ? (
+          <DetailList className="min-w-[300px] flex-1 text-xs [&_dd]:text-[13px]" items={[
+            { id: 'rates', label: 'Rates', value: <span className="flex items-center gap-1.5">v{card.version} <RateCardStatus status={card.status} /></span> },
+            { id: 'cur', label: 'Currency', value: <span className="font-mono">{currency}{model !== 'fixed_price' || lines.some((l) => l.kind === 'day_rate') ? ` · per ${project.rate_unit}` : ''}</span> },
+            { id: 'po', label: 'PO', value: <span className="font-mono">{card.po_number || '–'}</span> },
+          ]} />
+        ) : null}
+        <span className="ml-auto flex flex-wrap items-center gap-2">
+          {open && ['draft', 'changes_requested'].includes(open.status) && open.rate_card_lines.length ? (
+            <>
+              <ActionButton run={submitRateCard.bind(null, open.id)} primary confirm="Send these rates to the customer for approval? They can't be edited while the customer reviews them.">Send to customer</ActionButton>
+              {open.status === 'draft' && live ? <ActionButton run={discardRateCard.bind(null, open.id)} className="btn-ghost" confirm="Discard these draft rates and keep the approved ones?">Discard draft</ActionButton> : null}
+            </>
           ) : null}
-          {editable ? (
-            <div className="flex flex-col gap-4">
-              <ActionForm action={saveRateCard} submit="Save details" resetOnSuccess={false} primary={false}>
-                <input type="hidden" name="card_id" value={open.id} />
-                <div data-card-details className="grid grid-cols-2 gap-2 md:grid-cols-[110px_200px_minmax(0,1fr)]">
-                  <AutoSaveSelect key={open.currency} name="currency" aria-label="Currency" defaultValue={open.currency} className="input font-mono">
-                    {CURRENCIES.map(([code, name]) => <option key={code} value={code}>{code} · {name}</option>)}
-                    {CURRENCY_CODES.includes(open.currency) ? null : <option value={open.currency}>{open.currency}</option>}
-                  </AutoSaveSelect>
-                  <input name="po_number" aria-label="PO number" defaultValue={open.po_number ?? ''} placeholder="Customer PO number" className="input font-mono" />
-                  <input name="notes" aria-label="Notes for the customer" defaultValue={open.notes} placeholder="Notes for the customer (payment terms, what is included)" className="input col-span-2 md:col-span-1" />
+          {model && card && !showWizard && open?.status !== 'pending' ? <Link href="?setup=1" className="btn">{open ? 'Edit set-up' : 'Change set-up'}</Link> : null}
+          {showWizard && model && card ? <Link href="?" className="btn btn-ghost">Cancel</Link> : null}
+        </span>
+        {open?.status === 'changes_requested' && open.decision_note ? (
+          <p role="alert" className="m-0 w-full rounded-md bg-warn-bg px-2.5 py-1.5 text-xs text-warn-ink"><b>The customer asked for changes:</b> {open.decision_note}</p>
+        ) : null}
+        {open && open.rate_card_lines.length && open.status !== 'approved' ? (
+          <div className="w-full border-t border-line-soft pt-2">
+            <ApproveForCustomer action={approveRateCardForCustomer} idName="card_id" id={open.id} label="Approve the rates for the customer"
+              hint="Already agreed in the signed contract or on a call? Make them the approved rates now; the customer's billing contacts are told by email." />
+          </div>
+        ) : null}
+      </section>
+
+      {showWizard ? <BillingSetupWizard key={card?.id ?? 'new'} projectId={id} people={people} phases={(phases ?? []).map((p) => ({ id: p.id, name: p.name }))} initial={initial} /> : null}
+
+      {!showWizard && !live ? (
+        <Card title="Waiting for agreed rates"><p className="m-0 text-[13px] text-muted-foreground">Billing starts once the rates are approved: send them to the customer, or approve them for the customer above.</p></Card>
+      ) : null}
+
+      {/* ------------------------------------------------ fixed price */}
+      {!showWizard && live && model === 'fixed_price' ? (
+        <>
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+            <Stat label="Contract value" value={money(contract, currency)} sub={`${milestones.length} milestones`} icon={<Flag />} />
+            <Stat label="Billed" value={money(billed, currency)} pct={contract ? (100 * billed) / contract : 0} tone="good" icon={<Receipt />} />
+            <Stat label="Still to bill" value={money(contract - billed, currency)} icon={<Wallet />} tone={contract - billed ? 'info' : 'good'} />
+            <Stat label="Effort used" value={hrs(logged)} sub={planned ? `of ${hrs(planned)} planned` : 'no estimates yet'}
+              pct={planned ? (100 * logged) / planned : undefined} tone={planned && logged > planned ? 'crit' : planned && logged > 0.85 * planned ? 'warn' : 'neutral'} icon={<Clock />} />
+          </div>
+          <Card flush title="Milestones" description="Bill each one when it is delivered. The customer approves the statement; then it goes to Zoho.">
+            <div className="overflow-x-auto">
+              <div className="min-w-[760px]">
+                <div className="row row-head grid-cols-[minmax(0,1fr)_minmax(0,1fr)_140px_130px_190px]"><span>Milestone</span><span>Delivered with</span><span className="text-right">Amount</span><span>Status</span><span /></div>
+                {milestones.map((m) => (
+                  <div key={m.line.id} className="row grid-cols-[minmax(0,1fr)_minmax(0,1fr)_140px_130px_190px]">
+                    <span className="truncate font-medium">{m.line.label}</span>
+                    <span className="flex min-w-0 items-center gap-2 text-xs">{m.phase ? <><span className="truncate">{m.phase.name}</span><Ticks value={m.pct} /><span className="tabular text-muted-foreground">{Math.round(m.pct)}%</span></> : <span className="text-muted-foreground">No phase linked</span>}</span>
+                    <span className="tabular text-right font-medium">{money(Number(m.line.rate), currency, { exact: true })}</span>
+                    <span>{m.statement ? <StatementStatus status={m.statement.status} /> : <Chip tone="neutral">Not billed</Chip>}</span>
+                    <span className="text-right">{m.statement ? <Link href={`/projects/${id}/billing/${m.statement.id}`} className="text-xs">Open statement →</Link>
+                      : <ActionButton run={billMilestone.bind(null, m.line.id, id)} primary={m.pct >= 100} className="h-7 px-2.5 text-xs"
+                          confirm={`Bill "${m.line.label}" (${money(Number(m.line.rate), currency, { exact: true })})? A statement is created for the customer to approve.`}>
+                          {m.phase && m.pct < 100 ? 'Bill anyway' : 'Bill milestone'}</ActionButton>}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        </>
+      ) : null}
+
+      {/* ------------------------------------------------ time & materials (and fixed-price extras) */}
+      {!showWizard && live && (model === 'time_materials' || (model === 'fixed_price' && liveLines.some((l) => l.kind === 'day_rate'))) ? (
+        <>
+          {model === 'time_materials' ? (
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+              <Stat label="Ready to bill" value={money(unbilledTotal, currency)} sub={`${hrs(unbilledHours)} approved`} icon={<Wallet />} tone={unbilledTotal ? 'info' : 'neutral'} />
+              <Stat label="Waiting for approval" value={hrs(waiting)} sub="billable, in Timesheets" href="/timesheets" icon={<Hourglass />} tone={waiting ? 'warn' : 'good'} />
+              <Stat label="Logged on the project" value={hrs(logged)} icon={<Clock />} />
+              <Stat label="Statements" value={rows.length} sub={`${rows.filter((r) => r.status === 'approved' && !r.invoice).length} ready to invoice`} icon={<Receipt />} />
+            </div>
+          ) : null}
+          <Card flush title={model === 'fixed_price' ? 'Extra work at people’s rates' : 'Bill a period'}
+            description={model === 'fixed_price' ? 'Time outside the milestone phases, for change requests' : 'Puts every approved, billable hour in the period on one statement'}
+            extra={
+              <nav aria-label="Period" className="inline-flex h-7 items-center gap-0.5 rounded-md bg-muted p-0.5 ring-1 ring-border ring-inset">
+                {[['', thisMonth.name], ['last', lastMonth.name]].map(([v, n]) => (
+                  <Link key={v} href={v ? `?period=${v}` : '?'} scroll={false} aria-current={(sp.period ?? '') === v ? 'page' : undefined}
+                    className={cn('flex h-full items-center rounded px-2 text-xs no-underline', (sp.period ?? '') === v ? 'bg-card font-medium text-foreground shadow-[0_1px_2px_rgb(0_0_0/.08)]' : 'text-muted-foreground')}>{n}</Link>
+                ))}
+              </nav>
+            }>
+            <div className="border-b border-line-soft p-3">
+              <ActionForm action={createStatement} submit={`Create statement for ${chosen.name}`} resetOnSuccess={false}>
+                <input type="hidden" name="project_id" value={id} />
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <label className="flex items-center gap-1.5">From <input type="date" name="period_start" required defaultValue={chosen.start} className="input" /></label>
+                  <label className="flex items-center gap-1.5">to <input type="date" name="period_end" required defaultValue={chosen.end} className="input" /></label>
+                  <span>Only approved hours are billed; anything still waiting stays for the next statement.</span>
                 </div>
               </ActionForm>
+            </div>
+            {(unbilled ?? []).length ? <UnbilledTime rows={unbilled ?? []} /> : <Empty title="No approved time to bill">Approved, billable hours appear here until a statement bills them.</Empty>}
+          </Card>
+        </>
+      ) : null}
+
+      {/* ------------------------------------------------ retainer */}
+      {!showWizard && live && model === 'retainer' ? (
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+          <Card title="Hours this month" description={b ? `${shortDate(b.period_start)} – ${shortDate(b.period_end)}` : 'No hours allowance set'}>
+            {b ? (
               <div className="flex flex-col gap-3">
-                {open.rate_card_lines.length ? (
-                  <div className="overflow-hidden rounded-md border border-line-soft">
-                    <p className="label m-0 border-b border-line-soft bg-head px-2.5 py-1.5">{open.rate_card_lines.length} {open.rate_card_lines.length === 1 ? 'line' : 'lines'} on this rate card</p>
-                    {sortLines(open.rate_card_lines).map((l) => (
-                      <details key={l.id} className="group border-b border-line-soft last:border-b-0">
-                        <summary className="flex cursor-pointer list-none items-center gap-2 px-2.5 py-2 hover:bg-head">
-                          <span className="flex min-w-0 flex-1 flex-col">
-                            <span className="truncate text-[13px] font-semibold">{l.label}</span>
-                            <span className="truncate text-xs text-muted-foreground">{KIND_LABEL[l.kind]}{PLANNED_LABEL[l.kind] && l.planned_quantity != null ? ` · ${l.planned_quantity} ${PLANNED_LABEL[l.kind]!.toLowerCase()}` : ''}</span>
-                          </span>
-                          <span className="shrink-0 text-right font-mono text-xs">{money(l.rate, open.currency, { exact: true })}<span className="text-muted-foreground"> / {l.unit}</span></span>
-                          <span className="shrink-0 text-xs font-medium text-link group-open:hidden">Edit</span>
-                          <span className="hidden shrink-0 text-xs font-medium text-muted-foreground group-open:inline">Close</span>
-                        </summary>
-                        <div className="border-t border-line-soft bg-[#fbfcfc] p-2.5">
-                          <ActionForm action={updateRateCardLine} submit="Save line" resetOnSuccess={false} primary={false}>
-                            <input type="hidden" name="line_id" value={l.id} />
-                            <LineFields line={l} currency={open.currency} />
-                          </ActionForm>
-                          <div className="mt-1"><ActionButton run={removeRateCardLine.bind(null, l.id)} className="btn-ghost text-xs" confirm={`Remove "${l.label}"?`}>Remove line</ActionButton></div>
-                        </div>
-                      </details>
-                    ))}
-                  </div>
-                ) : null}
-                <div data-add-line className="rounded-md border border-dashed border-line p-2.5">
-                  <p className="label mt-0 mb-2">{open.rate_card_lines.length ? 'Add another line' : 'Add a line'}</p>
-                  <ActionForm action={addRateCardLine} submit="Add line">
-                    <input type="hidden" name="card_id" value={open.id} />
-                    <LineFields currency={open.currency} />
-                    <p className="m-0 text-xs text-muted-foreground">
-                      One line per resource, delivery or unit: add as many as the contract has. Day rate: planned quantity is the
-                      number of people ({KIND_UNIT.day_rate}s are filled in each period).
-                    </p>
-                  </ActionForm>
-                </div>
+                <ResourceProgress label="Used of available" value={Number(b.used)} max={Math.max(Number(b.available), 1)}
+                  valueLabel={`${hrs(Number(b.used))} of ${hrs(Number(b.available))}`} color={Number(b.used_pct) >= 100 ? 'var(--color-crit)' : Number(b.used_pct) >= 75 ? 'var(--color-warn)' : 'var(--color-primary)'} />
+                <DetailList className="text-xs" items={[
+                  { id: 'a', label: 'Monthly allowance', value: hrs(Number(b.allowance ?? 0)) },
+                  { id: 'c', label: 'Carried over', value: hrs(Number(b.carried ?? 0)) },
+                  { id: 't', label: 'Extra hours added', value: hrs(Number(b.topups ?? 0)) },
+                  { id: 'r', label: Number(b.remaining) < 0 ? 'Over the allowance' : 'Remaining', value: <span className={Number(b.remaining) < 0 ? 'font-semibold text-crit-ink' : ''}>{hrs(Math.abs(Number(b.remaining)))}</span> },
+                ]} />
               </div>
-              <div className="-mx-3"><LinePeople lines={open.rate_card_lines} people={staff ?? []} covered={covered} /></div>
-              <div className="flex flex-col gap-2 border-t border-line-soft pt-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <ActionButton run={submitRateCard.bind(null, open.id)} primary guard={GUARDS}
-                    confirm="Send these rates to the customer for approval? They can't be edited while the customer reviews them.">
-                    Send to customer for approval
-                  </ActionButton>
-                  {open.status === 'draft' ? <ActionButton run={discardRateCard.bind(null, open.id)} className="btn-ghost" confirm="Discard this draft rate card?">Discard draft</ActionButton> : null}
+            ) : <p className="m-0 text-xs text-muted-foreground">Add hours in Change set-up, or on the customer’s page under Hours credit.</p>}
+          </Card>
+          <Card title="Bill the month" description="The monthly fee on one statement">
+            <ActionForm action={createStatement} submit={`Create statement for ${chosen.name}`} resetOnSuccess={false}>
+              <input type="hidden" name="project_id" value={id} />
+              <input type="hidden" name="period_start" value={chosen.start} /><input type="hidden" name="period_end" value={chosen.end} />
+              <p className="m-0 text-xs text-muted-foreground">{money(Number(liveLines.find((l) => l.kind === 'retainer')?.rate ?? 0), currency, { exact: true })} for {chosen.name}. <Link href={sp.period === 'last' ? '?' : '?period=last'}>{sp.period === 'last' ? `Bill ${thisMonth.name} instead` : `Bill ${lastMonth.name} instead`}</Link></p>
+            </ActionForm>
+          </Card>
+        </div>
+      ) : null}
+
+      {/* ------------------------------------------------ agreed rates */}
+      {!showWizard && card ? (
+        <Card flush title={`Rates v${card.version}`} description={card.notes || undefined} extra={<RateCardStatus status={card.status} />}>
+          <div className="overflow-x-auto">
+            <div className="min-w-[520px]">
+              <div className="row row-head grid-cols-[minmax(0,1fr)_150px_140px]"><span>{model === 'fixed_price' ? 'Milestone or person' : model === 'retainer' ? 'Item' : 'Person'}</span><span>Type</span><span className="text-right">Rate</span></div>
+              {lines.map((l) => (
+                <div key={l.id} className="row grid-cols-[minmax(0,1fr)_150px_140px]">
+                  <span className="truncate">{l.kind === 'day_rate' && l.rate_line_people.length === 1 ? nameOf.get(l.rate_line_people[0]!.profile_id) ?? l.label : l.label}</span>
+                  <span className="text-xs text-muted-foreground">{l.kind === 'day_rate' ? (l.rate_line_people.length > 1 ? `Shared day rate · ${l.rate_line_people.length} people` : 'Person') : l.kind === 'delivery' ? (l.unit === 'milestone' ? 'Milestone' : 'Per delivery') : l.kind === 'retainer' ? 'Monthly fee' : `Per ${l.unit}`}</span>
+                  <span className="tabular text-right">{money(Number(l.rate), currency, { exact: true })}<span className="text-xs text-muted-foreground"> / {l.unit === 'milestone' ? 'milestone' : l.unit}</span></span>
                 </div>
-                {canSeeFinance(me) && open.rate_card_lines.length ? (
-                  <ApproveForCustomer action={approveRateCardForCustomer} idName="card_id" id={open.id} label="Approve the rates for the customer" guard={GUARDS}
-                    hint="For rates already agreed in the contract or on a call. They become the approved rates now, and the customer's billing contacts are told by email." />
-                ) : null}
-              </div>
+              ))}
             </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <div className="overflow-x-auto"><RateLines lines={sortLines(open.rate_card_lines)} currency={open.currency} /></div>
-              {canSeeFinance(me) ? (
-                <ApproveForCustomer action={approveRateCardForCustomer} idName="card_id" id={open.id} label="Approve the rates for the customer"
-                  hint="No need to wait: confirm the rates as agreed. The customer's billing contacts are told by email." />
-              ) : null}
-            </div>
-          )}
+          </div>
         </Card>
       ) : null}
 
-      {/* ------------------------------------------------ the approved rates */}
-      <Card flush title={live ? <span className="flex items-center gap-2">Approved rates v{live.version} <RateCardStatus status="approved" /></span> : 'Rate card'}
-        extra={live ? <span className="font-mono">{live.currency}{live.po_number ? ` · PO ${live.po_number}` : ''}{live.approved_for_customer ? ' · approved by us for the customer' : ''}</span> : undefined}>
-        {live ? (
-          <>
-            <div className="overflow-x-auto"><RateLines lines={sortLines(live.rate_card_lines)} currency={live.currency} /></div>
-            {live.notes ? <p className="m-0 border-t border-line-soft px-3 py-2 text-xs text-muted-foreground">{live.notes}</p> : null}
-            <LinePeople lines={live.rate_card_lines} people={staff ?? []} covered={covered} />
-            {!open ? <div className="border-t border-line-soft p-3"><ActionButton run={startRateCard.bind(null, id)}>Revise rates</ActionButton></div> : null}
-          </>
-        ) : !open ? (
-          <Empty title="No rate card yet">
-            <span className="flex flex-col items-center gap-2">Set the rates from the signed contract: day rates per resource, per delivery, per unit or a monthly retainer, in any mix.
-              <ActionButton run={startRateCard.bind(null, id)} primary>Start the rate card</ActionButton></span>
-          </Empty>
-        ) : <Empty title="Not approved yet">Statements can be prepared once the customer approves the rate card.</Empty>}
+      {/* ------------------------------------------------ statements */}
+      <Card flush title="Statements" description="Draft → with the customer → approved → invoiced in Zoho">
+        <StatementsTable rows={rows} projectId={id} />
       </Card>
-
-      <UnbilledTime rows={unbilled ?? []} />
-      <ReadyToBill tasks={readyRows} currency={live?.currency ?? null} projectId={id} canCreate={!!live} />
 
       {deals?.length ? (
         <Card flush title="History from HubSpot & Zoho" extra={`${deals.length} billing period${deals.length === 1 ? '' : 's'}`}>
@@ -209,13 +278,13 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
             <div className="min-w-[680px]">
               <div className="row row-head grid-cols-[minmax(0,1fr)_140px_130px_120px_110px]"><span>Deal</span><span>Stage</span><span>Invoice</span><span className="text-right">Total</span><span>Zoho status</span></div>
               {deals.map((d) => {
-                const inv = d.invoice_number ? invoiceByNumber.get(d.invoice_number) : undefined
+                const inv = d.invoice_number ? (invoices ?? []).find((i) => i.number === d.invoice_number) : undefined
                 return (
                   <div key={d.id} className="row grid-cols-[minmax(0,1fr)_140px_130px_120px_110px]">
                     <span className="truncate" title={d.deal_name}>{d.deal_name}</span>
                     <span className="truncate text-xs text-muted-foreground">{d.stage_label}</span>
                     <span className="font-mono text-xs">{d.invoice_number ?? '–'}</span>
-                    <span className="text-right font-mono text-xs">{inv ? money(inv.total, inv.currency, { exact: true }) : '–'}</span>
+                    <span className="tabular text-right text-xs">{inv ? money(inv.total, inv.currency, { exact: true }) : '–'}</span>
                     <span className="text-xs">{inv ? inv.status : d.invoice_number ? <span className="text-muted-foreground">Not synced</span> : '–'}</span>
                   </div>
                 )
@@ -224,45 +293,6 @@ export default async function ProjectBilling({ params }: { params: Promise<{ id:
           </div>
         </Card>
       ) : null}
-
-      {/* ------------------------------------------------ statements */}
-      <Card flush title="Statements" extra="Approved by the customer, then invoiced in Zoho when you choose">
-        {live ? (
-          <div className="border-b border-line-soft p-3">
-            <ActionForm action={createStatement} submit="Statement for a period" primary={false} resetOnSuccess={false}>
-              <input type="hidden" name="project_id" value={id} />
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <label className="flex items-center gap-1.5">From <input type="date" name="period_start" required defaultValue={firstOfMonth} className="input" /></label>
-                <label className="flex items-center gap-1.5">to <input type="date" name="period_end" required defaultValue={endOfMonth} className="input" /></label>
-                <span>Or a statement for a whole period (retainers, day rates by person): day rates with people named are filled from their approved days; others start at resources × working days.</span>
-              </div>
-            </ActionForm>
-          </div>
-        ) : null}
-        {statements?.length ? (
-          <ActionForm action={createInvoice} submit="Create invoice in Zoho for the ticked statements" resetOnSuccess={false} className="gap-0 [&>div:last-child]:p-3">
-            <div className="overflow-x-auto">
-              <div className="min-w-[680px]">
-                <div className="row row-head grid-cols-[28px_minmax(0,1fr)_170px_140px_minmax(0,1fr)]"><span /><span>Period</span><span>Status</span><span className="text-right">Subtotal</span><span>Invoice</span></div>
-                {statements.map((s) => {
-                  const subtotal = s.statement_lines.reduce((a, l) => a + Number(l.amount ?? 0), 0)
-                  const invoiceable = s.status === 'approved' && !s.zoho_invoice_number
-                  return (
-                    <div key={s.id} className="row grid-cols-[28px_minmax(0,1fr)_170px_140px_minmax(0,1fr)] hover:bg-head">
-                      <span>{invoiceable ? <input type="checkbox" name="statement" value={s.id} aria-label={`Invoice ${period(s.period_start, s.period_end)}`} /> : null}</span>
-                      <Link href={`/projects/${id}/billing/${s.id}`} className="font-medium text-ink no-underline hover:underline">{period(s.period_start, s.period_end)}</Link>
-                      <span><StatementStatus status={s.status} /></span>
-                      <span className="text-right font-mono text-xs">{money(subtotal, s.rate_cards?.currency ?? 'INR', { exact: true })}</span>
-                      <span className="truncate text-xs">{s.zoho_invoice_number ? <span className="font-mono">Draft {s.zoho_invoice_number}</span>
-                        : s.invoice_error ? <span className="text-crit-ink">{s.invoice_error}</span> : invoiceable ? <span className="text-muted-foreground">Ready to invoice</span> : <span className="text-muted-foreground">–</span>}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </ActionForm>
-        ) : <Empty title="No statements yet">{live ? 'Create one for the period you want to bill.' : 'They start once the rate card is approved.'}</Empty>}
-      </Card>
     </div>
   )
 }

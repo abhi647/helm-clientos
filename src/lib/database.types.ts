@@ -1525,14 +1525,14 @@ isOneToOne: false
                   ]
                 },"projects": {
                   Row: {
-                    "created_at": string,"customer_id": string,"customer_lead_id": string | null,"end_date": string | null,"health": Database["public"]['Enums']["health"],"hubspot_deal_id": string | null,"id": string,"name": string,"pm_id": string | null,"start_date": string | null,"status": Database["public"]['Enums']["project_status"],"template_key": string | null
+                    "billing_model": Database["public"]['Enums']["billing_model"] | null,"created_at": string,"customer_id": string,"customer_lead_id": string | null,"end_date": string | null,"health": Database["public"]['Enums']["health"],"hubspot_deal_id": string | null,"id": string,"name": string,"pm_id": string | null,"rate_unit": string,"start_date": string | null,"status": Database["public"]['Enums']["project_status"],"template_key": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"customer_id": string,"customer_lead_id"?: string | null,"end_date"?: string | null,"health"?: Database["public"]['Enums']["health"],"hubspot_deal_id"?: string | null,"id"?: string,"name": string,"pm_id"?: string | null,"start_date"?: string | null,"status"?: Database["public"]['Enums']["project_status"],"template_key"?: string | null
+                    "billing_model"?: Database["public"]['Enums']["billing_model"] | null,"created_at"?: string,"customer_id": string,"customer_lead_id"?: string | null,"end_date"?: string | null,"health"?: Database["public"]['Enums']["health"],"hubspot_deal_id"?: string | null,"id"?: string,"name": string,"pm_id"?: string | null,"rate_unit"?: string,"start_date"?: string | null,"status"?: Database["public"]['Enums']["project_status"],"template_key"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"customer_id"?: string,"customer_lead_id"?: string | null,"end_date"?: string | null,"health"?: Database["public"]['Enums']["health"],"hubspot_deal_id"?: string | null,"id"?: string,"name"?: string,"pm_id"?: string | null,"start_date"?: string | null,"status"?: Database["public"]['Enums']["project_status"],"template_key"?: string | null
+                    "billing_model"?: Database["public"]['Enums']["billing_model"] | null,"created_at"?: string,"customer_id"?: string,"customer_lead_id"?: string | null,"end_date"?: string | null,"health"?: Database["public"]['Enums']["health"],"hubspot_deal_id"?: string | null,"id"?: string,"name"?: string,"pm_id"?: string | null,"rate_unit"?: string,"start_date"?: string | null,"status"?: Database["public"]['Enums']["project_status"],"template_key"?: string | null
                   }
                   Relationships: [
                     {
@@ -2348,6 +2348,9 @@ isOneToOne: false
 "archive_document":
 { Args: { "p_archive": boolean,"p_document": string }; Returns: undefined
                            },
+"bill_milestone":
+{ Args: { "p_line": string }; Returns: string
+                           },
 "billing_lines":
 { Args: { "p_project": string }; Returns: {
               "current": boolean,"id": string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"unit": string
@@ -2490,6 +2493,9 @@ isOneToOne: false
 "set_request_status":
 { Args: { "p_note"?: string,"p_request": string,"p_status": Database["public"]['Enums']["request_status"] }; Returns: undefined
                            },
+"setup_billing":
+{ Args: { "p_currency": string,"p_milestones"?: Json,"p_model": Database["public"]['Enums']["billing_model"],"p_notes"?: string,"p_people"?: Json,"p_po"?: string,"p_project": string,"p_retainer"?: Json,"p_unit": string }; Returns: string
+                           },
 "start_rate_card":
 { Args: { "p_project": string }; Returns: string
                            },
@@ -2504,12 +2510,12 @@ isOneToOne: false
                            },
 "unbilled_time":
 { Args: { "p_project"?: string }; Returns: {
-              "currency": string,"customer_name": string,"days": number,"full_name": string,"line_label": string,"oldest": string,"project_id": string,"project_name": string,"rate": number,"user_id": string
+              "amount": number,"currency": string,"customer_name": string,"days": number,"full_name": string,"hours": number,"line_label": string,"oldest": string,"project_id": string,"project_name": string,"rate": number,"unit": string,"user_id": string
             }[]
                            }
           }
           Enums: {
-            "action_status": "open"|"completed"|"cancelled","action_type": "approval"|"form"|"task"|"clarification"|"uat"|"upload"|"decision"|"invoice"|"meeting_action","approval_action": "requested"|"approved"|"changes_requested"|"resubmitted"|"cancelled","approval_status": "pending"|"approved"|"changes_requested"|"cancelled","billing_kind": "day_rate"|"delivery"|"unit"|"retainer","csat_kind": "request"|"pulse"|"closure","customer_role": "customer_exec"|"customer_member","feedback_kind": "praise"|"suggestion"|"issue"|"other","feedback_status": "new"|"acknowledged"|"actioned"|"closed","health": "on_track"|"needs_attention"|"at_risk","internal_role": "admin"|"ceo"|"pm"|"consultant"|"finance","owner_side": "seven_billion"|"customer","page_kind": "scope"|"requirements"|"meeting_notes"|"blank","page_status": "draft"|"in_review"|"signed_off","priority": "low"|"normal"|"high"|"critical","project_status": "active"|"on_hold"|"completed","rate_card_status": "draft"|"pending"|"approved"|"changes_requested"|"superseded","request_status": "submitted"|"under_review"|"clarification"|"estimated"|"approved"|"scheduled"|"in_development"|"uat"|"delivered"|"cancelled","request_type": "requirement"|"enhancement"|"change_request"|"bug"|"new_report"|"data_request"|"access_request"|"support"|"other","setup_status": "pending"|"created"|"dismissed","statement_status": "draft"|"pending"|"approved"|"changes_requested"|"invoiced","task_status": "todo"|"in_progress"|"in_review"|"waiting_customer"|"blocked"|"done","update_status": "draft"|"published","user_kind": "internal"|"customer","visibility": "internal"|"shared"
+            "action_status": "open"|"completed"|"cancelled","action_type": "approval"|"form"|"task"|"clarification"|"uat"|"upload"|"decision"|"invoice"|"meeting_action","approval_action": "requested"|"approved"|"changes_requested"|"resubmitted"|"cancelled","approval_status": "pending"|"approved"|"changes_requested"|"cancelled","billing_kind": "day_rate"|"delivery"|"unit"|"retainer","billing_model": "time_materials"|"fixed_price"|"retainer","csat_kind": "request"|"pulse"|"closure","customer_role": "customer_exec"|"customer_member","feedback_kind": "praise"|"suggestion"|"issue"|"other","feedback_status": "new"|"acknowledged"|"actioned"|"closed","health": "on_track"|"needs_attention"|"at_risk","internal_role": "admin"|"ceo"|"pm"|"consultant"|"finance","owner_side": "seven_billion"|"customer","page_kind": "scope"|"requirements"|"meeting_notes"|"blank","page_status": "draft"|"in_review"|"signed_off","priority": "low"|"normal"|"high"|"critical","project_status": "active"|"on_hold"|"completed","rate_card_status": "draft"|"pending"|"approved"|"changes_requested"|"superseded","request_status": "submitted"|"under_review"|"clarification"|"estimated"|"approved"|"scheduled"|"in_development"|"uat"|"delivered"|"cancelled","request_type": "requirement"|"enhancement"|"change_request"|"bug"|"new_report"|"data_request"|"access_request"|"support"|"other","setup_status": "pending"|"created"|"dismissed","statement_status": "draft"|"pending"|"approved"|"changes_requested"|"invoiced","task_status": "todo"|"in_progress"|"in_review"|"waiting_customer"|"blocked"|"done","update_status": "draft"|"published","user_kind": "internal"|"customer","visibility": "internal"|"shared"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -2625,7 +2631,7 @@ export type CompositeTypes<
 export const Constants = {
   "public": {
           Enums: {
-            "action_status": ["open", "completed", "cancelled"],"action_type": ["approval", "form", "task", "clarification", "uat", "upload", "decision", "invoice", "meeting_action"],"approval_action": ["requested", "approved", "changes_requested", "resubmitted", "cancelled"],"approval_status": ["pending", "approved", "changes_requested", "cancelled"],"billing_kind": ["day_rate", "delivery", "unit", "retainer"],"csat_kind": ["request", "pulse", "closure"],"customer_role": ["customer_exec", "customer_member"],"feedback_kind": ["praise", "suggestion", "issue", "other"],"feedback_status": ["new", "acknowledged", "actioned", "closed"],"health": ["on_track", "needs_attention", "at_risk"],"internal_role": ["admin", "ceo", "pm", "consultant", "finance"],"owner_side": ["seven_billion", "customer"],"page_kind": ["scope", "requirements", "meeting_notes", "blank"],"page_status": ["draft", "in_review", "signed_off"],"priority": ["low", "normal", "high", "critical"],"project_status": ["active", "on_hold", "completed"],"rate_card_status": ["draft", "pending", "approved", "changes_requested", "superseded"],"request_status": ["submitted", "under_review", "clarification", "estimated", "approved", "scheduled", "in_development", "uat", "delivered", "cancelled"],"request_type": ["requirement", "enhancement", "change_request", "bug", "new_report", "data_request", "access_request", "support", "other"],"setup_status": ["pending", "created", "dismissed"],"statement_status": ["draft", "pending", "approved", "changes_requested", "invoiced"],"task_status": ["todo", "in_progress", "in_review", "waiting_customer", "blocked", "done"],"update_status": ["draft", "published"],"user_kind": ["internal", "customer"],"visibility": ["internal", "shared"]
+            "action_status": ["open", "completed", "cancelled"],"action_type": ["approval", "form", "task", "clarification", "uat", "upload", "decision", "invoice", "meeting_action"],"approval_action": ["requested", "approved", "changes_requested", "resubmitted", "cancelled"],"approval_status": ["pending", "approved", "changes_requested", "cancelled"],"billing_kind": ["day_rate", "delivery", "unit", "retainer"],"billing_model": ["time_materials", "fixed_price", "retainer"],"csat_kind": ["request", "pulse", "closure"],"customer_role": ["customer_exec", "customer_member"],"feedback_kind": ["praise", "suggestion", "issue", "other"],"feedback_status": ["new", "acknowledged", "actioned", "closed"],"health": ["on_track", "needs_attention", "at_risk"],"internal_role": ["admin", "ceo", "pm", "consultant", "finance"],"owner_side": ["seven_billion", "customer"],"page_kind": ["scope", "requirements", "meeting_notes", "blank"],"page_status": ["draft", "in_review", "signed_off"],"priority": ["low", "normal", "high", "critical"],"project_status": ["active", "on_hold", "completed"],"rate_card_status": ["draft", "pending", "approved", "changes_requested", "superseded"],"request_status": ["submitted", "under_review", "clarification", "estimated", "approved", "scheduled", "in_development", "uat", "delivered", "cancelled"],"request_type": ["requirement", "enhancement", "change_request", "bug", "new_report", "data_request", "access_request", "support", "other"],"setup_status": ["pending", "created", "dismissed"],"statement_status": ["draft", "pending", "approved", "changes_requested", "invoiced"],"task_status": ["todo", "in_progress", "in_review", "waiting_customer", "blocked", "done"],"update_status": ["draft", "published"],"user_kind": ["internal", "customer"],"visibility": ["internal", "shared"]
           }
         }
 } as const

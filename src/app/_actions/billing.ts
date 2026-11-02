@@ -309,3 +309,47 @@ export async function decideStatement(_prev: ActionResult | null, form: FormData
   if (error) return dbFail(error)
   return done(approve ? 'Statement approved. Thank you.' : 'Sent back to Seven Billion with your comments.')
 }
+
+// ---------------------------------------------------------------- billing set-up by model (one step, from the wizard)
+const setupSchema = z.object({
+  project_id: uuid,
+  model: z.enum(['time_materials', 'fixed_price', 'retainer']),
+  unit: z.enum(['hour', 'day']),
+  currency: z.string().regex(/^[A-Z]{3}$/, 'Choose a currency.'),
+  po_number: z.string().trim().max(80).default(''),
+  notes: z.string().trim().max(2000).default(''),
+  people: z.array(z.object({ profile_id: uuid, rate: z.coerce.number().min(0, 'Rates cannot be negative.').max(1e9) })).max(100).default([]),
+  milestones: z.array(z.object({
+    label: z.string().trim().min(1, 'Name each milestone.').max(200), amount: z.coerce.number().min(0).max(1e12),
+    phase_id: z.preprocess((v) => (v === '' ? undefined : v), uuid.optional()),
+  })).max(100).default([]),
+  retainer: z.object({ fee: z.coerce.number().min(0), hours: z.coerce.number().min(0).max(10_000), rollover: z.preprocess((v) => (v === '' || v == null ? undefined : v), z.coerce.number().min(0).optional()) }).optional(),
+})
+export type BillingSetup = z.input<typeof setupSchema>
+
+/** The wizard's result: one draft rate card for the chosen model. Sending or approving it is the next step. */
+export async function setupBilling(input: BillingSetup): Promise<ActionResult> {
+  await requireStaff()
+  const parsed = setupSchema.safeParse(input)
+  if (!parsed.success) return fail(parsed.error.issues[0]!.message)
+  const d = parsed.data
+  const { error } = await (await createClient()).rpc('setup_billing', {
+    p_project: d.project_id, p_model: d.model, p_unit: d.unit, p_currency: d.currency, p_po: d.po_number, p_notes: d.notes,
+    p_people: d.people as never, p_milestones: d.milestones as never, p_retainer: (d.retainer ?? null) as never,
+  })
+  if (error) {
+    const m = error.message.match(/add at least one (person and their rate|milestone)|enter the monthly fee|each person can have one rate|each milestone needs a name and an amount|the customer is reviewing the rates.*|only Seven Billion people can be billed on a line|enter a rate for .+/i)
+    return m ? fail(m[0].charAt(0).toUpperCase() + m[0].slice(1) + '.') : dbFail(error)
+  }
+  return done('Billing set up. Send the rates to the customer, or approve them for the customer if already agreed.')
+}
+
+/** Fixed price: put one delivered milestone on its own statement for the customer to approve. */
+export async function billMilestone(lineId: string, projectId: string): Promise<ActionResult> {
+  await requireStaff()
+  if (!uuid.safeParse(lineId).success) return fail('Unknown milestone.')
+  const { data, error } = await (await createClient()).rpc('bill_milestone', { p_line: lineId })
+  if (error) return dbFail(error, /already on a statement/i.test(error.message) ? 'This milestone is already on a statement.' : undefined)
+  done()
+  redirect(`/projects/${projectId}/billing/${data}`)
+}

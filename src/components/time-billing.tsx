@@ -56,36 +56,37 @@ export function LinePeople({ lines, people, covered }: { lines: Line[]; people: 
 export type Unbilled = {
   project_id: string; project_name: string; customer_name: string; user_id: string; full_name: string
   days: number; oldest: string; rate: number | null; currency: string | null; line_label: string | null
+  hours: number; unit: string | null; amount: number | null
 }
 
 /** Approved billable days that no approved statement has billed yet, valued at the agreed rate. */
 export function UnbilledTime({ rows, showProject = false }: { rows: Unbilled[]; showProject?: boolean }) {
   if (!rows.length) return null
   const totals = new Map<string, number>()
-  for (const r of rows) if (r.rate != null && r.currency) totals.set(r.currency, (totals.get(r.currency) ?? 0) + Number(r.days) * Number(r.rate))
+  for (const r of rows) if (r.amount != null && r.currency) totals.set(r.currency, (totals.get(r.currency) ?? 0) + Number(r.amount))
   const cols = showProject ? 'grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_70px_80px_minmax(0,1fr)_120px]' : 'grid-cols-[minmax(0,1fr)_70px_80px_minmax(0,1fr)_120px]'
   return (
-    <Card flush title="Unbilled work" extra={[...totals].map(([c, v]) => money(v, c)).join(' + ') || 'Approved days not on a statement yet'}>
+    <Card flush title="Unbilled time" extra={[...totals].map(([c, v]) => money(v, c)).join(' + ') || 'Approved days not on a statement yet'}>
       <div className="overflow-x-auto">
         <div className={showProject ? 'min-w-[760px]' : 'min-w-[600px]'}>
           <div className={`row row-head ${cols}`}>
-            {showProject ? <span>Project</span> : null}<span>Person</span><span className="text-right">Days</span><span>Since</span><span>Line</span><span className="text-right">At agreed rate</span>
+            {showProject ? <span>Project</span> : null}<span>Person</span><span className="text-right">Hours</span><span>Since</span><span>Rate</span><span className="text-right">Amount</span>
           </div>
           {rows.map((r) => (
             <div key={`${r.project_id}-${r.user_id}`} className={`row ${cols}`}>
               {showProject ? <Link href={`/projects/${r.project_id}/billing`} className="truncate">{r.customer_name} · {r.project_name}</Link> : null}
               <span className="truncate">{r.full_name}</span>
-              <span className="text-right font-mono text-xs">{+Number(r.days).toFixed(2)}</span>
+              <span className="tabular text-right text-xs">{+Number(r.hours).toFixed(2)}</span>
               <span className="font-mono text-xs">{shortDate(r.oldest)}</span>
-              <span className="truncate text-xs">{r.line_label ?? <Chip tone="warn">Not on a day-rate line</Chip>}</span>
-              <span className="text-right font-mono text-xs">{r.rate != null && r.currency ? money(Number(r.days) * Number(r.rate), r.currency, { exact: true }) : '–'}</span>
+              <span className="truncate text-xs">{r.rate != null && r.currency ? `${money(Number(r.rate), r.currency, { exact: true })} / ${r.unit === 'hour' ? 'hour' : 'day'}` : <Chip tone="warn">No rate for this person</Chip>}</span>
+              <span className="tabular text-right text-xs font-medium">{r.amount != null && r.currency ? money(Number(r.amount), r.currency, { exact: true }) : '–'}</span>
             </div>
           ))}
         </div>
       </div>
       <p className="m-0 border-t border-line-soft px-3 py-2 text-xs text-muted-foreground">
-        Approved, billable days that no approved statement has billed yet. Someone not on a day-rate line cannot be billed
-        until finance names them on one (Billing → Day rates from timesheets).
+        Approved, billable time that no approved statement has billed yet. Someone without a rate on the project cannot be
+        billed until finance adds them (Billing → Change set-up).
       </p>
     </Card>
   )
