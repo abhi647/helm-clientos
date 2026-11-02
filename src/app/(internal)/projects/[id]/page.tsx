@@ -154,7 +154,8 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
   }))
 
   return (
-    <div className="flex flex-col gap-2.5 p-4">
+    // with a task open, wide screens keep the whole plan (toolbar included) beside the panel instead of under it
+    <div className={cn('flex flex-col gap-2.5 p-4 transition-[padding] duration-200', sel && 'xl:pr-[536px]')}>
       {sp.created ? <p role="status" className="m-0 rounded-md bg-good-bg px-3 py-2 text-xs font-medium text-good-ink">Project created from the template. Assign the customer tasks, then share the portal.</p> : null}
       <div className="flex flex-wrap items-center gap-2">
         <form className="flex h-[30px] items-center rounded-md border border-control bg-white px-2">

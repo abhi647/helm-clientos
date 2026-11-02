@@ -244,6 +244,8 @@ test('customer rates a delivery and sends feedback; the team triages it', async 
 })
 
 test('uploads are type-checked and virus-scanned before anyone can open them', async ({ page }) => {
+  // needs a ClamAV scanner (CI runs one and sets CLAMAV_HOST in .env.local)
+  test.skip(!/^CLAMAV_HOST=\S/m.test(readFileSync('.env.local', 'utf8')), 'no ClamAV scanner configured')
   await signIn(page, 'rahul@example.com')
   await page.goto('/projects')
   await page.getByRole('link', { name: 'Power BI Implementation' }).click()
@@ -293,14 +295,14 @@ test('a file left waiting for its check (scanner was down) is checked when opene
 
   await page.reload()
   await files.getByRole('button', { name: 'Check waiting files now' }).click()
-  await expect(files.getByText(/Checked \d+ files?, all done/)).toBeVisible()
+  await expect(toast(page, 'all done')).toBeVisible()
   await expect(files.getByText('Waiting for the security check').locator('xpath=following-sibling::dd[1]')).toHaveText(/^0/)
   await shot(page, '40-system-health-files')
 })
 
 test('CEO sees the portfolio and finance', async ({ page }) => {
   await signIn(page, 'abhijit@example.com')
-  await expect(page.getByRole('heading', { name: 'Portfolio' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Portfolio', exact: true })).toBeVisible()
   await page.goto('/finance')
   await expect(page.getByText('INV-1072')).toBeVisible()
   await shot(page, '11-finance')
@@ -528,7 +530,7 @@ test('hours credit: finance sets a monthly plan, the customer sees the meter and
   await expect(page.getByText('6 h logged.')).toBeVisible()
   // a PM's own hours go to an admin or the CEO
   await signIn(page, 'abhijit@example.com')
-  await page.goto('/timesheets')
+  await page.goto('/timesheets/approve')
   await page.locator('.card', { hasText: 'e2e credit hours' }).getByRole('button', { name: 'Approve ticked' }).click()
   await expect(page.locator('.card', { hasText: 'Recently approved' }).getByText(/Data Platform Implementation/).first()).toBeVisible()
 

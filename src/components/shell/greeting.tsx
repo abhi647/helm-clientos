@@ -26,8 +26,10 @@ export function Greeting({ name, lines, chips }: {
   return (
     <section aria-label="Greeting" className="flex flex-wrap items-center gap-x-4 gap-y-2">
       <div className="flex min-w-0 flex-1 flex-col">
-        <h1 className="m-0 text-[19px] leading-tight font-semibold tracking-[-0.02em]">{HELLO[slot]}, {name}
-          <span suppressHydrationWarning className="ml-2 text-xs font-normal text-muted-foreground">{today}</span></h1>
+        <span className="flex items-baseline gap-2">
+          <h1 className="m-0 text-[19px] leading-tight font-semibold tracking-[-0.02em]">{HELLO[slot]}, {name}</h1>
+          <span suppressHydrationWarning className="text-xs text-muted-foreground">{today}</span>
+        </span>
         <p className="m-0 text-xs text-muted-foreground">{lines[slot]}</p>
       </div>
       {chips ? <div className="flex flex-wrap gap-1.5">{chips}</div> : null}
