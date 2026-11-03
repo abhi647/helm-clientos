@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { approveStatementForCustomer, deleteStatement, refillStatement, retryZohoInvoice, saveStatement, submitStatement } from '@/app/_actions/billing'
+import { approveStatementForCustomer, createSalesOrder, deleteStatement, refillStatement, saveStatement, submitStatement } from '@/app/_actions/billing'
 import { KIND_LABEL, StatementLines, StatementStatus, period, plural } from '@/components/billing'
 import { ActionButton, ActionForm, ApproveForCustomer } from '@/components/forms'
 import { Card } from '@/components/ui'
@@ -11,7 +11,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { title: 'Statement' }
 
-/** One billing period (admin, CEO, finance): quantities on the approved rates, sent to the customer, then a draft invoice in Zoho. */
+/** One billing period (admin, CEO, finance): quantities on the approved rates, sent to the customer, then a sales order in Zoho. */
 export default async function StatementPage({ params }: { params: Promise<{ id: string; sid: string }> }) {
   const { id, sid } = await params
   const me = await requireStaff()
@@ -100,7 +100,7 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
             </div>
             {canSeeFinance(me) ? (
               <ApproveForCustomer action={approveStatementForCustomer} idName="statement_id" id={st.id} label="Approve the statement for the customer"
-                hint="Save your quantities first. It is approved now, the draft invoice is created in Zoho, and the customer's billing contacts are told." />
+                hint="Save your quantities first. It is approved now and the customer's billing contacts, if any, get an email. Then create the sales order in Zoho." />
             ) : null}
           </div>
         ) : (
@@ -110,14 +110,24 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
             <dl className="m-0 grid grid-cols-[150px_minmax(0,1fr)] gap-y-1.5 text-[13px]">
               {st.submitted_at ? <><dt className="text-muted-foreground">Sent</dt><dd className="m-0">{relativeTime(st.submitted_at)}</dd></> : null}
               {st.decided_at ? <><dt className="text-muted-foreground">Approved</dt><dd className="m-0">{relativeTime(st.decided_at)}{st.decider?.full_name ? ` by ${st.decider.full_name}` : ''}{st.approved_for_customer ? ' for the customer' : ''}{st.approved_for_customer && st.decision_note?.includes(': ') ? ` (${st.decision_note.slice(st.decision_note.indexOf(': ') + 2)})` : ''}</dd></> : null}
-              {st.zoho_invoice_number ? <><dt className="text-muted-foreground">Zoho</dt><dd className="m-0">Draft invoice <b className="font-mono">{st.zoho_invoice_number}</b>, waiting for Finance to review and send it in Zoho Books.</dd></> : null}
+              {st.zoho_salesorder_number ? <><dt className="text-muted-foreground">Sales order</dt><dd className="m-0"><b className="font-mono">{st.zoho_salesorder_number}</b> in Zoho, {st.salesorder_at ? relativeTime(st.salesorder_at) : ''}{st.exchange_rate ? ` · at a proposed 1 ${currency} = ${Number(st.exchange_rate)}` : ''}. Convert it to the invoice in Zoho Books once the customer confirms.</dd></> : null}
+              {st.zoho_invoice_number ? <><dt className="text-muted-foreground">Zoho</dt><dd className="m-0">Invoice <b className="font-mono">{st.zoho_invoice_number}</b>, waiting for Finance to review and send it in Zoho Books.</dd></> : null}
             </dl>
             {st.invoice_error ? <p role="alert" className="m-0 rounded-md bg-crit-bg p-2.5 text-xs text-crit-ink">{st.invoice_error}</p> : null}
             {st.status === 'pending' && canSeeFinance(me) ? (
               <ApproveForCustomer action={approveStatementForCustomer} idName="statement_id" id={st.id} label="Approve the statement for the customer"
-                hint="No need to wait: the draft invoice is created in Zoho and the customer's billing contacts are told." />
+                hint="No need to wait: it is approved now and the customer's billing contacts, if any, get an email. Then create the sales order in Zoho." />
             ) : null}
-            {st.status === 'approved' ? <div><ActionButton run={retryZohoInvoice.bind(null, st.id)} primary>{st.invoice_error ? 'Try the invoice again' : 'Create invoice in Zoho'}</ActionButton></div> : null}
+            {st.status === 'approved' && !st.zoho_salesorder_id && !st.zoho_invoice_id ? (
+              <ActionForm action={createSalesOrder} submit={st.invoice_error ? 'Try the sales order again' : 'Create sales order in Zoho'} resetOnSuccess={false}>
+                <input type="hidden" name="statement" value={st.id} />
+                <label className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  Proposed exchange rate: 1 {currency} =
+                  <input name="exchange_rate" inputMode="decimal" placeholder="e.g. 92.5" className="input tabular w-28" />
+                  <span>only when Zoho bills the customer in another currency; leave empty otherwise</span>
+                </label>
+              </ActionForm>
+            ) : null}
           </div>
         )}
       </Card>

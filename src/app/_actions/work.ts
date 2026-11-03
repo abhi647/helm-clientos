@@ -46,6 +46,21 @@ export async function setBilledAs(on: 'task' | 'phase', id: string, lineId: stri
   return error ? dbFail(error) : done()
 }
 
+/** Moves a task to another phase of its project (its subtasks follow). What it is billed as can follow from the phase. */
+export async function setTaskPhase(taskId: string, phaseId: string): Promise<ActionResult> {
+  await requireStaff()
+  if (!uuid.safeParse(taskId).success || !uuid.safeParse(phaseId).success) return fail('Unknown task or phase.')
+  const supabase = await createClient()
+  const [{ data: task }, { data: phase }] = await Promise.all([
+    supabase.from('tasks').select('project_id, parent_id').eq('id', taskId).single(),
+    supabase.from('phases').select('project_id').eq('id', phaseId).single(),
+  ])
+  if (!task || !phase || task.project_id !== phase.project_id) return fail('Pick a phase of this project.')
+  if (task.parent_id) return fail('A subtask stays in its task’s phase.')
+  const { error } = await supabase.from('tasks').update({ phase_id: phaseId }).eq('id', taskId)
+  return error ? dbFail(error) : done('Moved.')
+}
+
 export async function setSpotlight(taskId: string, spotlight: boolean): Promise<ActionResult> {
   await requireStaff()
   const supabase = await createClient()

@@ -13,7 +13,7 @@ type ZohoInvoice = {
 const HIDDEN = new Set(['draft', 'void'])
 
 /** Every Zoho Books scope Helm uses. The refresh token must be made with all of them (README → Zoho Books). */
-export const ZOHO_SCOPES = 'ZohoBooks.invoices.READ,ZohoBooks.invoices.CREATE,ZohoBooks.customerpayments.READ,ZohoBooks.contacts.READ,ZohoBooks.settings.READ'
+export const ZOHO_SCOPES = 'ZohoBooks.invoices.READ,ZohoBooks.invoices.CREATE,ZohoBooks.salesorders.CREATE,ZohoBooks.customerpayments.READ,ZohoBooks.contacts.READ,ZohoBooks.settings.READ'
 
 /**
  * Zoho's answer to a request the refresh token has no scope for: HTTP 401, or code 57 ("You are not authorized to
@@ -161,36 +161,49 @@ export async function zohoTaxOptions(): Promise<{ taxes: { id: string; name: str
 /** One statement: the same as an invoice for just that statement. */
 export const createZohoDraftInvoice = (statementId: string) => createZohoInvoice([statementId])
 
+/** A draft invoice in Zoho for approved statements that have no sales order (invoices from a sales order are made in Zoho). */
+export const createZohoInvoice = (statementIds: string[]) => createZohoDocument('invoice', statementIds)
+
 /**
- * Creates ONE draft invoice in Zoho Books for one or more approved statements of the same customer and currency:
- * one line per statement line, at the approved rate x the approved quantity, each carrying the customer's GST
- * (Admin: customer page → HubSpot and Zoho → GST), or the tax of the line's Zoho item. Zoho adds numbering and
- * totals; finance reviews the draft and sends it from Zoho. Statements are claimed before Zoho is called and are
- * never invoiced twice. Needs the Zoho scope ZohoBooks.invoices.CREATE (and settings.READ for the GST list).
+ * A sales order in Zoho for approved statements: what the customer agreed to, before the invoice. When the rate card
+ * is in another currency than the Zoho customer (EUR rates, a customer billed in INR), `exchangeRate` converts each
+ * rate (1 rate-card unit = exchangeRate Zoho units) and every line says the original rate and the proposed rate.
+ * Once the customer agrees the exchange rate, finance converts the sales order to the invoice in Zoho Books.
  */
-export async function createZohoInvoice(statementIds: string[]): Promise<DraftResult> {
+export const createZohoSalesOrder = (statementIds: string[], exchangeRate?: number) => createZohoDocument('salesorder', statementIds, exchangeRate)
+
+/**
+ * Creates ONE draft invoice or sales order in Zoho Books for one or more approved statements of the same customer and
+ * currency: one line per statement line, at the approved rate x the approved quantity, each carrying the customer's
+ * GST (Admin: customer page → HubSpot and Zoho → GST), or the tax of the line's Zoho item. Zoho adds numbering and
+ * totals; finance reviews it and sends it from Zoho. Statements are claimed before Zoho is called and never get two.
+ * Needs the Zoho scope ZohoBooks.invoices.CREATE or ZohoBooks.salesorders.CREATE (and settings.READ for the GST list).
+ */
+async function createZohoDocument(kind: 'invoice' | 'salesorder', statementIds: string[], exchangeRate?: number): Promise<DraftResult> {
   const e = env()
   const db = createAdminClient()
   const ids = [...new Set(statementIds)]
-  if (!ids.length) return { ok: false, error: 'Tick the approved statements to invoice first.' }
+  const doc = kind === 'invoice' ? 'invoice' : 'sales order'
+  if (!ids.length) return { ok: false, error: `Tick the approved statements for the ${doc} first.` }
   const release = async (error: string): Promise<DraftResult> => {
     await db.from('billing_statements').update({ invoice_error: error, zoho_claimed_at: null }).in('id', ids)
-    await logError('zoho', error, { statements: ids }, 'warn')
+    await logError('zoho', error, { statements: ids, kind }, 'warn')
     return { ok: false, error }
   }
-  // claim them all: approved, not invoiced, and nobody else working on them (a claim older than 5 minutes is abandoned)
+  // claim them all: approved, with neither an invoice nor a sales order, and nobody else working on them
+  // (a claim older than 5 minutes is abandoned)
   const stale = new Date(Date.now() - 5 * 60_000).toISOString()
   const { data: claimed } = await db.from('billing_statements')
     .update({ zoho_claimed_at: new Date().toISOString(), invoice_error: null })
-    .in('id', ids).eq('status', 'approved').is('zoho_invoice_id', null)
+    .in('id', ids).eq('status', 'approved').is('zoho_invoice_id', null).is('zoho_salesorder_id', null)
     .or(`zoho_claimed_at.is.null,zoho_claimed_at.lt.${stale}`)
     .select('id, project_id, customer_id, rate_card_id, period_start, period_end, note')
   if ((claimed ?? []).length !== ids.length) {
     if (claimed?.length) await db.from('billing_statements').update({ zoho_claimed_at: null }).in('id', claimed.map((c) => c.id))
-    return { ok: false, error: 'Only approved statements without an invoice can be invoiced (one may be invoiced already, or being sent to Zoho right now).' }
+    return { ok: false, error: `Only approved statements without a sales order or invoice can get a ${doc} (one may have one already, or be on its way to Zoho right now).` }
   }
   const sts = [...claimed!].sort((a, b) => a.period_start.localeCompare(b.period_start))
-  if (new Set(sts.map((s) => s.customer_id)).size > 1) return release('An invoice is for one customer: tick statements of the same customer.')
+  if (new Set(sts.map((s) => s.customer_id)).size > 1) return release(`A ${doc} is for one customer: tick statements of the same customer.`)
 
   if (!e.ZOHO_CLIENT_ID || !e.ZOHO_REFRESH_TOKEN || !e.ZOHO_ORGANIZATION_ID) return release('Zoho is not connected. Add the ZOHO_* settings, then try again.')
   const customerId = sts[0]!.customer_id
@@ -205,17 +218,25 @@ export async function createZohoInvoice(statementIds: string[]): Promise<DraftRe
   if (!customer?.zoho_customer_id) return release(`${customer?.name ?? 'This customer'} has no Zoho customer id. Add it on the customer page (HubSpot and Zoho), then try again.`)
   if (!lines?.length) return release('The statements have no lines with a quantity.')
   const currencies = new Set((cards ?? []).map((c) => c.currency))
-  if (currencies.size > 1) return release(`The statements are in different currencies (${[...currencies].join(', ')}): invoice them separately.`)
+  if (currencies.size > 1) return release(`The statements are in different currencies (${[...currencies].join(', ')}): make a ${doc} for each.`)
   const currency = cards?.[0]?.currency
   const taxFields = tax?.zoho_tax_id ? { tax_id: tax.zoho_tax_id } : tax?.zoho_tax_exemption_id ? { tax_exemption_id: tax.zoho_tax_exemption_id } : null
   if (!taxFields && lines.some((l) => !l.rate_card_lines?.zoho_item_id)) {
     return release(`Set the GST for ${customer.name} first: customer page → HubSpot and Zoho → GST on invoices. Zoho needs a tax or an exemption on every line.`)
   }
 
-  // Zoho bills a customer in the currency set on them in Zoho; an invoice can't be in another one
+  // Zoho bills a customer in the currency set on them in Zoho. An invoice can't be in another one; a sales order can,
+  // at a proposed exchange rate the customer then agrees to.
   const zohoCustomer = await lookupZohoCustomer(customer.zoho_customer_id)
-  const mismatch = zohoCustomer.found ? currencyProblem(zohoCustomer.name, zohoCustomer.currency, currency) : null
+  const zohoCurrency = zohoCustomer.found ? zohoCustomer.currency : undefined
+  const converts = kind === 'salesorder' && !!zohoCurrency && !!currency && zohoCurrency !== currency
+  if (converts && !(exchangeRate && exchangeRate > 0)) {
+    return release(`Zoho bills ${zohoCustomer.found ? zohoCustomer.name : customer.name} in ${zohoCurrency}, but the rates are in ${currency}. Enter the proposed exchange rate (1 ${currency} = ? ${zohoCurrency}) and try again.`)
+  }
+  const mismatch = !converts && zohoCustomer.found ? currencyProblem(zohoCustomer.name, zohoCurrency, currency) : null
   if (mismatch) return release(mismatch)
+  const fx = converts ? exchangeRate! : 1
+  const fmt = (n: number, c?: string) => `${c ?? ''} ${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`.trim()
 
   const projectName = new Map((projects ?? []).map((p) => [p.id, p.name]))
   const stById = new Map(sts.map((s) => [s.id, s]))
@@ -226,36 +247,48 @@ export async function createZohoInvoice(statementIds: string[]): Promise<DraftRe
     reference_number: pos.join(', ') || undefined,
     line_items: [...lines].sort((a, b) => (stById.get(a.statement_id)!.period_start.localeCompare(stById.get(b.statement_id)!.period_start)) || a.position - b.position).map((l) => {
       const st = stById.get(l.statement_id)!
+      const rate = Number(l.rate)
       return {
         ...(l.rate_card_lines?.zoho_item_id ? { item_id: l.rate_card_lines.zoho_item_id } : {}),
         ...(taxFields ?? {}),
         name: l.label,
-        description: [`${projectName.get(st.project_id)} · ${st.period_start} to ${st.period_end}`, l.rate_card_lines?.description, l.note].filter(Boolean).join('\n'),
-        rate: Number(l.rate),
+        description: [`${projectName.get(st.project_id)} · ${st.period_start} to ${st.period_end}`, l.rate_card_lines?.description, l.note,
+          converts ? `${fmt(rate, currency)} per ${l.unit} at 1 ${currency} = ${fx} ${zohoCurrency} (proposed)` : null].filter(Boolean).join('\n'),
+        rate: Math.round(rate * fx * 100) / 100,
         quantity: Number(l.quantity),
         unit: l.unit,
       }
     }),
-    notes: sts.map((s) => s.note).filter(Boolean).join('\n') || undefined,
+    notes: [...sts.map((s) => s.note),
+      converts ? `Rates agreed in ${currency}, shown in ${zohoCurrency} at a proposed exchange rate of 1 ${currency} = ${fx} ${zohoCurrency}, to be confirmed before invoicing.` : null,
+    ].filter(Boolean).join('\n') || undefined,
   }
   try {
     const token = await accessToken()
-    const url = new URL(`${apiBase()}/books/v3/invoices`)
+    const url = new URL(`${apiBase()}/books/v3/${kind === 'invoice' ? 'invoices' : 'salesorders'}`)
     url.search = new URLSearchParams({ organization_id: e.ZOHO_ORGANIZATION_ID }).toString()
     const res = await fetch(url, {
       method: 'POST', cache: 'no-store',
       headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-    const json = ((await res.json().catch(() => null)) ?? {}) as { code?: number; message?: string; invoice?: { invoice_id: string; invoice_number: string; currency_code?: string } }
-    if (!res.ok || json.code !== 0 || !json.invoice) return release(zohoAccessProblem(res.status, json, 'ZohoBooks.invoices.CREATE') ?? `Zoho refused the invoice: ${json.message ?? res.status}`)
-    const warn = currency && json.invoice.currency_code && json.invoice.currency_code !== currency
-      ? `Zoho used ${json.invoice.currency_code}, but the rate card is in ${currency}. Check the draft before sending.` : null
-    await db.from('billing_statements').update({
-      status: 'invoiced', zoho_invoice_id: json.invoice.invoice_id, zoho_invoice_number: json.invoice.invoice_number,
-      invoiced_at: new Date().toISOString(), invoice_error: warn, zoho_claimed_at: null,
-    }).in('id', ids)
-    return { ok: true, number: json.invoice.invoice_number }
+    type Made = { invoice_id?: string; invoice_number?: string; salesorder_id?: string; salesorder_number?: string; currency_code?: string }
+    const json = ((await res.json().catch(() => null)) ?? {}) as { code?: number; message?: string; invoice?: Made; salesorder?: Made }
+    const made = kind === 'invoice' ? json.invoice : json.salesorder
+    const id = kind === 'invoice' ? made?.invoice_id : made?.salesorder_id
+    const number = kind === 'invoice' ? made?.invoice_number : made?.salesorder_number
+    if (!res.ok || json.code !== 0 || !id || !number) {
+      return release(zohoAccessProblem(res.status, json, kind === 'invoice' ? 'ZohoBooks.invoices.CREATE' : 'ZohoBooks.salesorders.CREATE') ?? `Zoho refused the ${doc}: ${json.message ?? res.status}`)
+    }
+    const expected = converts ? zohoCurrency : currency
+    const warn = expected && made?.currency_code && made.currency_code !== expected
+      ? `Zoho used ${made.currency_code}, but the ${doc} should be in ${expected}. Check it before sending.` : null
+    const now = new Date().toISOString()
+    await db.from('billing_statements').update(kind === 'invoice'
+      ? { status: 'invoiced', zoho_invoice_id: id, zoho_invoice_number: number, invoiced_at: now, invoice_error: warn, zoho_claimed_at: null }
+      : { zoho_salesorder_id: id, zoho_salesorder_number: number, salesorder_at: now, exchange_rate: converts ? fx : null, invoice_error: warn, zoho_claimed_at: null },
+    ).in('id', ids)
+    return { ok: true, number }
   } catch (err) {
     return release(err instanceof Error ? err.message : 'Zoho could not be reached.')
   }

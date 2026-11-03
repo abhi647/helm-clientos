@@ -58,7 +58,7 @@ export default async function ProjectBilling({ params, searchParams }: { params:
   const [{ data: project }, { data: cards }, { data: statements }, { data: staff }, { data: phases }, { data: tasks }, { data: unbilled }, { data: deals }, { data: invoices }] = await Promise.all([
     supabase.from('projects').select('id, name, customer_id, billing_model, rate_unit').eq('id', id).maybeSingle(),
     supabase.from('rate_cards').select('*, rate_card_lines(*, rate_line_people(profile_id))').eq('project_id', id).order('version', { ascending: false }),
-    supabase.from('billing_statements').select('id, period_start, period_end, status, note, zoho_invoice_number, invoice_error, rate_cards(currency), statement_lines(amount, kind, unit, label, quantity)')
+    supabase.from('billing_statements').select('id, period_start, period_end, status, note, zoho_invoice_number, zoho_salesorder_number, invoice_error, rate_cards(currency), statement_lines(amount, kind, unit, label, quantity)')
       .eq('project_id', id).order('created_at', { ascending: false }),
     supabase.from('directory').select('id, full_name, internal_role').eq('kind', 'internal').is('access_revoked_at', null).order('full_name'),
     supabase.from('phases').select('id, name, rate_line_id, position').eq('project_id', id).order('position'),
@@ -95,7 +95,7 @@ export default async function ProjectBilling({ params, searchParams }: { params:
     const milestone = s.statement_lines.find((l) => l.kind === 'delivery' && l.unit === 'milestone')
     return {
       id: s.id, start: s.period_start, end: s.period_end, status: s.status, currency: s.rate_cards?.currency ?? currency,
-      subtotal: s.statement_lines.reduce((a, l) => a + Number(l.amount ?? 0), 0), invoice: s.zoho_invoice_number, error: s.invoice_error,
+      subtotal: s.statement_lines.reduce((a, l) => a + Number(l.amount ?? 0), 0), invoice: s.zoho_invoice_number, salesOrder: s.zoho_salesorder_number, error: s.invoice_error,
       label: milestone ? `Milestone: ${milestone.label}` : s.statement_lines.some((l) => l.kind === 'retainer') ? 'Monthly retainer' : 'Time billed',
     }
   })
@@ -108,6 +108,8 @@ export default async function ProjectBilling({ params, searchParams }: { params:
     const st = (statements ?? []).find((s) => s.statement_lines.some((x) => x.kind === 'delivery' && x.unit === 'milestone' && x.label === l.label))
     return { line: l, phase, pct, statement: st }
   })
+  // per-unit deliverables (a report, a workshop): billed by the count delivered in a period, not as a milestone
+  const unitLines = liveLines.filter((l) => l.kind === 'unit' || (l.kind === 'delivery' && l.unit !== 'milestone'))
   const contract = milestones.reduce((a, m) => a + Number(m.line.rate), 0)
   // the agreed total: entered from the SOW, or for a fixed fee the schedule's total
   const contractValue = card?.contract_value != null ? Number(card.contract_value) : model === 'fixed_price' && contract ? contract : null
@@ -232,7 +234,7 @@ export default async function ProjectBilling({ params, searchParams }: { params:
       ) : null}
 
       {/* ------------------------------------------------ fixed price */}
-      {!showWizard && live && model === 'fixed_price' ? (
+      {!showWizard && live && model === 'fixed_price' && milestones.length ? (
         <>
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
             <Stat label="Contract value" value={money(contract, currency)} sub={`${milestones.length} milestones`} icon={<Flag />} />
@@ -262,6 +264,30 @@ export default async function ProjectBilling({ params, searchParams }: { params:
             </div>
           </Card>
         </>
+      ) : null}
+
+      {/* ------------------------------------------------ per-unit deliverables */}
+      {!showWizard && live && model !== 'time_materials' && unitLines.length ? (
+        <Card flush title="Bill deliverables" description="Counts what was delivered in the period at the agreed unit rates; adjust the counts on the draft before sending"
+          extra={<PeriodSwitch current={sp.period} names={[thisMonth.name, lastMonth.name]} />}>
+          <div className="row row-head grid-cols-[minmax(0,1fr)_140px]"><span>Deliverable</span><span className="text-right">Rate</span></div>
+          {unitLines.map((l) => (
+            <div key={l.id} className="row grid-cols-[minmax(0,1fr)_140px]">
+              <span className="truncate font-medium">{l.label}</span>
+              <span className="tabular text-right text-xs">{money(Number(l.rate), currency, { exact: true })} / {l.unit}</span>
+            </div>
+          ))}
+          <div className="border-t border-line-soft p-3">
+            <ActionForm action={createStatement} submit="Create statement for the period" resetOnSuccess={false}>
+              <input type="hidden" name="project_id" value={id} />
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <label className="flex items-center gap-1.5">From <input type="date" name="period_start" required defaultValue={chosen.start} className="input" /></label>
+                <label className="flex items-center gap-1.5">to <input type="date" name="period_end" required defaultValue={chosen.end} className="input" /></label>
+                <span>Tasks done in the period fill the counts; type the rest on the draft.</span>
+              </div>
+            </ActionForm>
+          </div>
+        </Card>
       ) : null}
 
       {/* ------------------------------------------------ time & materials (and fixed-price extras) */}
