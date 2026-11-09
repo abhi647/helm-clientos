@@ -82,11 +82,6 @@ export default async function MyWeek({ searchParams }: { searchParams: Promise<{
             <Link href={`?week=${iso(new Date(monday.getTime() + 7 * DAY))}`} aria-label="Next week" className="grid h-full w-8 place-items-center text-foreground no-underline hover:bg-muted"><ChevronRight className="size-4" /></Link>
           </nav>
           {week ? <Link href="/timesheets" className={btn('outline', 'h-8')}>This week</Link> : null}
-          <span className="ml-auto flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full bg-info" />Billed by the hour</span>
-            <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full bg-review" />Fixed fee (effort)</span>
-            <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full bg-good" />Retainer hours</span>
-          </span>
         </div>
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
           <Stat label="This week" value={hrs(total)} sub={`${hrs(weekly.slice(0, 3).reduce((a, b) => a + b, 0) / 3)} a week lately`} />

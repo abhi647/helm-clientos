@@ -4,7 +4,9 @@ import { deletePhase, deleteTask } from '@/app/_actions/delete'
 import { createTask, logTime, setBilledAs, setSpotlight, setTaskPhase, setTaskStatus, setTaskOwner } from '@/app/_actions/work'
 import { ActionButton, ActionForm, StatusSelect } from '@/components/forms'
 import { Thread } from '@/components/thread'
-import { Avatar, btn, Chip, cn, StatusLegend, TASK_STRIPE, TaskStatusChip, Visibility } from '@/components/ui'
+import { Avatar, btn, Chip, cn, StatusSummary, TASK_STRIPE, TaskStatusChip, Visibility } from '@/components/ui'
+import { PopoverForm } from '@/components/popover-form'
+import { UrlSearch } from '@/components/url-search'
 import type { Enums } from '@/lib/database.types'
 import { TASK_STATUS, isOverdue, shortDate, effort, effortShort, hrs } from '@/lib/format'
 import { EffortInput } from '@/components/effort-input'
@@ -163,14 +165,8 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
     <div className={cn('flex flex-col gap-2.5 p-4 transition-[padding] duration-200', sel && 'xl:pr-[536px]')}>
       {sp.created ? <p role="status" className="m-0 rounded-md bg-good-bg px-3 py-2 text-xs font-medium text-good-ink">Project created from the template. Assign the customer tasks, then share the portal.</p> : null}
       <div className="flex flex-wrap items-center gap-2">
-        <form className="flex h-[30px] items-center rounded-md border border-control bg-white px-2">
-          {preview ? <input type="hidden" name="preview" value="1" /> : null}
-          {openOnly ? <input type="hidden" name="open" value="1" /> : null}
-          {sp.view ? <input type="hidden" name="view" value={sp.view} /> : null}
-          {sp.who ? <input type="hidden" name="who" value={sp.who} /> : null}
-          {sp.status ? <input type="hidden" name="status" value={sp.status} /> : null}
-          <input name="q" defaultValue={sp.q} aria-label="Filter tasks" placeholder="Filter tasks" className="w-40 border-0 bg-transparent text-[13px] outline-none" />
-        </form>
+        <UrlSearch label="Filter tasks" placeholder="Filter tasks" defaultValue={sp.q}
+          keep={{ preview: preview ? '1' : undefined, open: openOnly ? '1' : undefined, view: sp.view, who: sp.who, status: sp.status }} />
         <ViewSwitch current={view} views={PLAN_VIEWS} href={(v) => link({ view: v === 'list' ? undefined : v })} />
         <TaskFilters keep={{ view: sp.view, q: sp.q, open: sp.open, preview: sp.preview, task: sp.task, sort: sp.sort }} fields={[
           { name: 'who', label: 'Owner', value: who, options: [{ value: '', label: 'Any owner' }, { value: 'me', label: 'Me' }, { value: 'none', label: 'Unassigned' },
@@ -179,16 +175,8 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
         ]} />
         <Link href={link({ open: openOnly ? undefined : '1' })} className={btn('outline', 'shrink', openOnly && 'border-primary/30 bg-primary/10 font-semibold text-primary hover:bg-primary/15 hover:text-primary')}>Open only</Link>
         <Link href={link({ preview: preview ? undefined : '1', task: undefined })} className={btn('outline', 'shrink', preview && 'border-primary/30 bg-primary/10 font-semibold text-primary hover:bg-primary/15 hover:text-primary')}>{preview ? 'Exit customer preview' : 'Customer preview'}</Link>
-        <div className="ml-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-          <span><b className="font-mono text-ink">{stats.total}</b> tasks</span>
-          <span><b className="font-mono text-good-ink">{stats.done}</b> done</span>
-          <span><b className="font-mono text-crit-ink">{stats.overdue}</b> overdue</span>
-          <span><b className="font-mono text-warn-ink">{stats.customer}</b> with customer</span>
-          {!preview ? <span><b className="font-mono text-ink">{+stats.logged.toFixed(2)} / {+stats.est.toFixed(2)} h</b> logged</span> : null}
-        </div>
-        <details className="relative ml-auto">
-          <summary className={btn('default', 'list-none')}>+ Add task</summary>
-          <div className="absolute right-0 z-10 mt-1 w-[340px] rounded-md border border-line bg-white p-3 shadow-lg">
+        <div className="ml-auto">
+          <PopoverForm trigger="+ Add task">
             <ActionForm action={createTask} submit="Add task">
               <input type="hidden" name="project_id" value={id} />
               <Input name="title" required placeholder="Task title" aria-label="Task title" className="w-auto" />
@@ -203,11 +191,24 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
               <div className="flex flex-wrap gap-2"><Input type="date" name="due_date" aria-label="Due date" className="flex-1" /><EffortInput name="estimate" unitName="unit" units={units ?? ['day']} placeholder="Estimate" /></div>
               <NativeSelect size="sm" name="visibility" aria-label="Visibility" defaultValue="shared"><option value="shared">Shared with customer</option><option value="internal">Internal</option></NativeSelect>
             </ActionForm>
-          </div>
-        </details>
+          </PopoverForm>
+        </div>
       </div>
       {preview ? <p className="m-0 rounded-md bg-shared-bg px-2.5 py-1.5 text-xs font-medium text-link">Customer preview: this is what the customer sees. Internal tasks, effort and time are hidden.</p> : null}
-      <StatusLegend />
+      <StatusSummary counts={(() => {
+        const c = { neutral: 0, info: 0, review: 0, warn: 0, crit: 0, good: 0 }
+        for (const t of counted) {
+          if (t.status === 'done') c.good++
+          else if (t.status === 'blocked' || isOverdue(t.due_date)) c.crit++
+          else if (t.status === 'waiting_customer') c.warn++
+          else if (t.status === 'in_review') c.review++
+          else if (t.status === 'in_progress') c.info++
+          else c.neutral++
+        }
+        return c
+      })()}>
+        {!preview ? <span className="ml-auto"><b className="tabular font-medium text-foreground">{+stats.logged.toFixed(2)} / {+stats.est.toFixed(2)} h</b> logged against estimate</span> : null}
+      </StatusSummary>
 
       <div className="flex flex-wrap items-start gap-3">
         {view !== 'list' ? (

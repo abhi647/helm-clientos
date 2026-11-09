@@ -52,6 +52,31 @@ export function StatusLegend({ className }: { className?: string }) {
   )
 }
 
+/** Tasks by state: a thin stacked bar plus the counts, which doubles as the colour legend. */
+export function StatusSummary({ counts, className, children }: { counts: Partial<Record<'neutral' | 'info' | 'review' | 'warn' | 'crit' | 'good', number>>; className?: string; children?: React.ReactNode }) {
+  const items: [Tone, string][] = [['neutral', 'Not started'], ['info', 'In progress'], ['review', 'In review'], ['warn', 'With customer'], ['crit', 'Blocked or overdue'], ['good', 'Done']]
+  const total = items.reduce((a, [t]) => a + (counts[t as keyof typeof counts] ?? 0), 0)
+  return (
+    <div className={cn('flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground', className)}>
+      <span role="img" aria-label={`${total} tasks by state`} className="flex h-1.5 w-36 overflow-hidden rounded-full bg-muted">
+        {items.map(([t]) => {
+          const n = counts[t as keyof typeof counts] ?? 0
+          return n ? <span key={t} className={cn('h-full', DOT[t])} style={{ width: `${(100 * n) / total}%` }} /> : null
+        })}
+      </span>
+      {items.map(([t, l]) => {
+        const n = counts[t as keyof typeof counts] ?? 0
+        return (
+          <span key={l} className={cn('inline-flex items-center gap-1', !n && 'opacity-50')}>
+            <span aria-hidden className={cn('size-2 rounded-full', DOT[t])} /><b className="tabular font-medium text-foreground">{n}</b> {l}
+          </span>
+        )
+      })}
+      {children}
+    </div>
+  )
+}
+
 const TASK_TONE: Record<Enums<'task_status'>, Tone> = {
   done: 'good', in_progress: 'info', in_review: 'review', waiting_customer: 'warn', blocked: 'crit', todo: 'neutral',
 }

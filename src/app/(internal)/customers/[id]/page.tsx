@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import {
   addToCustomerTeam, deleteCustomerData, dismissContact, inviteCustomerUser, removeFromCustomerTeam, setCustomerAccess, setCustomerLinks, updateCustomerUser,
 } from '@/app/_actions/admin'
+import { PopoverForm } from '@/components/popover-form'
 import { ActionButton, ActionForm } from '@/components/forms'
 import { ActivityList, DocumentsPanel } from '@/components/project-parts'
 import { Avatar, btn, Card, Chip, Empty, Health, PageHeader, Progress } from '@/components/ui'
@@ -81,8 +82,8 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                 {!team?.length ? <p className="m-0 text-xs text-muted-foreground">No one is on the {c.name} account team yet.</p> : null}
               </div>
               {canManage(me) && addable.length ? (
-                <details className="mt-3 border-t border-line-soft pt-3">
-                  <summary className={btn('outline', 'h-8 w-fit cursor-pointer list-none text-xs')}>+ Add a team member</summary>
+                <div className="mt-3 border-t border-line-soft pt-3">
+                  <PopoverForm variant="outline" size="sm" align="start" trigger={<>+ Add a team member</>}>
                   <ActionForm action={addToCustomerTeam} submit="Add to the team" className="mt-2">
                     <input type="hidden" name="customer_id" value={c.id} />
                     <NativeSelect size="sm" name="profile_id" required defaultValue="" aria-label="Team member">
@@ -92,13 +93,14 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                     <Input name="role_label" maxLength={60} aria-label="Role on this account" placeholder="Role on this account, e.g. Data engineer (optional)" className="w-auto" />
                     <p className="m-0 text-xs text-muted-foreground">They are told, hear about {c.name}&apos;s new requests, and are shown to {c.name} in their portal.</p>
                   </ActionForm>
-                </details>
+                  </PopoverForm>
+                </div>
               ) : null}
             </Card>
             <Card title={`People at ${c.name}`} extra={`${people?.length ?? 0} with portal access`}>
               {canManage(me) ? (
-                <details className="mb-3 border-b border-line-soft pb-3">
-                  <summary className={btn('outline', 'h-8 w-fit cursor-pointer list-none text-xs')}>+ Add someone from {c.name}</summary>
+                <div className="mb-3 border-b border-line-soft pb-3">
+                  <PopoverForm variant="outline" size="sm" align="start" trigger={<>+ Add someone from {c.name}</>}>
                   <ActionForm action={inviteCustomerUser} submit="Send invitation" className="mt-2">
                     <input type="hidden" name="customer_id" value={c.id} />
                     <Input name="full_name" required placeholder="Full name" aria-label="Full name" className="w-auto" />
@@ -107,7 +109,8 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                     <label className="flex items-center gap-1.5 text-xs"><input type="checkbox" name="can_view_invoices" /> Can see invoices and approve billing</label>
                     <p className="m-0 text-xs text-muted-foreground">They get an email to sign in to the {c.name} portal. No password needed.</p>
                   </ActionForm>
-                </details>
+                  </PopoverForm>
+                </div>
               ) : null}
               <div className="flex flex-col gap-1.5">
                 {(people ?? []).map((u) => (
@@ -168,8 +171,8 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
               {credit ? <HoursMeter b={credit} /> : <p className="m-0 text-xs text-muted-foreground">{plan ? 'No hours bought yet: add a block below.' : 'No hours plan. Work is billed from the rate card only.'}</p>}
               {finance ? (
                 <>
-                  <details className="mt-3 border-t border-line-soft pt-3">
-                    <summary className={btn('outline', 'h-8 w-fit cursor-pointer list-none text-xs')}>{plan ? 'Change the plan' : 'Set up hours credit'}</summary>
+                  <div className="mt-3 border-t border-line-soft pt-3">
+                    <PopoverForm variant="outline" size="sm" align="start" trigger={<>{plan ? 'Change the plan' : 'Set up hours credit'}</>}>
                     <div className="mt-2">
                       <ActionForm action={setCreditPlan} submit="Save plan" resetOnSuccess={false} primary={false}>
                         <input type="hidden" name="customer_id" value={c.id} />
@@ -188,10 +191,11 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                         <p className="m-0 text-xs text-muted-foreground">Monthly: unused hours carry over up to the cap (0 = none, empty = no cap). Prepaid: the blocks you add below are used up from the start date. Approved billable hours count; going over is allowed and shown.</p>
                       </ActionForm>
                     </div>
-                  </details>
+                    </PopoverForm>
+                  </div>
                   {plan ? (
-                    <details className="mt-3 border-t border-line-soft pt-3">
-                      <summary className={btn('outline', 'h-8 w-fit cursor-pointer list-none text-xs')}>{plan.kind === 'prepaid' ? '+ Add a block of hours' : '+ Add extra hours'}</summary>
+                    <div className="mt-3 border-t border-line-soft pt-3">
+                      <PopoverForm variant="outline" size="sm" align="start" trigger={<>{plan.kind === 'prepaid' ? '+ Add a block of hours' : '+ Add extra hours'}</>}>
                       <div className="mt-2">
                         <ActionForm action={addCreditTopup} submit="Add hours" primary={false}>
                           <input type="hidden" name="customer_id" value={c.id} />
@@ -202,7 +206,8 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                           <Input name="note" placeholder="Note, e.g. PO or invoice number (optional)" aria-label="Top-up note" className="w-auto" />
                         </ActionForm>
                       </div>
-                    </details>
+                      </PopoverForm>
+                    </div>
                   ) : null}
                 </>
               ) : null}
@@ -226,8 +231,8 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                 {finance ? <><dt className="text-muted-foreground">GST on invoices</dt><dd className="m-0">{billing?.tax_label || <span className="text-warn-ink">Not set: Zoho will refuse invoices</span>}</dd></> : null}
               </dl>
               {finance ? (
-                <details className="mt-3 border-t border-line-soft pt-3">
-                  <summary className={btn('outline', 'h-8 w-fit cursor-pointer list-none text-xs')}>{billing ? 'Change GST' : 'Set GST'}</summary>
+                <div className="mt-3 border-t border-line-soft pt-3">
+                  <PopoverForm variant="outline" size="sm" align="start" trigger={<>{billing ? 'Change GST' : 'Set GST'}</>}>
                   <div className="mt-2">
                     {taxes.taxes.length || taxes.exemptions.length ? (
                       <ActionForm action={setCustomerTax} submit="Save GST" resetOnSuccess={false} primary={false}>
@@ -241,11 +246,12 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                       </ActionForm>
                     ) : <p className="m-0 text-xs text-muted-foreground">{taxes.error ? `Zoho could not list the taxes: ${taxes.error}` : 'Connect Zoho Books to pick the GST from its tax list.'}</p>}
                   </div>
-                </details>
+                  </PopoverForm>
+                </div>
               ) : null}
               {canManage(me) ? (
-                <details className="mt-3 border-t border-line-soft pt-3">
-                  <summary className={btn('outline', 'h-8 w-fit cursor-pointer list-none text-xs')}>{c.hubspot_company_id || c.zoho_customer_id ? 'Change links' : 'Link to HubSpot and Zoho'}</summary>
+                <div className="mt-3 border-t border-line-soft pt-3">
+                  <PopoverForm variant="outline" size="sm" align="start" trigger={<>{c.hubspot_company_id || c.zoho_customer_id ? 'Change links' : 'Link to HubSpot and Zoho'}</>}>
                   <div className="mt-2">
                     <ActionForm action={setCustomerLinks} submit="Save links" resetOnSuccess={false} primary={false}>
                       <input type="hidden" name="customer_id" value={c.id} />
@@ -256,7 +262,8 @@ export default async function Customer({ params }: { params: Promise<{ id: strin
                       <p className="m-0 text-xs text-muted-foreground">Checked against HubSpot and Zoho before saving. Zoho invoices and payments follow this id; HubSpot deals and contacts follow the company id.</p>
                     </ActionForm>
                   </div>
-                </details>
+                  </PopoverForm>
+                </div>
               ) : null}
             </Card>
             {['admin', 'ceo'].includes(me.internal_role ?? '') ? (
