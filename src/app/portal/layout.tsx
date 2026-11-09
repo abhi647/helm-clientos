@@ -6,6 +6,7 @@ import { requireCustomer } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { BrandMark } from '@/components/brand'
 import { btn } from '@/components/ui'
+import { WhatsNew } from '@/components/whats-new'
 
 /** The customer portal: a deliberately simple navigation that never exposes internal structure. */
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -37,6 +38,7 @@ export default async function PortalLayout({ children }: { children: React.React
       <main className="mx-auto max-w-[1360px] px-4 pt-5 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-6">{children}
         <p className="mt-10 mb-0 text-center text-xs text-muted-foreground"><Link href="/privacy" className="text-muted-foreground">Privacy</Link> · <Link href="/terms" className="text-muted-foreground">Terms of use</Link></p>
       </main>
+      <WhatsNew audience="customer" />
     </div>
   )
 }

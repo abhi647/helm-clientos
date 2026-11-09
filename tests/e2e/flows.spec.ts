@@ -57,6 +57,9 @@ async function signIn(page: Page, email: string, password = PASSWORD) {
   await page.waitForURL((u) => !u.pathname.startsWith('/login') && !u.pathname.startsWith('/auth') && u.pathname !== '/')
 }
 
+// the one-time "what's new" note would sit over the screens under test
+test.beforeEach(async ({ page }) => { await page.addInitScript(() => { try { localStorage.setItem('helm_whats_new_off', '1') } catch {} }) })
+
 test.beforeAll(() => {
   execSync('node --env-file=.env.local scripts/seed.mjs', { stdio: 'ignore' })
 })

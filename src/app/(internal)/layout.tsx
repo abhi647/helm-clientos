@@ -3,6 +3,7 @@ import { CommandPalette, type PaletteItem } from '@/components/shell/command-pal
 import { MobileNav, Rail } from '@/components/shell/nav'
 import { QuickCreate } from '@/components/shell/quick-create'
 import { AssistantPanel } from '@/components/assistant/panel'
+import { WhatsNew } from '@/components/whats-new'
 import { UserMenu } from '@/components/shell/user-menu'
 import { canSeeFinance, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
@@ -42,6 +43,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
           <UserMenu profile={me} base="" />
         </header>
         <main className="flex min-w-0 flex-1 flex-col">{children}</main>
+        <WhatsNew audience="team" />
       </div>
     </div>
   )
