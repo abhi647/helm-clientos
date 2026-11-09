@@ -1,12 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { createEngagement, dismissEngagement } from '@/app/_actions/admin'
+import { DataGrid } from '@/components/data-grid'
 import { ActionButton, ActionForm } from '@/components/forms'
+import { ActivityFeed } from '@/components/overtrue/activity-feed'
 import { Greeting } from '@/components/shell/greeting'
 import { HeartPulse, Hourglass, Receipt, Siren, Stamp, TriangleAlert } from 'lucide-react'
-import { Avatar, Card, Empty, Health, Stat, cn } from '@/components/ui'
+import { Card, Chip, Empty, Health, Stat, cn } from '@/components/ui'
 import { ActivityCalendar, HealthDonut, LoadMatrix, StageFunnel, Ticks, WeeklyMetrics, WeeklyTrend } from '@/components/viz'
-import { isOverdue, isoDaysAgo, label, relativeTime, shortDate } from '@/lib/format'
+import { initials, isOverdue, isoDaysAgo, label, relativeTime, shortDate } from '@/lib/format'
 import { loadPortfolio } from '@/lib/portfolio'
 import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
@@ -124,42 +126,59 @@ export default async function Home() {
 
       <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-3">
-        <Card flush className="min-w-0 overflow-x-auto" title={<span className="flex items-center gap-2">Needs attention <span className="tabular rounded-full bg-crit-bg px-2 text-xs font-semibold text-crit-ink">{exceptions.length}</span></span>} extra="Most severe first, then oldest">
-          {exceptions.length ? (
-            <div className="min-w-[620px]">
-              <div className="row row-head grid-cols-[14px_130px_minmax(0,1fr)_56px_96px_56px]"><span /><span>Customer</span><span>Issue</span><span>Age</span><span>Owner</span><span /></div>
-              {exceptions.map((e, i) => (
-                <div key={i} className="row grid-cols-[14px_130px_minmax(0,1fr)_56px_96px_56px] hover:bg-head">
-                  <span aria-label={e.severity === 'crit' ? 'Critical' : 'Warning'} className={cn('size-2 rounded-full ring-4', e.severity === 'crit' ? 'bg-crit ring-crit/15' : 'bg-warn ring-warn/20')} />
-                  <span className="truncate font-semibold">{e.customer}</span>
-                  <span className="truncate">{e.issue} <span className="text-muted-foreground">· {e.context}</span></span>
-                  <span className={cn('tabular font-mono text-xs', e.severity === 'crit' ? 'font-semibold text-crit-ink' : 'text-warn-ink')}>{e.age}</span>
-                  <span className="truncate">{e.owner}</span>
-                  <Link href={e.href} className="text-xs font-medium" aria-label={`Open: ${e.issue}`}>Open →</Link>
-                </div>
-              ))}
-            </div>
-          ) : <Empty title="Nothing needs attention">Every project is on track.</Empty>}
+        <Card flush title={<span className="flex items-center gap-2">Needs attention <Chip tone={exceptions.length ? 'crit' : 'good'}>{exceptions.length}</Chip></span>} extra="Most severe first, then oldest">
+          <DataGrid label="Needs attention"
+            empty={<Empty title="Nothing needs attention">Every project is on track.</Empty>}
+            columns={[
+              { key: 'sev', label: <span className="sr-only">Severity</span>, className: 'w-[28px]' },
+              { key: 'customer', label: 'Customer', sortable: true, className: 'w-[140px]' },
+              { key: 'issue', label: 'Issue' },
+              { key: 'age', label: 'Age', className: 'w-[60px]' },
+              { key: 'owner', label: 'Owner', sortable: true, className: 'w-[100px]' },
+              { key: 'open', label: <span className="sr-only">Open</span>, align: 'right', className: 'w-[64px]' },
+            ]}
+            rows={exceptions.map((e, i) => ({
+              id: String(i), href: e.href,
+              values: { customer: e.customer, owner: e.owner },
+              cells: {
+                sev: <span aria-label={e.severity === 'crit' ? 'Critical' : 'Warning'} className={cn('block size-2 rounded-full ring-4', e.severity === 'crit' ? 'bg-crit ring-crit/15' : 'bg-warn ring-warn/20')} />,
+                customer: <span className="block truncate font-semibold">{e.customer}</span>,
+                issue: <span className="block max-w-[520px] truncate">{e.issue} <span className="text-muted-foreground">· {e.context}</span></span>,
+                age: <span className={cn('tabular font-mono text-xs', e.severity === 'crit' ? 'font-semibold text-crit-ink' : 'text-warn-ink')}>{e.age}</span>,
+                owner: <span className="block truncate">{e.owner}</span>,
+                open: <Link href={e.href} className="text-xs font-medium" aria-label={`Open: ${e.issue}`}>Open →</Link>,
+              },
+            }))} />
         </Card>
-      <Card flush className="overflow-x-auto" title="Portfolio" description={`${rows.length} active projects`} extra={<Link href="/projects" className="text-xs font-medium">All projects →</Link>}>
-        <div className="min-w-[1000px]">
-          <div className="row row-head grid-cols-[120px_minmax(170px,1fr)_120px_100px_70px_200px_minmax(150px,1fr)_60px_90px]">
-            <span>Customer</span><span>Project</span><span>Health</span><span>Progress</span><span>PM</span><span>Next milestone</span><span>Customer blocker</span><span className="text-right">Open req</span><span className="text-right">Oldest invoice</span>
-          </div>
-          {rows.map((p) => (
-            <div key={p.id} className="row grid-cols-[120px_minmax(170px,1fr)_120px_100px_70px_200px_minmax(150px,1fr)_60px_90px] hover:bg-head">
-              <Link href={`/customers/${p.customerId}`} className="truncate font-semibold text-ink no-underline">{p.customer}</Link>
-              <Link href={`/projects/${p.id}`} className="truncate font-medium text-ink no-underline hover:underline">{p.name}</Link>
-              <Health health={p.health} />
-              <span className="flex items-center gap-1.5"><Ticks value={p.progress} /><span className="tabular text-[11px] text-muted-foreground">{Math.round(p.progress)}%</span></span>
-              <span className="truncate">{p.pm ?? '–'}</span>
-              <span className="truncate text-xs">{p.nextMilestone ? <>{p.nextMilestone.title} <span className={cn('font-mono', p.nextMilestone.overdue ? 'font-semibold text-crit-ink' : 'text-muted-foreground')}>{shortDate(p.nextMilestone.due)}</span></> : '–'}</span>
-              <span className={cn('truncate text-xs', p.blocker ? 'text-warn-ink' : 'text-muted-foreground')}>{p.blocker ?? 'None'}</span>
-              <span className="tabular text-right font-mono text-xs">{p.openRequests}</span>
-              <span className={cn('tabular text-right font-mono text-xs', (p.oldestInvoiceDays ?? 0) > 30 ? 'font-semibold text-crit-ink' : 'text-muted-foreground')}>{p.oldestInvoiceDays != null ? `${p.oldestInvoiceDays}d` : '–'}</span>
-            </div>
-          ))}
-        </div>
+      <Card flush title="Portfolio" description={`${rows.length} active projects`} extra={<Link href="/projects" className="text-xs font-medium">All projects →</Link>}>
+        <DataGrid label="Portfolio"
+          columns={[
+            { key: 'customer', label: 'Customer', sortable: true, className: 'w-[120px]' },
+            { key: 'project', label: 'Project', sortable: true },
+            { key: 'health', label: 'Health', sortable: true, className: 'w-[140px]' },
+            { key: 'progress', label: 'Progress', sortable: true, className: 'w-[110px]' },
+            { key: 'pm', label: 'PM', sortable: true, className: 'w-[80px]' },
+            { key: 'milestone', label: 'Next milestone', sortable: true, className: 'w-[210px]' },
+            { key: 'blocker', label: 'Customer blocker', className: 'w-[170px]' },
+            { key: 'requests', label: 'Open req', sortable: true, align: 'right', className: 'w-[70px]' },
+            { key: 'invoice', label: 'Oldest invoice', sortable: true, align: 'right', className: 'w-[100px]' },
+          ]}
+          rows={rows.map((p) => ({
+            id: p.id, href: `/projects/${p.id}`,
+            values: { customer: p.customer, project: p.name, health: ['at_risk', 'needs_attention', 'on_track'].indexOf(p.health), progress: p.progress, pm: p.pm,
+              milestone: p.nextMilestone?.due, requests: p.openRequests, invoice: p.oldestInvoiceDays },
+            cells: {
+              customer: <Link href={`/customers/${p.customerId}`} className="block truncate font-semibold text-foreground no-underline">{p.customer}</Link>,
+              project: <Link href={`/projects/${p.id}`} className="block truncate font-medium text-foreground no-underline hover:underline">{p.name}</Link>,
+              health: <Health health={p.health} />,
+              progress: <span className="flex items-center gap-1.5"><Ticks value={p.progress} /><span className="tabular text-[11px] text-muted-foreground">{Math.round(p.progress)}%</span></span>,
+              pm: <span className="block truncate">{p.pm ?? '–'}</span>,
+              milestone: <span className="block max-w-[210px] truncate text-xs">{p.nextMilestone ? <>{p.nextMilestone.title} <span className={cn('font-mono', p.nextMilestone.overdue ? 'font-semibold text-crit-ink' : 'text-muted-foreground')}>{shortDate(p.nextMilestone.due)}</span></> : '–'}</span>,
+              blocker: <span className={cn('block max-w-[170px] truncate text-xs', p.blocker ? 'text-warn-ink' : 'text-muted-foreground')}>{p.blocker ?? 'None'}</span>,
+              requests: <span className="tabular font-mono text-xs">{p.openRequests}</span>,
+              invoice: <span className={cn('tabular font-mono text-xs', (p.oldestInvoiceDays ?? 0) > 30 ? 'font-semibold text-crit-ink' : 'text-muted-foreground')}>{p.oldestInvoiceDays != null ? `${p.oldestInvoiceDays}d` : '–'}</span>,
+            },
+          }))} />
       </Card>
           <div className="grid gap-3 lg:grid-cols-2">
             <Card title="Throughput" description="Tasks created and completed per week, last 12 weeks">
@@ -204,20 +223,11 @@ export default async function Home() {
             </div>
           </Card>
 
-          <Card flush title="Recent activity">
-            <ol className="m-0 list-none p-0">
-              {(recent.data ?? []).map((a) => (
-                <li key={a.id} className="flex gap-2 border-t border-line-soft px-3.5 py-1.5 first:border-t-0">
-                  <Avatar name={a.actor?.full_name ?? 'Helm'} size={20} />
-                  <span className="min-w-0 flex-1 text-xs leading-snug">
-                    <span className="font-medium">{a.actor?.full_name ?? 'Helm'}</span> {a.summary}
-                    <span className="block truncate text-[11px] text-muted-foreground">{a.projects?.name ? `${a.projects.name} · ` : ''}{relativeTime(a.created_at)}</span>
-                  </span>
-                </li>
-              ))}
-              {!(recent.data ?? []).length ? <li><Empty title="No activity yet" /></li> : null}
-            </ol>
-          </Card>
+          <ActivityFeed title="Recent activity" items={(recent.data ?? []).map((a) => ({
+            id: String(a.id), initials: initials(a.actor?.full_name ?? 'Helm'),
+            content: <><span className="font-medium">{a.actor?.full_name ?? 'Helm'}</span> {a.summary}</>,
+            time: `${a.projects?.name ? `${a.projects.name} · ` : ''}${relativeTime(a.created_at)}`,
+          }))} />
         </aside>
       </div>
     </div>

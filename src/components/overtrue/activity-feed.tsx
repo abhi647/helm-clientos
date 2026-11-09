@@ -20,23 +20,23 @@ export function ActivityFeed({
     <Card
       data-slot="activity-feed"
       className={cn(
-        "gap-0 rounded-lg border bg-card py-0 shadow-none",
+        "gap-0 overflow-hidden rounded-xl border border-border/70 bg-card py-0 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_6px_16px_-12px_rgb(0_0_0/0.10)]",
         className,
       )}
     >
-      <CardHeader className="border-b px-5 py-4 [.border-b]:pb-4">
-        <CardTitle className="text-sm font-semibold">{title}</CardTitle>
+      <CardHeader className="flex min-h-10 items-center border-b border-border/60 px-3.5 py-1.5 [.border-b]:pb-1.5">
+        <CardTitle className="text-[13px] font-semibold">{title}</CardTitle>
       </CardHeader>
-      <CardContent className="px-5 py-1">
+      <CardContent className="px-3.5 py-0">
         <ol className="divide-y divide-border">
           {items.map((item) => (
-            <li key={item.id} className="flex gap-3 py-4">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+            <li key={item.id} className="flex gap-2 py-2">
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
                 {item.initials}
               </span>
-              <div className="min-w-0 text-sm">
+              <div className="min-w-0 text-xs leading-snug">
                 <div className="text-card-foreground">{item.content}</div>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="m-0 mt-0.5 truncate text-[11px] text-muted-foreground">
                   {item.time}
                 </p>
               </div>
@@ -44,7 +44,7 @@ export function ActivityFeed({
           ))}
         </ol>
         {!items.length && (
-          <p className="py-6 text-center text-sm text-muted-foreground">
+          <p className="py-6 text-center text-xs text-muted-foreground">
             No activity yet.
           </p>
         )}
