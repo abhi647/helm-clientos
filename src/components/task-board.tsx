@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useOptimistic, useState, useTransition } from 'react'
-import { StatusSelect } from '@/components/forms'
+import { IconDots as Dots } from '@tabler/icons-react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Avatar, TASK_STRIPE, cn } from '@/components/ui'
 import type { ActionResult } from '@/app/_actions/shared'
 import type { Enums } from '@/lib/database.types'
@@ -17,11 +18,10 @@ export type BoardCard = {
 }
 
 const ORDER = Object.keys(TASK_STATUS) as Status[]
-const OPTIONS = ORDER.map((v) => ({ value: v, label: TASK_STATUS[v] }))
 
 /**
  * Kanban board: one column per task status. Drag a card to another column to change its status (or use the card's
- * status menu, which also works on phones and with a keyboard). Columns with no cards stay visible as drop targets,
+ * ⋯ menu, which also works on phones and with a keyboard). Columns with no cards stay visible as drop targets,
  * except Done when `hideEmptyDone` is set (My Work lists open tasks only).
  */
 export function TaskBoard({ cards, setStatus, hideEmptyDone }: {
@@ -57,24 +57,39 @@ export function TaskBoard({ cards, setStatus, hideEmptyDone }: {
               onDragOver={(e) => { e.preventDefault(); setOver(status) }}
               onDragLeave={() => setOver((s) => (s === status ? null : s))}
               onDrop={(e) => { e.preventDefault(); setOver(null); drop(e.dataTransfer.getData('text/plain'), status) }}
-              className={cn('flex w-[260px] flex-none flex-col rounded-md border border-line bg-head', over === status && 'border-brand bg-selected')}>
-              <header className="flex items-center gap-2 px-2.5 py-2 text-xs font-semibold">
+              className={cn('flex w-[264px] flex-none flex-col rounded-xl border border-border/60 bg-muted/40', over === status && 'border-primary/50 bg-primary/5')}>
+              <header className="flex items-center gap-2 px-3 py-2 text-xs font-medium">
                 <span aria-hidden className={cn('h-3 border-l-[3px]', TASK_STRIPE[status])} />
-                {TASK_STATUS[status]}<span className="font-mono font-normal text-muted-foreground">{list.length}</span>
+                {TASK_STATUS[status]}<span className="tabular font-normal text-muted-foreground">{list.length}</span>
               </header>
               <div className="flex min-h-16 flex-col gap-1.5 px-1.5 pb-1.5">
                 {list.map((c) => (
                   <article key={c.id} draggable onDragStart={(e) => { e.dataTransfer.setData('text/plain', c.id); e.dataTransfer.effectAllowed = 'move' }}
-                    className={cn('flex cursor-grab flex-col gap-1.5 rounded-md border border-line border-l-[3px] bg-white p-2 text-[13px] active:cursor-grabbing',
-                      TASK_STRIPE[c.overdue ? 'overdue' : c.status], c.selected && 'ring-2 ring-brand')}>
-                    {c.parent ? <span className="truncate text-[11px] text-muted-foreground">{c.parent} ›</span> : null}
-                    <Link href={c.href} scroll={false} className={cn('font-medium no-underline hover:underline', c.status === 'done' ? 'text-muted-foreground' : 'text-ink')}>{c.title}</Link>
-                    {c.context ? <span className="truncate text-[11px] text-muted-foreground">{c.context}</span> : null}
-                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      {c.owner ? <><Avatar name={c.owner.name} customer={c.owner.customer} size={18} /><span className="truncate">{c.owner.name}</span></> : <span>Unassigned</span>}
-                      <span className="ml-auto flex-none font-mono">{c.effort ? `${c.effort} · ` : ''}<span className={cn(c.overdue && 'font-semibold text-crit-ink')}>{c.due ?? ''}</span></span>
+                    className={cn('group/card flex cursor-grab flex-col gap-1 rounded-lg border border-border/70 border-l-[3px] bg-card px-2.5 py-2 text-[13px] shadow-[0_1px_2px_rgb(0_0_0/0.04)] active:cursor-grabbing',
+                      TASK_STRIPE[c.overdue ? 'overdue' : c.status], c.selected && 'ring-2 ring-primary')}>
+                    <span className="flex items-start gap-1">
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        {c.parent ? <span className="truncate text-[11px] text-muted-foreground">{c.parent} ›</span> : null}
+                        <Link href={c.href} scroll={false} className={cn('leading-snug font-medium no-underline hover:underline', c.status === 'done' ? 'text-muted-foreground' : 'text-foreground')}>{c.title}</Link>
+                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger aria-label={`Move ${c.title}`}
+                          className="-mr-1 grid size-6 flex-none cursor-pointer place-items-center rounded-md text-muted-foreground opacity-60 hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover/card:opacity-100 data-[state=open]:opacity-100">
+                          <Dots className="size-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuLabel className="text-[11px] font-medium text-muted-foreground">Move to</DropdownMenuLabel>
+                          <DropdownMenuRadioGroup value={c.status} onValueChange={(v) => drop(c.id, v as Status)}>
+                            {ORDER.map((v) => <DropdownMenuRadioItem key={v} value={v} className="text-[13px]">{TASK_STATUS[v]}</DropdownMenuRadioItem>)}
+                          </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </span>
-                    <StatusSelect key={`${c.id}-${c.status}`} label={`Status of ${c.title}`} value={c.status} options={OPTIONS} onChange={(v) => setStatus(c.id, v)} />
+                    {c.context ? <span className="truncate text-[11px] text-muted-foreground">{c.context}</span> : null}
+                    <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {c.owner ? <><Avatar name={c.owner.name} customer={c.owner.customer} size={18} /><span className="truncate">{c.owner.name}</span></> : <span>Unassigned</span>}
+                      <span className="ml-auto flex-none font-mono text-[11px]">{c.effort ? `${c.effort} · ` : ''}<span className={cn(c.overdue && 'font-semibold text-crit-ink')}>{c.due ?? ''}</span></span>
+                    </span>
                   </article>
                 ))}
               </div>

@@ -8,7 +8,7 @@ import { PageHeader as OvertruePageHeader } from '@/components/overtrue/page-hea
 import { SectionCard } from '@/components/overtrue/section-card'
 import { StatusBadge, type StatusBadgeProps } from '@/components/overtrue/status-badge'
 import type { Enums } from '@/lib/database.types'
-import { HEALTH, TASK_STATUS, initials, label } from '@/lib/format'
+import { HEALTH, TASK_STATUS, initials, isOverdue, label } from '@/lib/format'
 
 export const cn = (...v: ClassValue[]) => twMerge(clsx(v))
 
@@ -50,6 +50,20 @@ export function StatusLegend({ className }: { className?: string }) {
       {items.map(([t, l]) => <span key={l} className="inline-flex items-center gap-1"><span aria-hidden className={cn('size-2 rounded-full', DOT[t])} />{l}</span>)}
     </span>
   )
+}
+
+/** Each task in one bucket, the same way the plan colours its rows: done, then blocked or overdue, then its status. */
+export function taskStateCounts(tasks: { status: Enums<'task_status'>; due_date: string | null }[]) {
+  const c = { neutral: 0, info: 0, review: 0, warn: 0, crit: 0, good: 0 }
+  for (const t of tasks) {
+    if (t.status === 'done') c.good++
+    else if (t.status === 'blocked' || isOverdue(t.due_date)) c.crit++
+    else if (t.status === 'waiting_customer') c.warn++
+    else if (t.status === 'in_review') c.review++
+    else if (t.status === 'in_progress') c.info++
+    else c.neutral++
+  }
+  return c
 }
 
 /** Tasks by state: a thin stacked bar plus the counts, which doubles as the colour legend. */

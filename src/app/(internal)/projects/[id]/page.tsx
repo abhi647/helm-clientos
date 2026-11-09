@@ -4,7 +4,7 @@ import { deletePhase, deleteTask } from '@/app/_actions/delete'
 import { createTask, logTime, setBilledAs, setSpotlight, setTaskPhase, setTaskStatus, setTaskOwner } from '@/app/_actions/work'
 import { ActionButton, ActionForm, StatusSelect } from '@/components/forms'
 import { Thread } from '@/components/thread'
-import { Avatar, btn, Chip, cn, StatusSummary, TASK_STRIPE, TaskStatusChip, Visibility } from '@/components/ui'
+import { Avatar, btn, Chip, cn, StatusSummary, TASK_STRIPE, taskStateCounts, TaskStatusChip, Visibility } from '@/components/ui'
 import { PopoverForm } from '@/components/popover-form'
 import { UrlSearch } from '@/components/url-search'
 import type { Enums } from '@/lib/database.types'
@@ -195,18 +195,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
         </div>
       </div>
       {preview ? <p className="m-0 rounded-md bg-shared-bg px-2.5 py-1.5 text-xs font-medium text-link">Customer preview: this is what the customer sees. Internal tasks, effort and time are hidden.</p> : null}
-      <StatusSummary counts={(() => {
-        const c = { neutral: 0, info: 0, review: 0, warn: 0, crit: 0, good: 0 }
-        for (const t of counted) {
-          if (t.status === 'done') c.good++
-          else if (t.status === 'blocked' || isOverdue(t.due_date)) c.crit++
-          else if (t.status === 'waiting_customer') c.warn++
-          else if (t.status === 'in_review') c.review++
-          else if (t.status === 'in_progress') c.info++
-          else c.neutral++
-        }
-        return c
-      })()}>
+      <StatusSummary counts={taskStateCounts(counted)}>
         {!preview ? <span className="ml-auto"><b className="tabular font-medium text-foreground">{+stats.logged.toFixed(2)} / {+stats.est.toFixed(2)} h</b> logged against estimate</span> : null}
       </StatusSummary>
 

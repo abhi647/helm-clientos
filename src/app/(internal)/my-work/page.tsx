@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { deleteTime, setTaskStatus } from '@/app/_actions/work'
 import { ActionButton, StatusSelect } from '@/components/forms'
-import { Avatar, Card, Chip, Empty, PageHeader, Stat, TaskStatusChip, Visibility, cn } from '@/components/ui'
+import { Avatar, Card, Chip, Empty, PageHeader, Stat, StatusSummary, taskStateCounts, TaskStatusChip, Visibility, cn } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
 import { TASK_STATUS, daysFromToday, hrs, isOverdue, isoDaysAgo, shortDate, effortShort } from '@/lib/format'
 import { canManage, requireStaff } from '@/lib/session'
@@ -10,10 +10,9 @@ import { TaskBoard } from '@/components/task-board'
 import { TaskFilters, TaskTable, ViewSwitch, asSort, asStatus, asView, sortRows, statusFilterOptions } from '@/components/task-views'
 import { createClient } from '@/lib/supabase/server'
 import { AlarmClock, CalendarCheck, CalendarRange, Hourglass } from 'lucide-react'
-import { CalendarLegend, Distribution, TaskCalendar } from '@/components/viz'
+import { CalendarLegend, TaskCalendar } from '@/components/viz'
 import { DataGrid } from '@/components/data-grid'
 
-const STATUS_COLOR = { todo: '#a3a3a3', in_progress: 'var(--color-info)', in_review: 'var(--color-review)', waiting_customer: 'var(--color-warn)', blocked: 'var(--color-crit)' } as const
 
 export const metadata: Metadata = { title: 'My Work' }
 
@@ -98,11 +97,7 @@ export default async function MyWork({ searchParams }: { searchParams: Promise<S
           <Stat label="This week" value={n('week')} icon={<CalendarRange />} />
         </div>
         {tasks.length ? (
-          <Card title="Open work by status" description={`${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'}${whose ? ` · ${whose}` : ''}`}>
-            <Distribution segments={(['todo', 'in_progress', 'in_review', 'waiting_customer', 'blocked'] as const).map((st) => ({
-              name: TASK_STATUS[st], value: tasks.filter((t) => t.status === st).length, color: STATUS_COLOR[st],
-            })).filter((x) => x.value)} />
-          </Card>
+          <StatusSummary counts={taskStateCounts(tasks)} className="px-0.5" />
         ) : null}
         {view === 'calendar' ? <div className="flex flex-col gap-2"><CalendarLegend /><TaskCalendar items={flat.filter((r) => r.dueIso).map((r) => ({ id: r.id, title: r.title, date: r.dueIso!, href: r.href, kind: 'due' as const,
             overdue: r.overdue, waiting: r.status === 'waiting_customer', context: r.context }))} /><p className="m-0 text-xs text-muted-foreground">Open tasks with a due date. For finished work too, see <Link href="/calendar">Calendar</Link>.</p></div>
