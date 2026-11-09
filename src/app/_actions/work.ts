@@ -1,7 +1,7 @@
 'use server'
 
 import { z } from 'zod'
-import { effort, hrs } from '@/lib/format'
+import { hrs } from '@/lib/format'
 import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { type ActionResult, dbFail, done, fail, formObject, ok, optionalDate, uuid, visibility } from './shared'

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { createRequest } from '@/app/_actions/requests'
 import { ActionForm } from '@/components/forms'
 import { REQUEST_KINDS as KINDS, RequestFields, requestKind } from '@/components/request-fields'
-import { btn, Card, cn } from '@/components/ui'
+import { btn, Card } from '@/components/ui'
 import { requireCustomer } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 

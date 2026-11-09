@@ -7,6 +7,7 @@ import { Card, Empty, PageHeader } from '@/components/ui'
 import { money, relativeTime } from '@/lib/format'
 import { requireCustomer } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { DataGrid } from '@/components/data-grid'
 
 export const metadata: Metadata = { title: 'Billing' }
 
@@ -66,17 +67,24 @@ export default async function PortalBilling() {
         <Card flush title="Statements">
           {history.length ? (
             <div className="overflow-x-auto">
-              <div className="min-w-[600px]">
-                <div className="row row-head grid-cols-[minmax(0,1fr)_200px_170px_130px]"><span>Project</span><span>Period</span><span>Status</span><span className="text-right">Before tax</span></div>
-                {history.map((s) => (
-                  <div key={s.id} className="row grid-cols-[minmax(0,1fr)_200px_170px_130px]">
-                    <span className="truncate">{s.projects?.name}</span>
-                    <span className="text-xs">{period(s.period_start, s.period_end)}</span>
-                    <span><StatementStatus status={s.status} /></span>
-                    <span className="text-right font-mono text-xs">{money(s.statement_lines.reduce((a, l) => a + Number(l.amount ?? 0), 0), s.rate_cards?.currency ?? 'INR', { exact: true })}</span>
-                  </div>
-                ))}
-              </div>
+              <DataGrid label="Statements"
+                columns={[
+                  { key: 'project', label: 'Project', sortable: true }, { key: 'period', label: 'Period', sortable: true, className: 'w-[200px]' },
+                  { key: 'status', label: 'Status', sortable: true, className: 'w-[170px]' }, { key: 'total', label: 'Before tax', sortable: true, align: 'right', className: 'w-[130px]' },
+                ]}
+                rows={history.map((s) => {
+                  const total = s.statement_lines.reduce((a, l) => a + Number(l.amount ?? 0), 0)
+                  return {
+                    id: s.id,
+                    values: { project: s.projects?.name, period: s.period_start, status: s.status, total },
+                    cells: {
+                      project: <span className="block truncate">{s.projects?.name}</span>,
+                      period: <span className="text-xs">{period(s.period_start, s.period_end)}</span>,
+                      status: <StatementStatus status={s.status} />,
+                      total: <span className="font-mono text-xs">{money(total, s.rate_cards?.currency ?? 'INR', { exact: true })}</span>,
+                    },
+                  }
+                })} />
             </div>
           ) : <Empty title="No statements yet" />}
         </Card>

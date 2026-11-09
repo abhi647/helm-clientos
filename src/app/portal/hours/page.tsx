@@ -1,11 +1,12 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { HoursMeter, creditBalance } from '@/components/hours-credit'
 import { Card, Empty, cn } from '@/components/ui'
 import { hrs, shortDate } from '@/lib/format'
 import { requireCustomer } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { DataGrid } from '@/components/data-grid'
+import { LinkTabs } from '@/components/link-tabs'
 
 export const metadata: Metadata = { title: 'Hours' }
 
@@ -55,29 +56,29 @@ export default async function PortalHours({ searchParams }: { searchParams: Prom
       </Card>
 
       {months.length > 1 ? (
-        <nav aria-label="Months" className="flex flex-wrap gap-1.5">
-          {months.map((m) => (
-            <Link key={ym(m)} href={m.getTime() === thisMonth.getTime() ? '/portal/hours' : `/portal/hours?month=${ym(m)}`}
-              className={cn('inline-flex h-7 items-center rounded-full border px-3 text-xs font-medium no-underline', ym(m) === ym(month) ? 'border-ink bg-ink text-white' : 'border-line bg-white text-ink hover:bg-head')}>{monthName(m)}</Link>
-          ))}
-        </nav>
+        <LinkTabs label="Months" value={ym(month)} items={months.map((m) => ({ value: ym(m), label: monthName(m), href: m.getTime() === thisMonth.getTime() ? '/portal/hours' : `/portal/hours?month=${ym(m)}` }))} />
       ) : null}
 
       <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(260px,340px)]">
-        <Card flush className="overflow-x-auto" title={plan.kind === 'monthly' ? `Work in ${monthName(month)}` : 'Work since the start'} extra={`${hrs(total)} approved`}>
+        <Card flush title={plan.kind === 'monthly' ? `Work in ${monthName(month)}` : 'Work since the start'} extra={`${hrs(total)} approved`}>
           {rows.length ? (
-            <div className="min-w-[560px]">
-              <div className="row row-head grid-cols-[80px_minmax(0,0.8fr)_minmax(0,1.4fr)_90px_60px]"><span>Date</span><span>Project</span><span>Work</span><span>Who</span><span className="text-right">Hours</span></div>
-              {rows.map((r, i) => (
-                <div key={i} className="row grid-cols-[80px_minmax(0,0.8fr)_minmax(0,1.4fr)_90px_60px]">
-                  <span className="font-mono text-xs">{shortDate(r.worked_on)}</span>
-                  <span className="truncate text-xs text-muted-foreground">{r.project}</span>
-                  <span className={cn('truncate', r.work === 'Internal work' && 'text-muted-foreground')}>{r.work}</span>
-                  <span className="truncate text-xs">{r.person}</span>
-                  <span className="text-right font-mono text-xs">{+Number(r.hours).toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
+            <DataGrid label="Approved hours" pageSize={25}
+              columns={[
+                { key: 'date', label: 'Date', sortable: true, className: 'w-[80px]' }, { key: 'project', label: 'Project', sortable: true },
+                { key: 'work', label: 'Work', sortable: true }, { key: 'who', label: 'Who', sortable: true, className: 'w-[100px]' },
+                { key: 'hours', label: 'Hours', sortable: true, align: 'right', className: 'w-[70px]' },
+              ]}
+              rows={rows.map((r, i) => ({
+                id: String(i),
+                values: { date: r.worked_on, project: r.project, work: r.work, who: r.person, hours: Number(r.hours) },
+                cells: {
+                  date: <span className="font-mono text-xs">{shortDate(r.worked_on)}</span>,
+                  project: <span className="block max-w-[200px] truncate text-xs text-muted-foreground">{r.project}</span>,
+                  work: <span className={cn('block max-w-[320px] truncate', r.work === 'Internal work' && 'text-muted-foreground')}>{r.work}</span>,
+                  who: <span className="block truncate text-xs">{r.person}</span>,
+                  hours: <span className="font-mono text-xs">{+Number(r.hours).toFixed(2)}</span>,
+                },
+              }))} />
           ) : <Empty title="No approved hours yet">Hours show here once they are approved.</Empty>}
         </Card>
         <aside className="flex flex-col gap-3">

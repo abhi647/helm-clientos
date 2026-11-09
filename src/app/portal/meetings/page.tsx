@@ -4,6 +4,7 @@ import { Card, Empty } from '@/components/ui'
 import { shortDate } from '@/lib/format'
 import { requireCustomer } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { DataGrid } from '@/components/data-grid'
 
 export const metadata: Metadata = { title: 'Meetings' }
 
@@ -13,19 +14,25 @@ export default async function PortalMeetings() {
   const { data: meetings } = await supabase.from('meetings')
     .select('id, title, held_on, attendees, projects(name), meeting_actions(id), decisions(id)').order('held_on', { ascending: false })
   return (
-    <Card flush className="overflow-x-auto" title="Meetings" extra="Notes, actions and decisions from our meetings">
-      <div className="min-w-[620px]">
-        <div className="row row-head grid-cols-[80px_minmax(0,1fr)_200px_80px_90px]"><span>Date</span><span>Meeting</span><span>Project</span><span>Actions</span><span>Decisions</span></div>
-        {meetings?.length ? meetings.map((m) => (
-          <Link key={m.id} href={`/portal/meetings/${m.id}`} className="row min-h-10 grid-cols-[80px_minmax(0,1fr)_200px_80px_90px] text-[14px] text-ink no-underline hover:bg-head">
-            <span className="font-mono text-xs text-muted-foreground">{shortDate(m.held_on)}</span>
-            <span className="truncate font-medium">{m.title}</span>
-            <span className="truncate text-[13px] text-muted-foreground">{m.projects?.name ?? '–'}</span>
-            <span className="font-mono text-xs">{m.meeting_actions.length}</span>
-            <span className="font-mono text-xs">{m.decisions.length}</span>
-          </Link>
-        )) : <Empty title="No meetings yet">Notes from our meetings will appear here.</Empty>}
-      </div>
+    <Card flush title="Meetings" extra="Notes, actions and decisions from our meetings">
+      <DataGrid label="Meetings" search searchLabel="Search meetings"
+        empty={<Empty title="No meetings yet">Notes from our meetings will appear here.</Empty>}
+        columns={[
+          { key: 'date', label: 'Date', sortable: true, className: 'w-[80px]' }, { key: 'title', label: 'Meeting', sortable: true },
+          { key: 'project', label: 'Project', sortable: true, className: 'w-[200px]' },
+          { key: 'actions', label: 'Actions', sortable: true, align: 'right', className: 'w-[80px]' }, { key: 'decisions', label: 'Decisions', sortable: true, align: 'right', className: 'w-[90px]' },
+        ]}
+        rows={(meetings ?? []).map((m) => ({
+          id: m.id, href: `/portal/meetings/${m.id}`,
+          values: { date: m.held_on, title: m.title, project: m.projects?.name, actions: m.meeting_actions.length, decisions: m.decisions.length },
+          cells: {
+            date: <span className="font-mono text-xs text-muted-foreground">{shortDate(m.held_on)}</span>,
+            title: <Link href={`/portal/meetings/${m.id}`} className="block truncate font-medium text-foreground no-underline hover:underline">{m.title}</Link>,
+            project: <span className="block max-w-[200px] truncate text-muted-foreground">{m.projects?.name ?? '–'}</span>,
+            actions: <span className="font-mono text-xs">{m.meeting_actions.length}</span>,
+            decisions: <span className="font-mono text-xs">{m.decisions.length}</span>,
+          },
+        }))} />
     </Card>
   )
 }

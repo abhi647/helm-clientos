@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { DataGrid } from '@/components/data-grid'
 import { completeAction } from '@/app/_actions/requests'
 import { ActionButton } from '@/components/forms'
 import { UpdateCard } from '@/components/project-parts'
@@ -75,55 +76,60 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
 
       <div className="flex flex-wrap items-start gap-3.5">
         <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-3.5">
-          <Card flush className="overflow-x-auto" title={n ? `${n} ${n === 1 ? 'item needs' : 'items need'} your attention` : 'Nothing needs your attention'} extra={`${doneThisWeek ?? 0} done this week`}>
-            {n ? (
-              <div className="min-w-[660px]">
-                <div className="row row-head grid-cols-[110px_minmax(0,1fr)_170px_90px_150px]"><span>Type</span><span>Item</span><span>Project</span><span>Due</span><span /></div>
-                {mine.map((a) => {
-                  const late = (daysFromToday(a.due_date) ?? 0) < 0
-                  const ty = TYPE[a.type]
-                  return (
-                    <div key={a.id} className="row min-h-10 grid-cols-[110px_minmax(0,1fr)_170px_90px_150px] text-[14px]">
-                      <span><Chip tone={ty.tone}>{ty.label}</Chip></span>
-                      <span className="truncate font-medium">{a.title}</span>
-                      <span className="truncate text-[13px] text-muted-foreground">{a.projects?.name ?? '–'}</span>
-                      <span className={cn('font-mono text-xs', late && 'font-semibold text-crit-ink')}>{late ? `${-(daysFromToday(a.due_date) ?? 0)}d late` : shortDate(a.due_date)}</span>
-                      <span className="text-right">
-                        {a.type === 'approval' ? <Link href={a.request_id ? `/portal/requests/${a.request_id}` : `/portal/approvals/${a.approval_id}`} className={btn('default')}>{ty.cta}</Link>
-                          : a.form_key ? <Link href={`/portal/forms/${a.form_key}?project=${a.project_id ?? ''}&action=${a.id}`} className={btn('default')}>{a.form_key === 'uat_feedback' ? 'Give feedback' : 'Fill in form'}</Link>
-                          : <ActionButton run={completeAction.bind(null, a.id)}>{ty.cta}</ActionButton>}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : <Empty title="You're all caught up">We will let you know when Seven Billion needs something.</Empty>}
-            {others.length ? <p className="m-0 border-t border-line-soft px-3.5 py-2 text-xs text-muted-foreground">{others.length} more {others.length === 1 ? 'item is' : 'items are'} with your colleagues.</p> : null}
+          <Card flush title={n ? `${n} ${n === 1 ? 'item needs' : 'items need'} your attention` : 'Nothing needs your attention'} extra={`${doneThisWeek ?? 0} done this week`}>
+            <DataGrid label="Needs your attention"
+              empty={<Empty title="You're all caught up">We will let you know when Seven Billion needs something.</Empty>}
+              columns={[
+                { key: 'type', label: 'Type', className: 'w-[120px]' }, { key: 'item', label: 'Item' },
+                { key: 'project', label: 'Project', className: 'w-[180px]' }, { key: 'due', label: 'Due', className: 'w-[90px]' },
+                { key: 'act', label: <span className="sr-only">Action</span>, align: 'right', className: 'w-[150px]' },
+              ]}
+              rows={mine.map((a) => {
+                const late = (daysFromToday(a.due_date) ?? 0) < 0
+                const ty = TYPE[a.type]
+                return {
+                  id: a.id,
+                  cells: {
+                    type: <Chip tone={ty.tone}>{ty.label}</Chip>,
+                    item: <span className="block max-w-[360px] truncate font-medium">{a.title}</span>,
+                    project: <span className="block max-w-[180px] truncate text-muted-foreground">{a.projects?.name ?? '–'}</span>,
+                    due: <span className={cn('font-mono text-xs', late && 'font-semibold text-crit-ink')}>{late ? `${-(daysFromToday(a.due_date) ?? 0)}d late` : shortDate(a.due_date)}</span>,
+                    act: a.type === 'approval' ? <Link href={a.request_id ? `/portal/requests/${a.request_id}` : `/portal/approvals/${a.approval_id}`} className={btn('default')}>{ty.cta}</Link>
+                      : a.form_key ? <Link href={`/portal/forms/${a.form_key}?project=${a.project_id ?? ''}&action=${a.id}`} className={btn('default')}>{a.form_key === 'uat_feedback' ? 'Give feedback' : 'Fill in form'}</Link>
+                      : <ActionButton run={completeAction.bind(null, a.id)}>{ty.cta}</ActionButton>,
+                  },
+                }
+              })} />
+            {others.length ? <p className="m-0 border-t border-border/60 px-3.5 py-2 text-xs text-muted-foreground">{others.length} more {others.length === 1 ? 'item is' : 'items are'} with your colleagues.</p> : null}
           </Card>
 
-          <Card flush className="overflow-x-auto" title="Projects">
-            <div className="min-w-[660px]">
-              <div className="row row-head grid-cols-[minmax(0,1fr)_130px_120px_240px_60px]"><span>Project</span><span>Status</span><span>Progress</span><span>Phases</span><span /></div>
-              {(projects ?? []).map((p) => {
+          <Card flush title="Projects">
+            <DataGrid label="Projects"
+              columns={[
+                { key: 'project', label: 'Project' }, { key: 'status', label: 'Status', className: 'w-[150px]' },
+                { key: 'progress', label: 'Progress', className: 'w-[90px]' }, { key: 'phases', label: 'Phases', className: 'w-[240px]' },
+                { key: 'open', label: <span className="sr-only">Open</span>, align: 'right', className: 'w-[60px]' },
+              ]}
+              rows={(projects ?? []).map((p) => {
                 const ph = (phases ?? []).filter((x) => x.project_id === p.id)
                 const now = ph.find((x) => t.some((k) => k.phase_id === x.id && k.status !== 'done'))
-                return (
-                  <div key={p.id} className="row min-h-[52px] grid-cols-[minmax(0,1fr)_130px_120px_240px_60px] text-[14px]">
-                    <span className="flex min-w-0 flex-col"><span className="truncate font-semibold">{p.name}</span><span className="truncate text-xs text-muted-foreground">Now: {now?.name ?? 'Wrapping up'}</span></span>
-                    <Health health={p.health} className="text-[13px]" />
-                    <ProgressRing value={prog.get(p.id) ?? 0} size={38} />
-                    <span className="flex gap-[3px]">
+                return {
+                  id: p.id, href: `/portal/projects/${p.id}`,
+                  cells: {
+                    project: <span className="flex min-w-0 flex-col py-1"><Link href={`/portal/projects/${p.id}`} className="truncate font-semibold text-foreground no-underline hover:underline">{p.name}</Link><span className="truncate text-xs text-muted-foreground">Now: {now?.name ?? 'Wrapping up'}</span></span>,
+                    status: <Health health={p.health} />,
+                    progress: <ProgressRing value={prog.get(p.id) ?? 0} size={34} />,
+                    phases: <span className="flex w-[220px] gap-[3px]">
                       {ph.map((x) => {
                         const pts = t.filter((k) => k.phase_id === x.id)
                         const state = pts.length && pts.every((k) => k.status === 'done') ? 2 : pts.some((k) => k.status !== 'todo') ? 1 : 0
-                        return <span key={x.id} title={`${x.name}: ${['upcoming', 'in progress', 'done'][state]}`} className={cn('h-2 flex-1 rounded-sm', state === 2 ? 'bg-info-ink' : state === 1 ? 'bg-[#6da7ec]' : 'bg-line')} />
+                        return <span key={x.id} title={`${x.name}: ${['upcoming', 'in progress', 'done'][state]}`} className={cn('h-2 flex-1 rounded-sm', state === 2 ? 'bg-primary' : state === 1 ? 'bg-primary/45' : 'bg-muted')} />
                       })}
-                    </span>
-                    <Link href={`/portal/projects/${p.id}`} className="text-right text-[13px] font-medium">Open</Link>
-                  </div>
-                )
-              })}
-            </div>
+                    </span>,
+                    open: <Link href={`/portal/projects/${p.id}`} className="text-[13px] font-medium">Open</Link>,
+                  },
+                }
+              })} />
           </Card>
         </div>
 

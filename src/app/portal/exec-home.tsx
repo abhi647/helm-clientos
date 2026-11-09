@@ -1,5 +1,6 @@
 import { ChevronRight } from 'lucide-react'
 import Link from 'next/link'
+import { DataGrid } from '@/components/data-grid'
 import { Greeting, GreetingChip } from '@/components/shell/greeting'
 import { btn, Card, Chip, Empty, Health } from '@/components/ui'
 import { ProgressRing } from '@/components/viz'
@@ -52,9 +53,9 @@ export async function ExecHome({ me, surveys }: { me: Profile; surveys?: React.R
 
       <div className="flex flex-wrap items-start gap-3.5">
         <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-3.5">
-          <Card flush className="overflow-x-auto" title="Engagement status">
+          <Card flush title="Engagement status">
             {/* phones: one card per project */}
-            <ul className="m-0 list-none divide-y divide-line-soft p-0 sm:hidden">
+            <ul className="m-0 list-none divide-y divide-border/60 p-0 sm:hidden">
               {p.map((x) => (
                 <li key={x.id}>
                   <Link href={`/portal/projects/${x.id}`} className="flex items-center gap-3 px-4 py-3.5 text-ink no-underline active:bg-head">
@@ -68,21 +69,29 @@ export async function ExecHome({ me, surveys }: { me: Profile; surveys?: React.R
                 </li>
               ))}
             </ul>
-            <div className="min-w-[700px] max-sm:hidden">
-              <div className="row row-head grid-cols-[minmax(0,1fr)_130px_110px_150px_110px_60px]"><span>Project</span><span>Status</span><span>Progress</span><span>Now</span><span>Last update</span><span /></div>
-              {p.length ? p.map((x) => {
-                const now = (phases ?? []).filter((ph) => ph.project_id === x.id).find((ph) => t.some((k) => k.phase_id === ph.id && k.status !== 'done'))
-                return (
-                  <div key={x.id} className="row min-h-[46px] grid-cols-[minmax(0,1fr)_130px_110px_150px_110px_60px] text-[14px]">
-                    <span className="flex min-w-0 flex-col"><span className="truncate font-semibold">{x.name}</span><span className="truncate text-xs text-muted-foreground">PM {x.pm?.full_name ?? '–'} · ends {shortDate(x.end_date)}</span></span>
-                    <Health health={x.health} className="text-[13px]" />
-                    <ProgressRing value={prog.get(x.id) ?? 0} size={38} />
-                    <span className="truncate text-[13px]">{now?.name ?? 'Wrapping up'}</span>
-                    <span className="text-xs text-muted-foreground">{lastUpdate.has(x.id) ? relativeTime(lastUpdate.get(x.id)!) : '–'}</span>
-                    <Link href={`/portal/projects/${x.id}`} className="text-right text-[13px] font-medium">Open</Link>
-                  </div>
-                )
-              }) : <Empty title="No active projects" />}
+            <div className="max-sm:hidden">
+              <DataGrid label="Engagement status"
+                empty={<Empty title="No active projects" />}
+                columns={[
+                  { key: 'project', label: 'Project' }, { key: 'status', label: 'Status', className: 'w-[150px]' },
+                  { key: 'progress', label: 'Progress', className: 'w-[90px]' }, { key: 'now', label: 'Now', className: 'w-[160px]' },
+                  { key: 'update', label: 'Last update', className: 'w-[110px]' },
+                  { key: 'open', label: <span className="sr-only">Open</span>, align: 'right', className: 'w-[60px]' },
+                ]}
+                rows={p.map((x) => {
+                  const now = (phases ?? []).filter((ph) => ph.project_id === x.id).find((ph) => t.some((k) => k.phase_id === ph.id && k.status !== 'done'))
+                  return {
+                    id: x.id, href: `/portal/projects/${x.id}`,
+                    cells: {
+                      project: <span className="flex min-w-0 flex-col py-1"><Link href={`/portal/projects/${x.id}`} className="truncate font-semibold text-foreground no-underline hover:underline">{x.name}</Link><span className="truncate text-xs text-muted-foreground">PM {x.pm?.full_name ?? '–'} · ends {shortDate(x.end_date)}</span></span>,
+                      status: <Health health={x.health} />,
+                      progress: <ProgressRing value={prog.get(x.id) ?? 0} size={34} />,
+                      now: <span className="block max-w-[160px] truncate">{now?.name ?? 'Wrapping up'}</span>,
+                      update: <span className="text-xs text-muted-foreground">{lastUpdate.has(x.id) ? relativeTime(lastUpdate.get(x.id)!) : '–'}</span>,
+                      open: <Link href={`/portal/projects/${x.id}`} className="text-[13px] font-medium">Open</Link>,
+                    },
+                  }
+                })} />
             </div>
           </Card>
 
