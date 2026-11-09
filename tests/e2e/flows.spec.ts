@@ -730,11 +730,20 @@ test('dedicated people: billed by the month less leave, through the monthly bill
   const month = now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
   const weekday = now.getUTCDay() % 6 !== 0
 
-  // the consultant marks today as leave on their timesheet
-  await signIn(page, 'sahil@example.com')
-  await page.goto('/timesheets')
-  await page.getByRole('button', { name: `${today}: working` }).click()
-  await expect(page.getByRole('button', { name: `${today}: on leave` })).toBeVisible()
+  // the consultant applies for today off; with no manager set, an admin approves it, and the timesheet shows it
+  if (weekday) {
+    await signIn(page, 'sahil@example.com')
+    await page.goto('/leave')
+    await page.getByRole('button', { name: 'Apply', exact: true }).click()
+    await expect(toast(page, 'Applied')).toBeVisible()
+    await signIn(page, 'admin@example.com')
+    await page.goto('/leave?tab=approvals')
+    await page.locator('tr', { hasText: 'Sahil' }).getByRole('button', { name: 'Approve' }).click()
+    await expect(toast(page, 'Approved')).toBeVisible()
+    await signIn(page, 'sahil@example.com')
+    await page.goto('/timesheets')
+    await expect(page.getByRole('gridcell', { name: `${today}: Casual leave` })).toBeVisible()
+  }
 
   // finance sets Support Engagement up as one dedicated engineer, billed by the month
   await signIn(page, 'finance@example.com')

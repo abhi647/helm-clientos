@@ -1414,15 +1414,10 @@ describe('cost rates, leave and the billing run', () => {
     await service.from('cost_rates').delete().eq('profile_id', id)
   })
 
-  it('people record their own leave; customers never see it; a PM cannot record someone else’s', async () => {
+  it('leave goes through a request: nobody marks their own days directly; customers never see the record', async () => {
     const id = await sahilId()
-    const day = '2030-01-07'
-    expect((await sahil.from('leave_days').insert({ profile_id: id, day })).error).toBeNull()
-    expect((await rahul.from('leave_days').select('day').eq('profile_id', id)).data).toHaveLength(1)
+    expect((await sahil.from('leave_days').insert({ profile_id: id, day: '2030-01-07' })).error).not.toBeNull()
     expect((await michel.from('leave_days').select('day')).data).toEqual([])
-    const rahulId = (await service.from('profiles').select('id').eq('email', 'rahul@example.com').single()).data!.id
-    expect((await sahil.from('leave_days').insert({ profile_id: rahulId, day })).error).not.toBeNull()
-    await service.from('leave_days').delete().eq('day', day)
   })
 
   it('the billing run and set-up are finance-only', async () => {
@@ -1433,3 +1428,74 @@ describe('cost rates, leave and the billing run', () => {
     expect(error?.message).toMatch(/not allowed/)
   })
 })
+
+describe('leave requests and holidays', () => {
+  const idOf = async (email: string) => (await service.from('profiles').select('id').eq('email', email).single()).data!.id
+  const typeId = async (key: string) => (await service.from('leave_types').select('id').eq('key', key).single()).data!.id
+  // a Monday to Friday week in a year far ahead, so real data is never touched
+  const MON = '2031-03-10', TUE = '2031-03-11', WED = '2031-03-12', FRI = '2031-03-14'
+  const clean = async () => {
+    await service.from('leave_requests').delete().gte('start_date', '2031-01-01')
+    await service.from('leave_days').delete().gte('day', '2031-01-01')
+    await service.from('holidays').delete().gte('day', '2031-01-01')
+    await service.from('reporting_managers').delete().neq('profile_id', '00000000-0000-0000-0000-000000000000')
+  }
+  beforeAll(clean)
+  afterAll(clean)
+
+  it('the manager approves; the days count working days only, land in the leave record, and come off the balance', async () => {
+    const [sid, rid] = [await idOf('sahil@example.com'), await idOf('rahul@example.com')]
+    await service.from('reporting_managers').upsert({ profile_id: sid, manager_id: rid })
+    await service.from('holidays').insert({ day: WED, name: 'Test holiday' })
+    const casual = await typeId('casual')
+    const { data: req, error } = await sahil.rpc('apply_leave', { p_type: casual, p_start: MON, p_end: FRI, p_reason: 'Trip' })
+    expect(error).toBeNull()
+    // Monday to Friday less the Wednesday holiday
+    expect(Number((await service.from('leave_requests').select('days').eq('id', req!).single()).data!.days)).toBe(4)
+    // the manager is told, and sees the request; a colleague does not
+    expect((await service.from('notifications').select('id').eq('user_id', rid).eq('kind', 'leave')).data!.length).toBeGreaterThan(0)
+    expect((await rahul.from('leave_requests').select('id').eq('id', req!)).data).toHaveLength(1)
+    const other = await as('finance@example.com')
+    expect((await other.from('leave_requests').select('id').eq('id', req!)).data).toEqual([])
+    // nobody approves their own; only the manager (or an admin, the CEO) can
+    expect((await sahil.rpc('decide_leave', { p_request: req!, p_approve: true })).error?.message).toMatch(/not allowed/)
+    expect((await other.rpc('decide_leave', { p_request: req!, p_approve: true })).error?.message).toMatch(/not allowed/)
+    expect((await rahul.rpc('decide_leave', { p_request: req!, p_approve: true, p_note: 'ok' })).error).toBeNull()
+    const days = (await service.from('leave_days').select('day').eq('profile_id', sid).gte('day', MON).lte('day', FRI).order('day')).data!.map((d) => d.day)
+    expect(days).toEqual([MON, TUE, '2031-03-13', FRI])
+    const { data: bal } = await sahil.rpc('leave_balances', { p_profile: sid, p_year: 2031 })
+    const c = (bal as { key: string; used: number; remaining: number }[]).find((b) => b.key === 'casual')!
+    expect(Number(c.used)).toBe(4)
+    expect(Number(c.remaining)).toBe(8)
+  })
+
+  it('overlapping leave, too little balance and weekend-only dates are refused', async () => {
+    const casual = await typeId('casual')
+    expect((await sahil.rpc('apply_leave', { p_type: casual, p_start: TUE, p_end: TUE })).error?.message).toMatch(/already have leave/)
+    expect((await sahil.rpc('apply_leave', { p_type: casual, p_start: '2031-06-02', p_end: '2031-06-27' })).error?.message).toMatch(/days left this year/)
+    expect((await sahil.rpc('apply_leave', { p_type: casual, p_start: '2031-06-07', p_end: '2031-06-08' })).error?.message).toMatch(/weekends or holidays/)
+    const optional = await typeId('optional_holiday')
+    expect((await sahil.rpc('apply_leave', { p_type: optional, p_start: '2031-06-02', p_end: '2031-06-02' })).error?.message).toMatch(/optional holiday/)
+  })
+
+  it('a half day counts half; withdrawing removes it; without a manager, admins and the CEO decide', async () => {
+    const rid = await idOf('rahul@example.com')
+    const sick = await typeId('sick')
+    const { data: req } = await rahul.rpc('apply_leave', { p_type: sick, p_start: '2031-04-01', p_end: '2031-04-01', p_half_day: true })
+    expect(Number((await service.from('leave_requests').select('days').eq('id', req!).single()).data!.days)).toBe(0.5)
+    expect((await (await asCeo()).rpc('decide_leave', { p_request: req!, p_approve: true })).error).toBeNull()
+    expect(Number((await service.from('leave_days').select('portion').eq('profile_id', rid).eq('day', '2031-04-01').single()).data!.portion)).toBe(0.5)
+    expect((await rahul.rpc('cancel_leave', { p_request: req! })).error).toBeNull()
+    expect((await service.from('leave_days').select('day').eq('profile_id', rid).eq('day', '2031-04-01')).data).toEqual([])
+  })
+
+  it('customers see only the dates their people are away; holidays are admin-only to change', async () => {
+    const day = '2031-05-05'
+    expect((await rahul.from('holidays').insert({ day, name: 'Not allowed' })).error).not.toBeNull()
+    expect((await michel.from('holidays').select('id')).data).toEqual([])
+    expect((await michel.from('leave_requests').select('id')).data).toEqual([])
+    const { data } = await michel.rpc('customer_team_leave', { p_from: '2031-01-01', p_to: '2031-12-31' })
+    for (const row of data ?? []) expect(Object.keys(row).sort()).toEqual(['end_date', 'full_name', 'half_day', 'start_date'])
+  })
+})
+

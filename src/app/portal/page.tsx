@@ -16,6 +16,7 @@ import { YourTeam } from '@/components/your-team'
 import { ExecHome } from './exec-home'
 import { ProgressRing } from '@/components/viz'
 import { PortalMeters } from '@/components/portal-meters'
+import { PortalAway } from '@/components/portal-away'
 
 export const metadata: Metadata = { title: 'Home' }
 
@@ -141,6 +142,7 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
             )) : <Empty title="No upcoming milestones" />}
           </Card>
           <YourTeam />
+          <PortalAway />
           {invoices ? (
             <Card flush title="Invoices" extra={<Link href="/portal/invoices">All invoices</Link>}>
               {invoices.length ? invoices.map((i) => (

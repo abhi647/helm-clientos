@@ -1105,6 +1105,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"holidays": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"day": string,"id": string,"name": string,"optional": boolean
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"day": string,"id"?: string,"name": string,"optional"?: boolean
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"day"?: string,"id"?: string,"name"?: string,"optional"?: boolean
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "holidays_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "holidays_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"integration_events": {
                   Row: {
                     "created_at": string,"error": string | null,"external_id": string,"id": number,"payload": NonNullable<Json>,"processed_at": string | null,"source": string
@@ -1171,16 +1197,48 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
-                },"leave_days": {
+                },"leave_allowances": {
                   Row: {
-                    "created_at": string,"day": string,"kind": string,"note": string | null,"profile_id": string
+                    "days": number,"leave_type_id": string,"profile_id": string,"year": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"day": string,"kind"?: string,"note"?: string | null,"profile_id": string
+                    "days": number,"leave_type_id": string,"profile_id": string,"year": number
                   }
                   Update: {
-                    "created_at"?: string,"day"?: string,"kind"?: string,"note"?: string | null,"profile_id"?: string
+                    "days"?: number,"leave_type_id"?: string,"profile_id"?: string,"year"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "leave_allowances_leave_type_id_fkey"
+      columns: ["leave_type_id"]
+isOneToOne: false
+      referencedRelation: "leave_types"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "leave_allowances_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "leave_allowances_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"leave_days": {
+                  Row: {
+                    "created_at": string,"day": string,"kind": string,"note": string | null,"portion": number,"profile_id": string,"request_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"day": string,"kind"?: string,"note"?: string | null,"portion"?: number,"profile_id": string,"request_id"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"day"?: string,"kind"?: string,"note"?: string | null,"portion"?: number,"profile_id"?: string,"request_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -1195,7 +1253,83 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "leave_days_request_id_fkey"
+      columns: ["request_id"]
+isOneToOne: false
+      referencedRelation: "leave_requests"
+      referencedColumns: ["id"]
     }
+                  ]
+                },"leave_requests": {
+                  Row: {
+                    "approver_id": string | null,"created_at": string,"days": number,"decided_at": string | null,"decided_by": string | null,"decision_note": string,"end_date": string,"half_day": boolean,"id": string,"leave_type_id": string,"profile_id": string,"reason": string,"start_date": string,"status": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "approver_id"?: string | null,"created_at"?: string,"days": number,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string,"end_date": string,"half_day"?: boolean,"id"?: string,"leave_type_id": string,"profile_id": string,"reason"?: string,"start_date": string,"status"?: string
+                  }
+                  Update: {
+                    "approver_id"?: string | null,"created_at"?: string,"days"?: number,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string,"end_date"?: string,"half_day"?: boolean,"id"?: string,"leave_type_id"?: string,"profile_id"?: string,"reason"?: string,"start_date"?: string,"status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "leave_requests_approver_id_fkey"
+      columns: ["approver_id"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "leave_requests_approver_id_fkey"
+      columns: ["approver_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "leave_requests_decided_by_fkey"
+      columns: ["decided_by"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "leave_requests_decided_by_fkey"
+      columns: ["decided_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "leave_requests_leave_type_id_fkey"
+      columns: ["leave_type_id"]
+isOneToOne: false
+      referencedRelation: "leave_types"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "leave_requests_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "leave_requests_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"leave_types": {
+                  Row: {
+                    "active": boolean,"id": string,"key": string,"name": string,"optional_holidays_only": boolean,"paid": boolean,"position": number,"yearly_allowance": number | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"id"?: string,"key": string,"name": string,"optional_holidays_only"?: boolean,"paid"?: boolean,"position"?: number,"yearly_allowance"?: number | null
+                  }
+                  Update: {
+                    "active"?: boolean,"id"?: string,"key"?: string,"name"?: string,"optional_holidays_only"?: boolean,"paid"?: boolean,"position"?: number,"yearly_allowance"?: number | null
+                  }
+                  Relationships: [
+                    
                   ]
                 },"meeting_actions": {
                   Row: {
@@ -1845,6 +1979,44 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"reporting_managers": {
+                  Row: {
+                    "manager_id": string,"profile_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "manager_id": string,"profile_id": string
+                  }
+                  Update: {
+                    "manager_id"?: string,"profile_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "reporting_managers_manager_id_fkey"
+      columns: ["manager_id"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "reporting_managers_manager_id_fkey"
+      columns: ["manager_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "reporting_managers_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: true
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "reporting_managers_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: true
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"request_events": {
                   Row: {
                     "actor_id": string | null,"created_at": string,"customer_id": string,"id": number,"note": string | null,"request_id": string,"status": Database["public"]['Enums']["request_status"]
@@ -2455,6 +2627,9 @@ isOneToOne: false
 "answer_csat":
 { Args: { "p_comment"?: string,"p_score": number,"p_survey": string }; Returns: undefined
                            },
+"apply_leave":
+{ Args: { "p_end": string,"p_half_day"?: boolean,"p_reason"?: string,"p_start": string,"p_type": string }; Returns: string
+                           },
 "approve_for_customer":
 { Args: { "p_approval": string,"p_note"?: string }; Returns: undefined
                            },
@@ -2483,6 +2658,9 @@ isOneToOne: false
               "amount": number,"basis": string,"cap": number,"currency": string,"customer_name": string,"kind": Database["public"]['Enums']["billing_kind"],"label": string,"line_id": string,"milestone": boolean,"model": Database["public"]['Enums']["billing_model"],"project_id": string,"project_name": string,"quantity": number,"rate": number,"statement_id": string,"unit": string
             }[]
                            },
+"cancel_leave":
+{ Args: { "p_request": string }; Returns: undefined
+                           },
 "claim_page":
 { Args: { "p_page": string,"p_release"?: boolean }; Returns: string
                            },
@@ -2508,8 +2686,16 @@ isOneToOne: false
               "hours": number,"person": string,"project": string,"work": string,"worked_on": string
             }[]
                            },
+"customer_team_leave":
+{ Args: { "p_from": string,"p_to": string }; Returns: {
+              "end_date": string,"full_name": string,"half_day": boolean,"start_date": string
+            }[]
+                           },
 "decide_approval":
 { Args: { "p_approval": string,"p_comment"?: string,"p_decision": Database["public"]['Enums']["approval_action"] }; Returns: undefined
+                           },
+"decide_leave":
+{ Args: { "p_approve": boolean,"p_note"?: string,"p_request": string }; Returns: undefined
                            },
 "decide_rate_card":
 { Args: { "p_approve": boolean,"p_card": string,"p_note"?: string }; Returns: undefined
@@ -2567,6 +2753,11 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"leave_balances":
+{ Args: { "p_profile": string,"p_year": number }; Returns: {
+              "allowance": number,"key": string,"leave_type_id": string,"name": string,"paid": boolean,"pending": number,"remaining": number,"used": number
+            }[]
+                           },
 "outbox_health":
 { Args: Record<PropertyKey, never>; Returns: {
               "failed_7d": number,"oldest_queued": string,"queued": number,"sent_24h": number
@@ -2634,6 +2825,11 @@ isOneToOne: false
                            },
 "submit_statement":
 { Args: { "p_statement": string }; Returns: undefined
+                           },
+"team_leave":
+{ Args: { "p_from": string,"p_to": string }; Returns: {
+              "end_date": string,"full_name": string,"half_day": boolean,"profile_id": string,"start_date": string,"status": string,"type_name": string
+            }[]
                            },
 "unapprove_time":
 { Args: { "p_entries": (string)[] }; Returns: number

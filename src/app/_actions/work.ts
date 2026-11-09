@@ -230,13 +230,3 @@ export async function setDayHours(taskId: string, day: string, hours: number): P
   return ok()
 }
 
-/** Marks a day as leave (or clears it). Dedicated people are not billed for days on leave. */
-export async function setLeave(day: string, on: boolean): Promise<ActionResult> {
-  const me = await requireStaff()
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return fail('Unknown day.')
-  const supabase = await createClient()
-  const { error } = on
-    ? await supabase.from('leave_days').upsert({ profile_id: me.id, day, kind: 'leave' })
-    : await supabase.from('leave_days').delete().eq('profile_id', me.id).eq('day', day)
-  return error ? dbFail(error) : ok()
-}

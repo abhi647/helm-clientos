@@ -3,7 +3,8 @@
 import { useMemo, useState, useTransition } from 'react'
 import { Lock, Plus } from 'lucide-react'
 import { toast } from 'sonner'
-import { setDayHours, setLeave } from '@/app/_actions/work'
+import Link from 'next/link'
+import { setDayHours } from '@/app/_actions/work'
 import { cn } from '@/components/ui'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Input } from '@/components/ui/input'
@@ -23,18 +24,10 @@ const fmt = (h: number) => (h ? (Number.isInteger(h) ? String(h) : h.toFixed(2).
  * Your week, one row per task and one column per day: type the hours, they save as you leave the cell. Approved and
  * billed hours are locked. Totals per day and per task keep the week honest at a glance.
  */
-export function WeekGrid({ days, rows: initial, options, today, leave: leaveInitial }: { days: { iso: string; label: string }[]; rows: GridRow[]; options: Option[]; today: string; leave: boolean[] }) {
+export type DayOff = { kind: 'leave' | 'sick' | 'holiday'; label: string; half?: boolean } | null
+
+export function WeekGrid({ days, rows: initial, options, today, off }: { days: { iso: string; label: string }[]; rows: GridRow[]; options: Option[]; today: string; off: DayOff[] }) {
   const [rows, setRows] = useState(initial)
-  const [leave, setLeaveState] = useState(leaveInitial)
-  const toggleLeave = (d: number) => {
-    const on = !leave[d]
-    setLeaveState((l) => l.map((x, i) => (i === d ? on : x)))
-    start(async () => {
-      const res = await setLeave(days[d]!.iso, on)
-      if (!res.ok) { toast.error(res.error); setLeaveState((l) => l.map((x, i) => (i === d ? !on : x))) }
-      else toast.success(on ? `${days[d]!.label}: on leave` : `${days[d]!.label}: leave removed`)
-    })
-  }
   const [saving, setSaving] = useState<string | null>(null)
   const [, start] = useTransition()
   const extra = useMemo(() => options.filter((o) => !rows.some((r) => r.taskId === o.taskId)), [options, rows])
@@ -103,16 +96,19 @@ export function WeekGrid({ days, rows: initial, options, today, leave: leaveInit
           </div>
         ))}
         <div className={`row ${cols} py-1`} role="row">
-          <span role="rowheader" className="flex flex-col"><span className="font-medium">Leave</span><span className="text-[11px] text-muted-foreground">Days off: not billed for dedicated people</span></span>
-          {days.map((d, i) => (
-            <span key={d.iso} role="gridcell" className="flex justify-center">
-              <button type="button" aria-pressed={leave[i]} aria-label={`${d.label}: ${leave[i] ? 'on leave' : 'working'}`} onClick={() => toggleLeave(i)}
-                className={cn('h-8 w-full cursor-pointer rounded-md border text-xs', leave[i] ? 'border-warn bg-warn-bg font-medium text-warn-ink' : 'border-dashed border-border bg-transparent text-muted-foreground hover:bg-muted')}>
-                {leave[i] ? 'Leave' : '–'}
-              </button>
-            </span>
-          ))}
-          <span className="tabular text-right text-xs text-muted-foreground" role="gridcell">{leave.filter(Boolean).length || ''}</span>
+          <span role="rowheader" className="flex flex-col"><span className="font-medium">Leave &amp; holidays</span>
+            <Link href="/leave" className="text-[11px]">Apply for leave →</Link></span>
+          {days.map((d, i) => {
+            const o = off[i]
+            return (
+              <span key={d.iso} role="gridcell" className="flex justify-center" aria-label={`${d.label}: ${o ? `${o.label}${o.half ? ' (half day)' : ''}` : 'working'}`}>
+                {o ? <span title={o.label} className={cn('flex h-8 w-full items-center justify-center truncate rounded-md px-1 text-[11px] font-medium',
+                  o.kind === 'holiday' ? 'bg-warn-bg text-warn-ink' : 'bg-primary/10 text-primary')}>{o.kind === 'holiday' ? 'Holiday' : o.half ? '½ leave' : o.kind === 'sick' ? 'Sick' : 'Leave'}</span>
+                  : <span className="text-muted-foreground">–</span>}
+              </span>
+            )
+          })}
+          <span className="tabular text-right text-xs text-muted-foreground" role="gridcell">{off.filter((o) => o && o.kind !== 'holiday').reduce((a, o) => a + (o!.half ? 0.5 : 1), 0) || ''}</span>
         </div>
         <div className={`row ${cols} bg-head font-medium`} role="row">
           <span role="rowheader">

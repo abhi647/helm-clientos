@@ -17,7 +17,7 @@ function Message({ state }: { state: ActionResult | null }) {
   if (!state || state.ok) return null
   return <p role="alert" className="m-0 text-xs text-crit-ink">{state.error}</p>
 }
-const announce = (res: ActionResult, fallback?: string) => {
+export const announce = (res: ActionResult, fallback?: string) => {
   if (res.ok && (res.message ?? fallback)) toast.success(res.message ?? fallback)
   return res
 }

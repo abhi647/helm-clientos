@@ -23,7 +23,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
   const hidden = [...(canSeeFinance(me) ? [] : ['/finance']), ...(admin ? [] : ['/admin'])]
   const palette: PaletteItem[] = [
     ...[['Home', '/home'], ['My Work', '/my-work'], ['Calendar', '/calendar'], ['Projects', '/projects'], ['Requests', '/requests'], ['Customers', '/customers'], ['CSAT & feedback', '/feedback'], ['Inbox', '/inbox'],
-      ['Timesheets', '/timesheets'], ...(approvesTime ? [['Approve time', '/timesheets/approve']] : []), ...(canSeeFinance(me) ? [['Finance', '/finance']] : []), ...(admin ? [['Admin', '/admin']] : [])].map(([label, href]) => ({ group: 'Pages', label: label!, href: href! })),
+      ['Timesheets', '/timesheets'], ['Leave & holidays', '/leave'], ...(approvesTime ? [['Approve time', '/timesheets/approve']] : []), ...(canSeeFinance(me) ? [['Finance', '/finance']] : []), ...(admin ? [['Admin', '/admin']] : [])].map(([label, href]) => ({ group: 'Pages', label: label!, href: href! })),
     ...(projects ?? []).map((p) => ({ group: 'Projects', label: p.name, hint: p.customers?.name, href: `/projects/${p.id}` })),
     ...(customers ?? []).map((c) => ({ group: 'Customers', label: c.name, href: `/customers/${c.id}` })),
     ...(requests ?? []).map((r) => ({ group: 'Open requests', label: `${r.number} ${r.title}`, href: `/requests/${r.id}` })),

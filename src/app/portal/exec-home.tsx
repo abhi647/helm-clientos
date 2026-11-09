@@ -9,6 +9,7 @@ import { daysFromToday, money, relativeTime, shortDate } from '@/lib/format'
 import type { Profile } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { YourTeam } from '@/components/your-team'
+import { PortalAway } from '@/components/portal-away'
 
 /** Customer Executive home: is my engagement going to plan, and what needs a decision from me? */
 export async function ExecHome({ me, surveys }: { me: Profile; surveys?: React.ReactNode }) {
@@ -111,6 +112,7 @@ export async function ExecHome({ me, surveys }: { me: Profile; surveys?: React.R
 
         <div className="flex min-w-0 flex-[1_1_340px] flex-col gap-3.5">
           <YourTeam />
+          <PortalAway />
           <Card flush title="Recent decisions" extra={<Link href="/portal/decisions">Decision log</Link>}>
             {(decisions ?? []).length ? (decisions ?? []).map((d) => (
               <div key={d.id} className="row grid-cols-[64px_minmax(0,1fr)] py-1.5"><span className="font-mono text-xs text-muted-foreground">{d.number}</span><span className="leading-snug">{d.decision}</span></div>

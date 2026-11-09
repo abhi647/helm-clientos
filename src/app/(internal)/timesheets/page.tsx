@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { btn, Card, PageHeader, Stat } from '@/components/ui'
-import { WeekGrid, type CellState, type GridRow } from '@/components/week-grid'
+import { WeekGrid, type CellState, type DayOff, type GridRow } from '@/components/week-grid'
 import { hrs } from '@/lib/format'
 import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
@@ -30,14 +30,15 @@ export default async function MyWeek({ searchParams }: { searchParams: Promise<{
   const days = Array.from({ length: 7 }, (_, i) => new Date(monday.getTime() + i * DAY))
   const from = iso(days[0]!), to = iso(days[6]!)
   const supabase = await createClient()
-  const [{ data: entries }, { data: open }, { count: runs }, { data: recent }, { data: leaveDays }] = await Promise.all([
+  const [{ data: entries }, { data: open }, { count: runs }, { data: recent }, { data: leaveDays }, { data: hols }] = await Promise.all([
     supabase.from('time_entries').select('task_id, worked_on, hours, approved_at, statement_id, returned_at, returned_note, tasks(title, projects(name, billing_model, customers(name)))')
       .eq('user_id', me.id).gte('worked_on', from).lte('worked_on', to),
     supabase.from('tasks').select('id, title, projects!inner(name, status, billing_model, customers(name))').eq('assignee_id', me.id).neq('status', 'done').eq('projects.status', 'active').limit(300),
     supabase.from('projects').select('id', { count: 'exact', head: true }).eq('pm_id', me.id),
     // the last four weeks, for the trend under the grid
     supabase.from('time_entries').select('worked_on, hours, approved_at').eq('user_id', me.id).gte('worked_on', iso(new Date(monday.getTime() - 28 * DAY))).lte('worked_on', to),
-    supabase.from('leave_days').select('day').eq('profile_id', me.id).gte('day', from).lte('day', to),
+    supabase.from('leave_days').select('day, kind, note, portion').eq('profile_id', me.id).gte('day', from).lte('day', to),
+    supabase.from('holidays').select('day, name').eq('optional', false).gte('day', from).lte('day', to),
   ])
   type P = { name: string; billing_model: GridRow['model']; customers: { name: string } | null } | null
   const ctx = (p: P) => `${p?.customers?.name ?? ''} · ${p?.name ?? ''}`
@@ -94,7 +95,12 @@ export default async function MyWeek({ searchParams }: { searchParams: Promise<{
           <Stat label="Returned to fix" value={returned} sub={returned ? 'shown in amber' : undefined} tone={returned ? 'warn' : 'good'} />
         </div>
         <Card flush>
-          <WeekGrid key={from} today={iso(new Date())} leave={days.map((d) => (leaveDays ?? []).some((l) => l.day === iso(d)))} days={days.map((d) => ({ iso: iso(d), label: label(d) }))} rows={grid}
+          <WeekGrid key={from} today={iso(new Date())} off={days.map((d): DayOff => {
+            const h = (hols ?? []).find((x) => x.day === iso(d))
+            if (h) return { kind: 'holiday', label: h.name }
+            const l = (leaveDays ?? []).find((x) => x.day === iso(d))
+            return l ? { kind: l.kind === 'sick' ? 'sick' : 'leave', label: l.note ?? 'Leave', half: Number(l.portion) < 1 } : null
+          })} days={days.map((d) => ({ iso: iso(d), label: label(d) }))} rows={grid}
             options={(open ?? []).map((t) => ({ taskId: t.id, title: t.title, context: ctx(t.projects as P), model: (t.projects as P)?.billing_model ?? null }))} />
         </Card>
         <p className="m-0 text-xs text-muted-foreground">Quarter hours (0.25) are fine. A green, locked cell is approved; ask the PM to undo the approval to change it. An amber cell was returned: hover it for the note, then type the corrected hours.</p>

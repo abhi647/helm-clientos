@@ -64,7 +64,28 @@ ok(await finance.from('cost_rates').upsert([
 ]), 'cost rates')
 // Sahil was on leave two days last month (deducted from the dedicated billing)
 const lastMonthDay = (n) => { const d = new Date(); return iso(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, n))) }
-ok(await sahil.from('leave_days').insert([{ profile_id: people['sahil@example.com'].id, day: lastMonthDay(12) }, { profile_id: people['sahil@example.com'].id, day: lastMonthDay(13) }]), 'leave')
+// leave goes through requests now: Rahul approves Sahil's, the CEO approves Rahul's
+ok(await admin.from('reporting_managers').upsert([
+  { profile_id: people['sahil@example.com'].id, manager_id: people['rahul@example.com'].id },
+  { profile_id: people['rahul@example.com'].id, manager_id: people['abhijit@example.com'].id },
+]), 'reporting lines')
+const year = new Date().getUTCFullYear()
+ok(await admin.from('holidays').upsert([
+  { day: `${year}-01-26`, name: 'Republic Day', optional: false }, { day: `${year}-03-04`, name: 'Holi', optional: false }, { day: `${year}-08-15`, name: 'Independence Day', optional: false },
+  { day: `${year}-10-02`, name: 'Gandhi Jayanti', optional: false }, { day: `${year}-11-09`, name: 'Diwali', optional: false }, { day: `${year}-11-10`, name: 'Diwali (Govardhan Puja)', optional: true },
+  { day: `${year}-12-25`, name: 'Christmas', optional: false },
+], { onConflict: 'day' }), 'holidays')
+const types = Object.fromEntries(ok(await admin.from('leave_types').select('id, key'), 'leave types').map((t) => [t.key, t.id]))
+const workday = (d) => { const x = new Date(`${d}T00:00:00Z`); while (x.getUTCDay() % 6 === 0) x.setUTCDate(x.getUTCDate() + 1); return iso(x) }
+const plus = (d, n) => { const x = new Date(`${d}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + n); return iso(x) }
+const leaveStart = workday(lastMonthDay(12))
+const lastMonthLeave = ok(await sahil.rpc('apply_leave', { p_type: types.casual, p_start: leaveStart, p_end: workday(plus(leaveStart, 1)), p_reason: 'Family function' }), 'apply leave')
+ok(await rahul.rpc('decide_leave', { p_request: lastMonthLeave, p_approve: true, p_note: 'Enjoy' }), 'approve leave')
+const nextWeek = workday(iso(daysAgo(-8)))
+ok(await sahil.rpc('apply_leave', { p_type: types.sick, p_start: nextWeek, p_end: nextWeek, p_half_day: true, p_reason: 'Doctor appointment' }), 'apply half day')
+const rahulLeave = workday(iso(daysAgo(-20)))
+const rl = ok(await rahul.rpc('apply_leave', { p_type: types.earned, p_start: rahulLeave, p_end: workday(plus(rahulLeave, 3)), p_reason: 'Trip home' }), 'apply rahul leave')
+ok(await ceo.rpc('decide_leave', { p_request: rl, p_approve: true, p_note: '' }), 'approve rahul leave')
 
 // ---------------------------------------------------------------- eight weeks of timesheets
 console.log('timesheets…')

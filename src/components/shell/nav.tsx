@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  Building2, CalendarDays, Clock, Folder, House, Inbox, Menu, MessageSquareHeart, PanelLeftClose, PanelLeftOpen, Receipt, Settings, Sparkles, SquareCheck,
+  Building2, CalendarDays, CalendarOff, Clock, Folder, House, Inbox, Menu, MessageSquareHeart, PanelLeftClose, PanelLeftOpen, Receipt, Settings, Sparkles, SquareCheck,
 } from 'lucide-react'
 import { cn } from '@/components/ui'
 import { BrandMark } from '@/components/brand'
@@ -17,6 +17,7 @@ const SECTIONS = [
     { href: '/assistant', label: 'Ask Helm', icon: Sparkles },
     { href: '/my-work', label: 'My Work', icon: SquareCheck },
     { href: '/calendar', label: 'Calendar', icon: CalendarDays },
+    { href: '/leave', label: 'Leave', icon: CalendarOff },
     { href: '/requests', label: 'Requests', icon: Inbox },
   ] },
   { title: 'Delivery', items: [
