@@ -138,7 +138,7 @@ export function PageHeader({ title, meta, actions, children }: { title: React.Re
 
 /** Nothing here yet: overtrue's EmptyState, bare inside cards. */
 export function Empty({ title, children, icon }: { title: string; children?: React.ReactNode; icon?: React.ReactNode }) {
-  return <EmptyState title={title} description={children} icon={icon ?? <Inbox />} className="rounded-none border-0 bg-transparent py-6" />
+  return <EmptyState title={title} description={children ?? null} icon={icon ?? <Inbox />} className="rounded-none border-0 bg-transparent py-6" />
 }
 
 /** A titled panel: overtrue's SectionCard. `flush` drops the padding for tables and lists. */

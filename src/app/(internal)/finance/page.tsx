@@ -7,7 +7,8 @@ import { StatementStatus, period } from '@/components/billing'
 import { PaymentsCard } from '@/components/payments'
 import { BillingRun } from '@/components/billing-run'
 import { UnbilledTime } from '@/components/time-billing'
-import { btn, Card, Chip, cn, Empty, PageHeader } from '@/components/ui'
+import { DataGrid } from '@/components/data-grid'
+import { btn, Card, Chip, cn, Empty, PageHeader, Stat } from '@/components/ui'
 import { daysFromToday, label, money, relativeTime, shortDate } from '@/lib/format'
 import { canSeeFinance, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
@@ -35,6 +36,11 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
   const seen = new Set<string>()
   const contracts = (cards ?? []).sort((a, b) => Number(b.status === 'approved') - Number(a.status === 'approved')).filter((c) => !seen.has(c.project_id) && seen.add(c.project_id))
     .map((c) => ({ ...c, billed: c.billing_statements.filter((s) => ['approved', 'invoiced'].includes(s.status)).reduce((a, s) => a + s.statement_lines.reduce((b, l) => b + Number(l.amount ?? 0), 0), 0) }))
+  // money still owed, by currency (Zoho keeps each customer in one)
+  const open = (invoices ?? []).filter((i) => i.status !== 'paid' && Number(i.balance) > 0)
+  const late = open.filter((i) => (daysFromToday(i.due_on) ?? 0) < 0)
+  const byCurrency = (rows: typeof open) => Object.entries(rows.reduce<Record<string, number>>((a, i) => ({ ...a, [i.currency]: (a[i.currency] ?? 0) + Number(i.balance) }), {}))
+    .map(([c, v]) => money(v, c)).join(' · ') || '0'
   const lastSync = invoices?.reduce<string | null>((a, i) => (!a || i.synced_at > a ? i.synced_at : a), null)
   return (
     <>
@@ -42,54 +48,90 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
         actions={<><Link href="/finance/costs" className={btn('outline')}>Cost rates</Link><ActionButton run={syncZohoNow}>Sync now</ActionButton></>} />
       <div className="flex flex-col gap-3 p-4">
         <BillingRun month={month} />
-        <Card flush title="Invoices" className="overflow-x-auto">
-          {invoices?.length ? (
-            <div className="min-w-[760px]">
-              <div className="row row-head grid-cols-[130px_minmax(0,1fr)_120px_120px_24px_90px_90px_110px]"><span>Invoice</span><span>Customer</span><span className="text-right">Total</span><span className="text-right">Balance</span><span /><span>Issued</span><span>Due</span><span>Status</span></div>
-              {invoices.map((i) => {
-                const late = -(daysFromToday(i.due_on) ?? 0)
-                const overdue = i.status !== 'paid' && late > 0
-                return (
-                  <div key={i.id} className="row grid-cols-[130px_minmax(0,1fr)_120px_120px_24px_90px_90px_110px]">
-                    <span className="truncate font-mono text-xs" title={i.number}>{i.number}</span>
-                    <span className="truncate">{i.customers?.name}</span>
-                    <span className="text-right font-mono text-xs">{money(i.total, i.currency)}</span>
-                    <span className="text-right font-mono text-xs">{money(i.balance, i.currency)}</span><span />
-                    <span className="font-mono text-xs text-muted-foreground">{shortDate(i.issued_on)}</span>
-                    <span className={cn('font-mono text-xs', overdue && 'font-semibold text-crit-ink')}>{shortDate(i.due_on)}</span>
-                    <span>{overdue ? <Chip tone="crit">{late}d overdue</Chip> : <Chip tone={i.status === 'paid' ? 'good' : 'info'}>{label(i.status)}</Chip>}</span>
-                  </div>
-                )
-              })}
-            </div>
-          ) : <Empty title="No invoices yet">They appear after the first Zoho Books sync.</Empty>}
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+          <Stat label="Outstanding" value={byCurrency(open)} sub={`${open.length} invoices`} tone={open.length ? 'info' : 'good'} />
+          <Stat label="Overdue" value={byCurrency(late)} sub={`${late.length} invoices`} tone={late.length ? 'crit' : 'good'} />
+          <Stat label="Statements in progress" value={(statements ?? []).length} sub="not yet in Zoho" tone={(statements ?? []).length ? 'warn' : 'neutral'} />
+          <Stat label="Active contracts" value={contracts.length} sub={`${contracts.filter((c) => c.contract_value == null).length} without a value`} />
+        </div>
+        <Card flush title="Invoices" description="From Zoho Books">
+          <DataGrid search searchLabel="Search invoices" pageSize={15} label="Invoices" initialSort={{ key: 'due', direction: 1 }}
+            empty={<Empty title="No invoices yet">They appear after the first Zoho Books sync.</Empty>}
+            columns={[
+              { key: 'number', label: 'Invoice', sortable: true, className: 'w-[130px]' },
+              { key: 'customer', label: 'Customer', sortable: true },
+              { key: 'total', label: 'Total', sortable: true, align: 'right', className: 'w-[120px]' },
+              { key: 'balance', label: 'Balance', sortable: true, align: 'right', className: 'w-[120px]' },
+              { key: 'issued', label: 'Issued', sortable: true, className: 'w-[90px]' },
+              { key: 'due', label: 'Due', sortable: true, className: 'w-[90px]' },
+              { key: 'status', label: 'Status', sortable: true, className: 'w-[120px]' },
+            ]}
+            rows={(invoices ?? []).map((i) => {
+              const daysLate = -(daysFromToday(i.due_on) ?? 0)
+              const overdue = i.status !== 'paid' && daysLate > 0
+              return {
+                id: i.id,
+                values: { number: i.number, customer: i.customers?.name, total: Number(i.total), balance: Number(i.balance), issued: i.issued_on, due: i.due_on, status: overdue ? `0${daysLate}` : i.status },
+                cells: {
+                  number: <span className="font-mono text-xs" title={i.number}>{i.number}</span>,
+                  customer: <span className="block truncate">{i.customers?.name}</span>,
+                  total: <span className="tabular font-mono text-xs">{money(i.total, i.currency)}</span>,
+                  balance: <span className="tabular font-mono text-xs">{money(i.balance, i.currency)}</span>,
+                  issued: <span className="font-mono text-xs text-muted-foreground">{shortDate(i.issued_on)}</span>,
+                  due: <span className={cn('font-mono text-xs', overdue && 'font-semibold text-crit-ink')}>{shortDate(i.due_on)}</span>,
+                  status: overdue ? <Chip tone="crit" dot>{daysLate}d overdue</Chip> : <Chip tone={i.status === 'paid' ? 'good' : 'info'} dot>{label(i.status)}</Chip>,
+                },
+              }
+            })} />
         </Card>
         <UnbilledTime rows={unbilled ?? []} showProject />
-        <Card flush title="Billing statements" extra="Not yet in Zoho" className="overflow-x-auto">
-          {statements?.length ? <div className="min-w-[640px]">{statements.map((st) => (
-            <Link key={st.id} href={`/projects/${st.project_id}/billing/${st.id}`} className="row grid-cols-[minmax(0,1fr)_200px_170px_minmax(0,1fr)] text-ink no-underline hover:bg-head">
-              <span className="truncate">{st.projects?.customers?.name} · {st.projects?.name}</span>
-              <span className="text-xs">{period(st.period_start, st.period_end)}</span>
-              <span><StatementStatus status={st.status} /></span>
-              <span className="truncate text-xs text-crit-ink">{st.invoice_error ?? ''}</span>
-            </Link>
-          ))}</div> : <Empty title="Nothing waiting">Statements appear here from the project Billing tabs until they become Zoho invoices.</Empty>}
+        <Card flush title="Billing statements" description="Being prepared, with the customer, or approved and not yet in Zoho">
+          <DataGrid label="Billing statements" pageSize={15}
+            empty={<Empty title="Nothing waiting">Statements appear here from the project Billing tabs until they become Zoho sales orders.</Empty>}
+            columns={[
+              { key: 'project', label: 'Project', sortable: true },
+              { key: 'period', label: 'Period', sortable: true, className: 'w-[200px]' },
+              { key: 'status', label: 'Status', sortable: true, className: 'w-[160px]' },
+              { key: 'error', label: 'Zoho', className: 'w-[260px]' },
+            ]}
+            rows={(statements ?? []).map((st) => ({
+              id: st.id, href: `/projects/${st.project_id}/billing/${st.id}`,
+              values: { project: `${st.projects?.customers?.name} ${st.projects?.name}`, period: st.period_start, status: st.status },
+              cells: {
+                project: <Link href={`/projects/${st.project_id}/billing/${st.id}`} className="block truncate text-foreground no-underline hover:underline"><span className="text-muted-foreground">{st.projects?.customers?.name} · </span>{st.projects?.name}</Link>,
+                period: <span className="text-xs">{period(st.period_start, st.period_end)}</span>,
+                status: <StatementStatus status={st.status} />,
+                error: <span className="block max-w-[260px] truncate text-xs text-crit-ink" title={st.invoice_error ?? ''}>{st.invoice_error ?? ''}</span>,
+              },
+            }))} />
         </Card>
         <PaymentsCard staff />
-        <Card flush title="Contracts" description="Active projects: the agreed value, what is billed and approved, and what is left" className="overflow-x-auto">
-          {contracts.length ? <div className="min-w-[760px]">
-            <div className="row row-head grid-cols-[minmax(0,1fr)_110px_140px_140px_140px_120px]"><span>Project</span><span>Model</span><span className="text-right">Contract</span><span className="text-right">Billed</span><span className="text-right">Left</span><span>PO</span></div>
-            {contracts.map((c) => (
-              <Link key={c.project_id} href={`/projects/${c.project_id}/billing`} className="row grid-cols-[minmax(0,1fr)_110px_140px_140px_140px_120px] text-ink no-underline hover:bg-head">
-                <span className="truncate"><span className="text-muted-foreground">{c.projects.customers?.name} · </span>{c.projects.name}</span>
-                <span className="text-xs">{MODEL_NAME[c.projects.billing_model ?? ''] ?? '–'}</span>
-                <span className="tabular text-right text-xs">{c.contract_value != null ? money(Number(c.contract_value), c.currency) : <span className="text-muted-foreground">Not set</span>}</span>
-                <span className="tabular text-right text-xs">{money(c.billed, c.currency)}</span>
-                <span className={cn('tabular text-right text-xs', c.contract_value != null && c.billed > Number(c.contract_value) && 'font-semibold text-crit-ink')}>{c.contract_value != null ? money(Number(c.contract_value) - c.billed, c.currency) : '–'}</span>
-                <span className="truncate font-mono text-xs text-muted-foreground">{c.po_number ?? 'No PO'}</span>
-              </Link>
-            ))}
-          </div> : <Empty title="No billing set up yet" />}
+        <Card flush title="Contracts" description="Active projects: the agreed value, what is billed and approved, and what is left">
+          <DataGrid label="Contracts" search searchLabel="Search contracts"
+            empty={<Empty title="No billing set up yet" />}
+            columns={[
+              { key: 'project', label: 'Project', sortable: true },
+              { key: 'model', label: 'Model', sortable: true, className: 'w-[110px]' },
+              { key: 'contract', label: 'Contract', sortable: true, align: 'right', className: 'w-[140px]' },
+              { key: 'billed', label: 'Billed', sortable: true, align: 'right', className: 'w-[140px]' },
+              { key: 'left', label: 'Left', sortable: true, align: 'right', className: 'w-[140px]' },
+              { key: 'po', label: 'PO', sortable: true, className: 'w-[120px]' },
+            ]}
+            rows={contracts.map((c) => {
+              const value = c.contract_value != null ? Number(c.contract_value) : null
+              return {
+                id: c.project_id, href: `/projects/${c.project_id}/billing`,
+                values: { project: `${c.projects.customers?.name} ${c.projects.name}`, model: MODEL_NAME[c.projects.billing_model ?? ''], contract: value, billed: c.billed, left: value != null ? value - c.billed : null, po: c.po_number },
+                cells: {
+                  project: <Link href={`/projects/${c.project_id}/billing`} className="block truncate text-foreground no-underline hover:underline"><span className="text-muted-foreground">{c.projects.customers?.name} · </span>{c.projects.name}</Link>,
+                  model: <span className="text-xs">{MODEL_NAME[c.projects.billing_model ?? ''] ?? '–'}</span>,
+                  contract: <span className="tabular text-xs">{value != null ? money(value, c.currency) : <span className="text-muted-foreground">Not set</span>}</span>,
+                  billed: <span className="tabular text-xs">{money(c.billed, c.currency)}</span>,
+                  left: <span className={cn('tabular text-xs', value != null && c.billed > value && 'font-semibold text-crit-ink')}>{value != null ? money(value - c.billed, c.currency) : '–'}</span>,
+                  po: <span className="block truncate font-mono text-xs text-muted-foreground">{c.po_number ?? 'No PO'}</span>,
+                },
+              }
+            })} />
         </Card>
       </div>
     </>
