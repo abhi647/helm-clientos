@@ -1,32 +1,30 @@
 import { clsx, type ClassValue } from 'clsx'
 import { Inbox, Lock, Users } from 'lucide-react'
 import { twMerge } from 'tailwind-merge'
+import { Card as ShadcnCard, CardContent } from '@/components/ui/card'
+import { EmptyState } from '@/components/overtrue/empty-state'
+import { PageHeader as OvertruePageHeader } from '@/components/overtrue/page-header'
+import { SectionCard } from '@/components/overtrue/section-card'
+import { StatusBadge, type StatusBadgeProps } from '@/components/overtrue/status-badge'
 import type { Enums } from '@/lib/database.types'
 import { HEALTH, TASK_STATUS, initials, label } from '@/lib/format'
 
 export const cn = (...v: ClassValue[]) => twMerge(clsx(v))
 
+// Helm's tones on overtrue's StatusBadge variants. Every status also carries a word, so colour is never the only signal.
 type Tone = 'good' | 'info' | 'warn' | 'crit' | 'review' | 'neutral' | 'dark'
-const TONE: Record<Tone, string> = {
-  good: 'bg-good-bg text-good-ink',
-  info: 'bg-info-bg text-info-ink',
-  warn: 'bg-warn-bg text-warn-ink',
-  crit: 'bg-crit-bg text-crit-ink',
-  review: 'bg-review-bg text-review',
-  neutral: 'bg-neutral-bg text-neutral-ink',
-  dark: 'bg-ink text-white',
+const VARIANT: Record<Tone, NonNullable<StatusBadgeProps['variant']>> = {
+  good: 'success', info: 'info', warn: 'warning', crit: 'error', review: 'review', neutral: 'neutral', dark: 'neutral',
 }
-
 const DOT: Record<Tone, string> = {
   good: 'bg-good', info: 'bg-info', warn: 'bg-warn', crit: 'bg-crit', review: 'bg-review', neutral: 'bg-[#a3a3a3]', dark: 'bg-white',
 }
 
 export function Chip({ tone = 'neutral', children, className, title, dot }: { tone?: Tone; children: React.ReactNode; className?: string; title?: string; dot?: boolean }) {
   return (
-    <span title={title} className={cn('inline-flex h-5 items-center gap-1 rounded-full px-[7px] text-[11px] font-medium whitespace-nowrap', TONE[tone], className)}>
-      {dot ? <span aria-hidden className={cn('size-1.5 flex-none rounded-full', DOT[tone])} /> : null}
+    <StatusBadge variant={VARIANT[tone]} dot={!!dot} title={title} className={cn(tone === 'dark' && 'bg-foreground text-background ring-foreground', className)}>
       {children}
-    </span>
+    </StatusBadge>
   )
 }
 
@@ -72,27 +70,21 @@ export function PriorityText({ priority }: { priority: Enums<'priority'> }) {
   return <span className={cls}>{label(priority)}</span>
 }
 
-const HEALTH_DOT: Record<Enums<'health'>, string> = { on_track: 'bg-good', needs_attention: 'bg-warn', at_risk: 'bg-crit' }
-const HEALTH_PILL: Record<Enums<'health'>, string> = { on_track: 'bg-good-bg text-good-ink', needs_attention: 'bg-warn-bg text-warn-ink', at_risk: 'bg-crit-bg text-crit-ink' }
-/** Project health as a filled pill: green on track, amber needs attention, red at risk. */
+const HEALTH_TONE: Record<Enums<'health'>, Tone> = { on_track: 'good', needs_attention: 'warn', at_risk: 'crit' }
+/** Project health: green on track, amber needs attention, red at risk. */
 export function Health({ health, className }: { health: Enums<'health'>; className?: string }) {
-  return (
-    <span className={cn('inline-flex h-[22px] w-fit items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold whitespace-nowrap', HEALTH_PILL[health], className)}>
-      <span aria-hidden className={cn('size-2 rounded-full', HEALTH_DOT[health])} />
-      {HEALTH[health]}
-    </span>
-  )
+  return <Chip tone={HEALTH_TONE[health]} dot className={cn('w-fit font-semibold', className)}>{HEALTH[health]}</Chip>
 }
 
 /** The product's signature: every object shows who can see it. */
 export function Visibility({ value, compact }: { value: Enums<'visibility'>; compact?: boolean }) {
   return value === 'internal' ? (
-    <Chip className="border border-dashed border-internal-line bg-internal-bg text-internal-ink" title="Only Seven Billion can see this">
+    <Chip className="border border-dashed border-internal-line bg-internal-bg text-internal-ink ring-0" title="Only Seven Billion can see this">
       <Lock className="size-[11px]" strokeWidth={2.4} aria-hidden />
       {compact ? null : 'Internal'}
     </Chip>
   ) : (
-    <Chip className="bg-shared-bg text-link" title="Visible to the customer">
+    <Chip tone="info" title="Visible to the customer">
       <Users className="size-[11px]" strokeWidth={2.4} aria-hidden />
       {compact ? null : 'Shared'}
     </Chip>
@@ -126,50 +118,31 @@ export function Progress({ value, width = 80, tone }: { value: number; width?: n
   )
 }
 
+/** The top of every page: overtrue's PageHeader, with Helm's meta line (dates, owners, counts) as its description. */
 export function PageHeader({ title, meta, actions, children }: { title: React.ReactNode; meta?: React.ReactNode; actions?: React.ReactNode; children?: React.ReactNode }) {
   return (
-    <header className="border-b border-border px-4 pt-3 pb-3">
+    <div className="border-b border-border px-4 pt-3 pb-3">
       {children}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <h1 className="m-0 text-[19px] leading-tight font-semibold tracking-[-0.02em]">{title}</h1>
-          {meta ? <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">{meta}</div> : null}
-        </div>
-        {actions ? <div className="ml-auto flex flex-wrap gap-2">{actions}</div> : null}
-      </div>
-    </header>
-  )
-}
-
-export function Empty({ title, children, icon }: { title: string; children?: React.ReactNode; icon?: React.ReactNode }) {
-  return (
-    <div className="flex flex-col items-center px-4 py-6 text-center">
-      <span aria-hidden className="mb-2 grid size-8 place-items-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border ring-inset [&>svg]:size-4">
-        {icon ?? <Inbox />}
-      </span>
-      <div className="text-[13px] font-semibold">{title}</div>
-      {children ? <div className="mt-0.5 max-w-sm text-xs text-muted-foreground">{children}</div> : null}
+      <OvertruePageHeader title={title} description={meta} actions={actions} />
     </div>
   )
 }
 
+/** Nothing here yet: overtrue's EmptyState, bare inside cards. */
+export function Empty({ title, children, icon }: { title: string; children?: React.ReactNode; icon?: React.ReactNode }) {
+  return <EmptyState title={title} description={children} icon={icon ?? <Inbox />} className="rounded-none border-0 bg-transparent py-6" />
+}
+
+/** A titled panel: overtrue's SectionCard. `flush` drops the padding for tables and lists. */
 export function Card({ title, extra, children, className, flush, description }: {
   title?: React.ReactNode; extra?: React.ReactNode; children: React.ReactNode; className?: string; flush?: boolean; description?: React.ReactNode
 }) {
   return (
-    <section className={cn('card min-w-0 overflow-hidden', className)}>
-      {title ? (
-        <div className="card-head">
-          <div className="min-w-0">
-            <h2 className="m-0 text-[13px] font-semibold">{title}</h2>
-            {description ? <p className="m-0 text-[11px] text-muted-foreground">{description}</p> : null}
-          </div>
-          {extra ? <div className="ml-auto flex flex-none items-center gap-2 text-xs text-muted-foreground">{extra}</div> : null}
-        </div>
-      ) : null}
-      {/* phones: wide tables scroll inside the card instead of widening the page */}
-      <div className={cn(flush ? '' : 'p-3', 'max-sm:overflow-x-auto')}>{children}</div>
-    </section>
+    <SectionCard title={title} description={description} actions={extra} className={className}
+      // phones: wide tables scroll inside the card instead of widening the page
+      contentClassName={cn(flush && 'p-0', 'max-sm:overflow-x-auto')}>
+      {children}
+    </SectionCard>
   )
 }
 
@@ -194,10 +167,10 @@ export function Stat({ label: l, value, sub, tone = 'neutral', pct, href, icon }
     <>
       <span className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
         <span className="truncate">{l}</span>
-        {icon ? <span aria-hidden className={cn('grid size-5 flex-none place-items-center rounded-md ring-1 ring-inset [&>svg]:size-3', m.chip)}>{icon}</span> : null}
+        {icon ? <span aria-hidden className={cn('grid size-6 flex-none place-items-center rounded-lg ring-1 ring-inset [&>svg]:size-3.5', m.chip)}>{icon}</span> : null}
       </span>
       <span className="mt-0.5 flex items-baseline gap-1.5">
-        <span className={cn('tabular text-[22px] leading-7 font-semibold tracking-[-0.03em]', tone === 'neutral' || tone === 'good' ? 'text-foreground' : m.ink)}>{value}</span>
+        <span data-slot="stat-card-value" className={cn('tabular text-[22px] leading-7 font-semibold tracking-[-0.035em]', tone === 'neutral' || tone === 'good' ? 'text-foreground' : m.ink)}>{value}</span>
         {sub ? <span className="text-xs text-muted-foreground">{sub}</span> : null}
       </span>
       {pct != null ? (
@@ -207,6 +180,12 @@ export function Stat({ label: l, value, sub, tone = 'neutral', pct, href, icon }
       ) : null}
     </>
   )
-  const cls = 'card relative flex min-w-[130px] flex-1 flex-col px-3 py-2.5'
-  return href ? <a href={href} className={cn(cls, 'text-ink no-underline transition-[box-shadow,transform] hover:border-control hover:bg-head')}>{body}</a> : <div className={cls}>{body}</div>
+  const card = (
+    <ShadcnCard data-slot="stat-card" data-tone={tone}
+      className={cn('relative min-w-[130px] flex-1 gap-0 rounded-xl border border-border/70 bg-card py-0 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_6px_16px_-12px_rgb(0_0_0/0.10)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.05),0_1px_2px_rgb(0_0_0/0.5)]',
+        href && 'transition-colors hover:border-border hover:bg-muted/40')}>
+      <CardContent className="flex flex-col px-3 py-2.5">{body}</CardContent>
+    </ShadcnCard>
+  )
+  return href ? <a href={href} className="flex min-w-[130px] flex-1 text-foreground no-underline">{card}</a> : card
 }

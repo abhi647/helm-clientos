@@ -9,8 +9,8 @@ export function PageHeader({
   className,
 }: {
   eyebrow?: string;
-  title: string;
-  description?: string;
+  title: ReactNode;
+  description?: ReactNode;
   actions?: ReactNode;
   className?: string;
 }) {
@@ -18,7 +18,7 @@ export function PageHeader({
     <header
       data-slot="page-header"
       className={cn(
-        "flex flex-wrap items-end justify-between gap-x-6 gap-y-4",
+        "flex flex-wrap items-center justify-between gap-x-4 gap-y-2",
         className,
       )}
     >
@@ -29,7 +29,7 @@ export function PageHeader({
         {eyebrow && (
           <p
             data-slot="page-header-eyebrow"
-            className="m-0 mb-2 flex items-center gap-2 text-[13px] leading-5 font-medium text-muted-foreground"
+            className="m-0 mb-1 flex items-center gap-2 text-xs leading-4 font-medium text-muted-foreground"
           >
             <span
               aria-hidden="true"
@@ -38,13 +38,13 @@ export function PageHeader({
             {eyebrow}
           </p>
         )}
-        <h1 className="m-0 text-2xl leading-8 font-semibold tracking-[-0.025em] text-balance text-foreground">
+        <h1 className="m-0 text-[19px] leading-6 font-semibold tracking-[-0.02em] text-balance text-foreground">
           {title}
         </h1>
         {description && (
-          <p className="m-0 mt-1.5 max-w-3xl text-sm leading-6 text-pretty text-muted-foreground">
+          <div className="m-0 mt-0.5 flex max-w-4xl flex-wrap items-center gap-2 text-xs leading-5 text-pretty text-muted-foreground">
             {description}
-          </p>
+          </div>
         )}
       </div>
       {actions && (
