@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Bell } from 'lucide-react'
 import { AccountMenu } from '@/components/shell/account-menu'
+import { avatarUrl } from '@/lib/avatar'
 import type { Profile } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
@@ -15,7 +16,7 @@ export async function UserMenu({ profile, base }: { profile: Profile; base: '' |
         <Bell className="size-[18px]" aria-hidden />
         {count ? <span className="tabular absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground ring-2 ring-background">{count > 99 ? '99+' : count}</span> : null}
       </Link>
-      <AccountMenu name={profile.full_name} email={profile.email} customer={profile.kind === 'customer'} />
+      <AccountMenu name={profile.full_name} email={profile.email} customer={profile.kind === 'customer'} photo={avatarUrl(profile.avatar_path)} color={profile.avatar_color} />
     </div>
   )
 }

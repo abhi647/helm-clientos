@@ -99,13 +99,19 @@ export function Visibility({ value, compact }: { value: Enums<'visibility'>; com
   )
 }
 
-export function Avatar({ name, customer, size = 20 }: { name: string; customer?: boolean; size?: number }) {
+/** Someone's photo, or their initials on their chosen colour (blue for the team, amber for customers by default). */
+export function Avatar({ name, customer, size = 20, src, color }: { name: string; customer?: boolean; size?: number; src?: string | null; color?: string | null }) {
+  const style = { width: size, height: size, fontSize: size < 24 ? 9 : size < 30 ? 11 : size < 48 ? 13 : Math.round(size / 2.6) }
+  if (src) {
+    // eslint-disable-next-line @next/next/no-img-element -- small square photos from storage; no resizing needed
+    return <img src={src} alt="" aria-hidden width={size} height={size} style={style} className="inline-block flex-none rounded-full object-cover ring-1 ring-border" />
+  }
   return (
     <span
       aria-hidden
-      style={{ width: size, height: size, fontSize: size < 24 ? 9 : size < 30 ? 11 : 12 }}
+      style={{ ...style, ...(color ? { background: color } : {}) }}
       className={cn('inline-flex flex-none items-center justify-center rounded-full font-bold',
-        customer ? 'bg-[#fdf0d6] text-[#8a4b00] ring-1 ring-[#f3d29b]' : 'bg-gradient-to-br from-[#4f7bff] to-[#2a5bff] text-white')}
+        color ? 'text-white' : customer ? 'bg-[#fdf0d6] text-[#8a4b00] ring-1 ring-[#f3d29b]' : 'bg-gradient-to-br from-[#4f7bff] to-[#2a5bff] text-white')}
     >
       {initials(name)}
     </span>

@@ -6,6 +6,7 @@ import { DataGrid } from '@/components/data-grid'
 import { ActionButton, ActionForm } from '@/components/forms'
 import { AccountOwnerSelect, AutomationToggle, ConsultantScopeToggle, RoleSelect } from '@/components/admin-controls'
 import { Avatar, btn, Card, Chip, PageHeader } from '@/components/ui'
+import { avatarUrl } from '@/lib/avatar'
 import { env } from '@/lib/env'
 import { label, relativeTime } from '@/lib/format'
 import { requireStaff } from '@/lib/session'
@@ -35,8 +36,8 @@ export default async function Admin() {
   if (!['admin', 'ceo'].includes(me.internal_role ?? '')) notFound()
   const supabase = await createClient()
   const [{ data: staff }, { data: customers }, { data: rules }, { data: lastInvoice }, { data: setups }, { data: org }] = await Promise.all([
-    supabase.from('directory').select('id, full_name, email, internal_role, access_revoked_at').eq('kind', 'internal').eq('org_id', me.org_id!).order('full_name')
-      .overrideTypes<Pick<DirectoryRow, 'id' | 'full_name' | 'email' | 'internal_role' | 'access_revoked_at'>[], { merge: false }>(),
+    supabase.from('directory').select('id, full_name, email, internal_role, access_revoked_at, avatar_path, avatar_color, job_title').eq('kind', 'internal').eq('org_id', me.org_id!).order('full_name')
+      .overrideTypes<Pick<DirectoryRow, 'id' | 'full_name' | 'email' | 'internal_role' | 'access_revoked_at' | 'avatar_path' | 'avatar_color' | 'job_title'>[], { merge: false }>(),
     supabase.from('customers_internal').select('id, name, hubspot_company_id, zoho_customer_id, account_owner_id').order('name')
       .overrideTypes<Pick<CustomerInternalRow, 'id' | 'name' | 'hubspot_company_id' | 'zoho_customer_id' | 'account_owner_id'>[], { merge: false }>(),
     supabase.from('automation_rules').select('key, enabled'),
@@ -78,7 +79,7 @@ export default async function Admin() {
                 id: p.id,
                 values: { name: p.full_name, email: p.email, seen: lastSeen.get(p.id) ? -Date.parse(lastSeen.get(p.id)!) : null, role: removed.has(p.id) ? 'zz' : p.internal_role },
                 cells: {
-                  name: <span className="flex min-w-0 items-center gap-2"><Avatar name={p.full_name} /><span className="truncate font-medium">{p.full_name}</span>{p.id === me.id ? <Chip>You</Chip> : null}</span>,
+                  name: <span className="flex min-w-0 items-center gap-2"><Avatar name={p.full_name} src={avatarUrl(p.avatar_path)} color={p.avatar_color} size={24} /><span className="flex min-w-0 flex-col leading-tight"><span className="truncate font-medium">{p.full_name}</span>{p.job_title ? <span className="truncate text-[11px] text-muted-foreground">{p.job_title}</span> : null}</span>{p.id === me.id ? <Chip>You</Chip> : null}</span>,
                   email: <span className="block truncate text-xs text-muted-foreground">{p.email}</span>,
                   seen: <span className="text-xs text-muted-foreground">{lastSeen.get(p.id) ? relativeTime(lastSeen.get(p.id)!) : 'Never'}</span>,
                   role: p.id === me.id ? <span className="text-xs">{label(p.internal_role ?? '')}</span> : <RoleSelect userId={p.id} role={removed.has(p.id) ? 'remove' : p.internal_role!} />,

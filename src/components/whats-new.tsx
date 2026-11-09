@@ -2,12 +2,12 @@
 
 import { useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
-import { IconArrowRight as ArrowRight, IconCalendar as Calendar, IconCalendarOff as CalendarOff, IconReceipt as Receipt, IconUsers as Users } from '@tabler/icons-react'
+import { IconArrowRight as ArrowRight, IconCalendar as Calendar, IconCalendarOff as CalendarOff, IconReceipt as Receipt, IconUserCircle as UserCircle, IconUsers as Users } from '@tabler/icons-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 // bump with each release that has something to tell; everyone sees it once per release
-const RELEASE = '2026-11-leave'
+const RELEASE = '2026-11-leave-profiles'
 const KEY = `helm_whats_new_${RELEASE}`
 
 type Item = { icon: React.ReactNode; title: string; body: string; href?: string; cta?: string }
@@ -17,10 +17,14 @@ const TEAM: Item[] = [
     body: 'Apply for casual, sick, earned or optional-holiday leave, half days included. You see your balance as you go, and your manager approves it from their Approvals tab.' },
   { icon: <Users />, title: 'Who is away', body: 'The team calendar shows everyone’s approved and waiting leave by month, so plans and handovers are easy.' },
   { icon: <Calendar />, title: 'The holiday list', body: 'Company holidays for the year, with optional holidays. They are not working days anywhere in Helm.' },
+  { icon: <UserCircle />, title: 'Your profile and photo', href: '/account/profile', cta: 'Set up your profile',
+    body: 'Upload a photo or make an initials avatar in your colour, and add your job title, phone and time zone. Find it under your avatar, top right.' },
   { icon: <Receipt />, title: 'Billing and timesheets follow leave', body: 'Approved leave and holidays come off dedicated billing automatically, and show on your weekly timesheet.' },
 ]
 
 const CUSTOMER: Item[] = [
+  { icon: <UserCircle />, title: 'Your profile and photo', href: '/account/profile', cta: 'Set up your profile',
+    body: 'Add a photo and your details so the Seven Billion team knows who is who. Find it under your avatar, top right.' },
   { icon: <Users />, title: 'See when your team is away', body: 'Your portal now shows when the Seven Billion people on your work have planned leave in the next six weeks.' },
 ]
 
@@ -44,7 +48,7 @@ export function WhatsNew({ audience }: { audience: 'team' | 'customer' }) {
           <p className="m-0 flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <span aria-hidden className="size-1.5 rounded-full bg-primary shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-primary)_16%,transparent)]" />What&apos;s new
           </p>
-          <DialogTitle className="text-lg">{audience === 'team' ? 'Leave and holidays are now in Helm' : 'See when your team is away'}</DialogTitle>
+          <DialogTitle className="text-lg">{audience === 'team' ? 'Leave, holidays and profiles are now in Helm' : 'Profiles, and when your team is away'}</DialogTitle>
           <DialogDescription>Here is what changed in this update.</DialogDescription>
         </DialogHeader>
         <ul className="m-0 flex list-none flex-col gap-3 p-0">
