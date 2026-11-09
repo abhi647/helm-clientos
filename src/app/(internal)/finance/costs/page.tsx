@@ -8,6 +8,7 @@ import { hrs, isoDaysAgo, money } from '@/lib/format'
 import { canSeeFinance, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { Input } from '@/components/ui/input'
+import { DataGrid } from '@/components/data-grid'
 
 export const metadata: Metadata = { title: 'Cost rates' }
 
@@ -30,22 +31,28 @@ export default async function CostRates() {
         <Card flush title="People" description="Salary and overheads per hour. Leave empty if unknown; margins then show as unknown">
           <ActionForm action={saveCostRates} submit="Save cost rates" resetOnSuccess={false} className="gap-0 [&>div:last-child]:border-t [&>div:last-child]:border-line-soft [&>div:last-child]:p-3">
             <div className="overflow-x-auto">
-              <div className="min-w-[640px]">
-                <div className="row row-head grid-cols-[minmax(0,1fr)_110px_110px_110px_150px]"><span>Person</span><span className="text-right">Hours, 30 days</span><span className="text-right">Billable</span><span className="text-right">Cost, 30 days</span><span className="text-right">Cost per hour (INR)</span></div>
-                {(staff ?? []).map((p) => {
+              <DataGrid label="Cost rates"
+                columns={[
+                  { key: 'person', label: 'Person', sortable: true }, { key: 'hours', label: 'Hours, 30 days', sortable: true, align: 'right', className: 'w-[120px]' },
+                  { key: 'billable', label: 'Billable', sortable: true, align: 'right', className: 'w-[90px]' },
+                  { key: 'cost', label: 'Cost, 30 days', sortable: true, align: 'right', className: 'w-[120px]' },
+                  { key: 'rate', label: 'Cost per hour (INR)', align: 'right', className: 'w-[160px]' },
+                ]}
+                rows={(staff ?? []).map((p) => {
                   const c = cost.get(p.id!)
                   const h = hours(p.id!)
-                  return (
-                    <div key={p.id} className="row grid-cols-[minmax(0,1fr)_110px_110px_110px_150px] py-1">
-                      <span className="truncate"><span className="font-medium">{p.full_name}</span> <span className="text-xs text-muted-foreground">{p.internal_role}</span></span>
-                      <span className="tabular text-right text-xs">{hrs(h)}</span>
-                      <span className="tabular text-right text-xs">{h ? `${Math.round((100 * hours(p.id!, true)) / h)}%` : '–'}</span>
-                      <span className="tabular text-right text-xs">{c ? money(h * Number(c.hourly_cost), 'INR') : '–'}</span>
-                      <Input name={`cost_${p.id}`} aria-label={`Cost per hour for ${p.full_name}`} defaultValue={c ? String(c.hourly_cost) : ''} inputMode="decimal" placeholder="Unknown" className="w-auto tabular text-right" />
-                    </div>
-                  )
-                })}
-              </div>
+                  return {
+                    id: p.id!,
+                    values: { person: p.full_name, hours: h, billable: h ? hours(p.id!, true) / h : null, cost: c ? h * Number(c.hourly_cost) : null },
+                    cells: {
+                      person: <span className="block truncate"><span className="font-medium">{p.full_name}</span> <span className="text-xs text-muted-foreground">{p.internal_role}</span></span>,
+                      hours: <span className="tabular text-xs">{hrs(h)}</span>,
+                      billable: <span className="tabular text-xs">{h ? `${Math.round((100 * hours(p.id!, true)) / h)}%` : '–'}</span>,
+                      cost: <span className="tabular text-xs">{c ? money(h * Number(c.hourly_cost), 'INR') : '–'}</span>,
+                      rate: <Input name={`cost_${p.id}`} aria-label={`Cost per hour for ${p.full_name}`} defaultValue={c ? String(c.hourly_cost) : ''} inputMode="decimal" placeholder="Unknown" className="ml-auto w-28 tabular text-right" />,
+                    },
+                  }
+                })} />
             </div>
           </ActionForm>
         </Card>

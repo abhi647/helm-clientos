@@ -10,6 +10,7 @@ import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Input } from '@/components/ui/input'
+import { DataGrid } from '@/components/data-grid'
 
 export const metadata: Metadata = { title: 'Docs' }
 
@@ -24,24 +25,29 @@ export default async function ProjectDocs({ params }: { params: Promise<{ id: st
     supabase.from('meetings').select('id, title, held_on').eq('project_id', id).order('held_on', { ascending: false }).limit(30),
   ])
   const now = isoDaysAgo(0)
-  const cols = 'grid-cols-[minmax(0,1fr)_120px_190px_90px_60px_130px]'
   return (
     <div className="grid items-start gap-3 p-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-      <Card flush className="overflow-x-auto" title="Documents" description="Write here, share with the customer for comments and suggestions, then ask them to sign off">
-        <div className="min-w-[760px]">
-          <div className={`row row-head ${cols}`}><span>Title</span><span>Type</span><span>Status</span><span>Sharing</span><span className="text-right">Ver.</span><span>Last change</span></div>
-          {pages?.length ? pages.map((g) => (
-            <Link key={g.id} href={`/projects/${id}/docs/${g.id}`} className={`row ${cols} text-ink no-underline hover:bg-head`}>
-              <span className="flex min-w-0 items-center gap-2"><PageIcon kind={g.kind} /><span className="truncate font-medium">{g.title}</span>
-                {g.holder && g.editing_until && g.editing_until > now ? <span className="flex-none rounded-full bg-warn-bg px-1.5 text-[11px] text-warn-ink">{g.holder.full_name} editing</span> : null}</span>
-              <span className="text-xs text-muted-foreground">{kindLabel(g.kind)}</span>
-              <span><PageStatusChip status={g.status} signedVersion={g.signed_version} /></span>
-              <span><PageSharing visibility={g.visibility} /></span>
-              <span className="tabular text-right text-xs">v{g.version}</span>
-              <span className="truncate text-xs text-muted-foreground">{relativeTime(g.updated_at)}{g.editor ? ` · ${g.editor.full_name}` : ''}</span>
-            </Link>
-          )) : <Empty title="No documents yet">Start a scope of work or requirements from the panel on the right.</Empty>}
-        </div>
+      <Card flush title="Documents" description="Write here, share with the customer for comments and suggestions, then ask them to sign off">
+        <DataGrid label="Documents" search searchLabel="Search documents"
+          empty={<Empty title="No documents yet">Start a scope of work or requirements from the panel on the right.</Empty>}
+          columns={[
+            { key: 'title', label: 'Title', sortable: true }, { key: 'type', label: 'Type', sortable: true, className: 'w-[120px]' },
+            { key: 'status', label: 'Status', sortable: true, className: 'w-[190px]' }, { key: 'sharing', label: 'Sharing', className: 'w-[100px]' },
+            { key: 'ver', label: 'Ver.', sortable: true, align: 'right', className: 'w-[60px]' }, { key: 'changed', label: 'Last change', sortable: true, className: 'w-[150px]' },
+          ]}
+          rows={(pages ?? []).map((g) => ({
+            id: g.id, href: `/projects/${id}/docs/${g.id}`,
+            values: { title: g.title, type: kindLabel(g.kind), status: g.status, ver: g.version, changed: -Date.parse(g.updated_at) },
+            cells: {
+              title: <span className="flex min-w-0 items-center gap-2"><PageIcon kind={g.kind} /><Link href={`/projects/${id}/docs/${g.id}`} className="truncate font-medium text-foreground no-underline hover:underline">{g.title}</Link>
+                {g.holder && g.editing_until && g.editing_until > now ? <span className="flex-none rounded-full bg-warn-bg px-1.5 text-[11px] text-warn-ink">{g.holder.full_name} editing</span> : null}</span>,
+              type: <span className="text-xs text-muted-foreground">{kindLabel(g.kind)}</span>,
+              status: <PageStatusChip status={g.status} signedVersion={g.signed_version} />,
+              sharing: <PageSharing visibility={g.visibility} />,
+              ver: <span className="tabular text-xs">v{g.version}</span>,
+              changed: <span className="block max-w-[150px] truncate text-xs text-muted-foreground">{relativeTime(g.updated_at)}{g.editor ? ` · ${g.editor.full_name}` : ''}</span>,
+            },
+          }))} />
       </Card>
       <Card title="New document">
         <ActionForm action={createPage} submit="Create and open">

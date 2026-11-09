@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { DataGrid } from '@/components/data-grid'
 
 export default async function ProjectMeetings({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -19,22 +20,28 @@ export default async function ProjectMeetings({ params }: { params: Promise<{ id
   const today = new Date().toISOString().slice(0, 10)
   return (
     <div className="flex flex-wrap items-start gap-3 p-4">
-      <Card flush className="min-w-0 flex-[999_1_620px] overflow-x-auto" title="Meetings" extra={`${meetings?.length ?? 0} recorded`}>
-        <div className="min-w-[620px]">
-          <div className="row row-head grid-cols-[80px_minmax(0,1fr)_110px_90px_84px]"><span>Date</span><span>Meeting</span><span>Actions</span><span>Decisions</span><span /></div>
-          {meetings?.length ? meetings.map((m) => {
+      <Card flush className="min-w-0 flex-[999_1_620px]" title="Meetings" extra={`${meetings?.length ?? 0} recorded`}>
+        <DataGrid label="Meetings" search searchLabel="Search meetings"
+          empty={<Empty title="No meetings yet">Record the next review on the right.</Empty>}
+          columns={[
+            { key: 'date', label: 'Date', sortable: true, className: 'w-[80px]' }, { key: 'title', label: 'Meeting', sortable: true },
+            { key: 'actions', label: 'Actions', className: 'w-[150px]' }, { key: 'decisions', label: 'Decisions', sortable: true, align: 'right', className: 'w-[90px]' },
+            { key: 'vis', label: 'Sharing', className: 'w-[90px]' },
+          ]}
+          rows={(meetings ?? []).map((m) => {
             const open = m.meeting_actions.filter((a) => !a.task_id).length
-            return (
-              <Link key={m.id} href={`/meetings/${m.id}`} className="row grid-cols-[80px_minmax(0,1fr)_110px_90px_84px] text-ink no-underline hover:bg-head">
-                <span className="font-mono text-xs text-muted-foreground">{shortDate(m.held_on)}</span>
-                <span className="flex min-w-0 flex-col py-1"><span className="truncate font-medium">{m.title}</span>{m.attendees ? <span className="truncate text-xs text-muted-foreground">{m.attendees}</span> : null}</span>
-                <span className="text-xs">{m.meeting_actions.length} {open ? <span className="font-semibold text-warn-ink">· {open} not in plan</span> : null}</span>
-                <span className="font-mono text-xs">{m.decisions.length}</span>
-                <span><Visibility value={m.visibility} /></span>
-              </Link>
-            )
-          }) : <Empty title="No meetings yet">Record the next review on the right.</Empty>}
-        </div>
+            return {
+              id: m.id, href: `/meetings/${m.id}`,
+              values: { date: m.held_on, title: `${m.title} ${m.attendees ?? ''}`, decisions: m.decisions.length },
+              cells: {
+                date: <span className="font-mono text-xs text-muted-foreground">{shortDate(m.held_on)}</span>,
+                title: <span className="flex min-w-0 flex-col py-1"><Link href={`/meetings/${m.id}`} className="truncate font-medium text-foreground no-underline hover:underline">{m.title}</Link>{m.attendees ? <span className="max-w-[360px] truncate text-xs text-muted-foreground">{m.attendees}</span> : null}</span>,
+                actions: <span className="text-xs">{m.meeting_actions.length} {open ? <span className="font-semibold text-warn-ink">· {open} not in plan</span> : null}</span>,
+                decisions: <span className="font-mono text-xs">{m.decisions.length}</span>,
+                vis: <Visibility value={m.visibility} />,
+              },
+            }
+          })} />
       </Card>
       <Card className="min-w-0 flex-[1_1_300px]" title="New meeting">
         <ActionForm action={createMeeting} submit="Create meeting">

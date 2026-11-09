@@ -7,6 +7,8 @@ import { SCORE_LABEL, byMonth, summarise } from '@/lib/csat'
 import { ageInDays, isoDaysAgo, relativeTime } from '@/lib/format'
 import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { DataGrid } from '@/components/data-grid'
+import { LinkTabs } from '@/components/link-tabs'
 
 export const metadata: Metadata = { title: 'CSAT & feedback' }
 
@@ -58,30 +60,36 @@ export default async function FeedbackHome({ searchParams }: { searchParams: Pro
         </div>
 
         <div className="flex flex-wrap items-start gap-3">
-          <Card flush className="min-w-0 flex-[999_1_620px] overflow-x-auto" title="Feedback inbox"
-            extra={<span className="flex gap-2">
-              <Link href="/feedback" className={cn(view !== 'all' && 'font-semibold text-ink')}>Open ({open.length})</Link>
-              <Link href="/feedback?view=all" className={cn(view === 'all' && 'font-semibold text-ink')}>All ({fb.length})</Link>
-            </span>}>
-            <div className="min-w-[680px]">
-              <div className="row row-head grid-cols-[64px_96px_130px_minmax(0,1fr)_110px_110px_48px]"><span>Ref</span><span>Type</span><span>Customer</span><span>Feedback</span><span>Owner</span><span>Status</span><span>Age</span></div>
-              {shown.length ? shown.map((f) => (
-                <Link key={f.id} href={`/feedback/${f.id}`} className="row grid-cols-[64px_96px_130px_minmax(0,1fr)_110px_110px_48px] text-ink no-underline hover:bg-head">
-                  <span className="font-mono text-xs text-muted-foreground">{f.number}</span>
-                  <span><FeedbackKindChip kind={f.kind} /></span>
-                  <span className="truncate">{f.customers?.name}</span>
-                  <span className="truncate">{f.source === 'csat' ? <b className="font-semibold text-crit-ink">Low score · </b> : null}{f.body}</span>
-                  <span className="truncate text-xs">{f.owner?.full_name ?? <span className="text-muted-foreground">Unassigned</span>}</span>
-                  <span><FeedbackStatusChip status={f.status} /></span>
-                  <span className="font-mono text-xs text-muted-foreground">{ageInDays(f.created_at)}</span>
-                </Link>
-              )) : <Empty title={view === 'all' ? 'No feedback yet' : 'Nothing open'} />}
-            </div>
+          <Card flush className="min-w-0 flex-[999_1_620px]" title="Feedback inbox"
+            extra={<LinkTabs label="Feedback filter" value={view === 'all' ? 'all' : 'open'} items={[
+              { value: 'open', label: 'Open', count: open.length, href: '/feedback' }, { value: 'all', label: 'All', count: fb.length, href: '/feedback?view=all' },
+            ]} />}>
+            <DataGrid label="Feedback inbox" search searchLabel="Search feedback" pageSize={20}
+              empty={<Empty title={view === 'all' ? 'No feedback yet' : 'Nothing open'} />}
+              columns={[
+                { key: 'ref', label: 'Ref', sortable: true, className: 'w-[70px]' }, { key: 'type', label: 'Type', sortable: true, className: 'w-[110px]' },
+                { key: 'customer', label: 'Customer', sortable: true, className: 'w-[140px]' }, { key: 'body', label: 'Feedback' },
+                { key: 'owner', label: 'Owner', sortable: true, className: 'w-[110px]' }, { key: 'status', label: 'Status', sortable: true, className: 'w-[120px]' },
+                { key: 'age', label: 'Age', sortable: true, align: 'right', className: 'w-[56px]' },
+              ]}
+              rows={shown.map((f) => ({
+                id: f.id, href: `/feedback/${f.id}`,
+                values: { ref: f.number, type: f.kind, customer: f.customers?.name, body: f.body, owner: f.owner?.full_name, status: f.status, age: -Date.parse(f.created_at) },
+                cells: {
+                  ref: <Link href={`/feedback/${f.id}`} className="font-mono text-xs text-muted-foreground no-underline hover:underline">{f.number}</Link>,
+                  type: <FeedbackKindChip kind={f.kind} />,
+                  customer: <span className="block max-w-[140px] truncate">{f.customers?.name}</span>,
+                  body: <span className="block max-w-[360px] truncate">{f.source === 'csat' ? <b className="font-semibold text-crit-ink">Low score · </b> : null}{f.body}</span>,
+                  owner: <span className="block truncate text-xs">{f.owner?.full_name ?? <span className="text-muted-foreground">Unassigned</span>}</span>,
+                  status: <FeedbackStatusChip status={f.status} />,
+                  age: <span className="font-mono text-xs text-muted-foreground">{ageInDays(f.created_at)}</span>,
+                },
+              }))} />
           </Card>
 
           <Card flush className="min-w-0 flex-[1_1_340px]" title="What customers said">
             {comments.length ? comments.map((s) => (
-              <div key={s.id} className="flex flex-col gap-1 border-t border-line-soft px-3 py-2 first:border-t-0">
+              <div key={s.id} className="flex flex-col gap-1 border-t border-border/60 px-3 py-2 first:border-t-0">
                 <span className="flex items-center gap-1.5 text-xs">
                   <ScoreChip score={s.score!} /><b>{s.recipient?.full_name}</b><span className="truncate text-muted-foreground">{s.customers?.name}</span>
                   <span className="ml-auto text-muted-foreground">{relativeTime(s.answered_at!)}</span>
@@ -93,25 +101,30 @@ export default async function FeedbackHome({ searchParams }: { searchParams: Pro
           </Card>
         </div>
 
-        <Card flush className="overflow-x-auto" title="By customer" extra="Last 90 days">
-          <div className="min-w-[620px]">
-            <div className="row row-head grid-cols-[minmax(0,1fr)_90px_100px_110px_120px]"><span>Customer</span><span>CSAT</span><span>Responses</span><span>Last score</span><span>Open feedback</span></div>
-            {(customers ?? []).map((c) => {
+        <Card flush title="By customer" extra="Last 90 days">
+          <DataGrid label="By customer"
+            columns={[
+              { key: 'name', label: 'Customer', sortable: true }, { key: 'csat', label: 'CSAT', sortable: true, align: 'right', className: 'w-[90px]' },
+              { key: 'resp', label: 'Responses', className: 'w-[100px]' }, { key: 'last', label: 'Last score', className: 'w-[110px]' },
+              { key: 'open', label: 'Open feedback', sortable: true, align: 'right', className: 'w-[120px]' },
+            ]}
+            rows={(customers ?? []).map((c) => {
               const rows = last90.filter((s) => s.customer_id === c.id)
               const cs = summarise(rows)
               const last = rows.find((s) => s.score != null)
               const o = open.filter((f) => f.customers?.name === c.name).length
-              return (
-                <Link key={c.id} href={`/customers/${c.id}`} className="row grid-cols-[minmax(0,1fr)_90px_100px_110px_120px] text-ink no-underline hover:bg-head">
-                  <span className="truncate font-medium">{c.name}</span>
-                  <span className="font-mono text-xs font-semibold">{cs.csat == null ? '–' : `${cs.csat}%`}</span>
-                  <span className="font-mono text-xs">{cs.responses}/{cs.sent}</span>
-                  <span>{last ? <ScoreChip score={last.score!} /> : <span className="text-xs text-muted-foreground">–</span>}</span>
-                  <span className={cn('font-mono text-xs', o && 'font-semibold text-warn-ink')}>{o}</span>
-                </Link>
-              )
-            })}
-          </div>
+              return {
+                id: c.id, href: `/customers/${c.id}`,
+                values: { name: c.name, csat: cs.csat, open: o },
+                cells: {
+                  name: <Link href={`/customers/${c.id}`} className="block truncate font-medium text-foreground no-underline hover:underline">{c.name}</Link>,
+                  csat: <span className="font-mono text-xs font-semibold">{cs.csat == null ? '–' : `${cs.csat}%`}</span>,
+                  resp: <span className="font-mono text-xs">{cs.responses}/{cs.sent}</span>,
+                  last: last ? <ScoreChip score={last.score!} /> : <span className="text-xs text-muted-foreground">–</span>,
+                  open: <span className={cn('font-mono text-xs', o && 'font-semibold text-warn-ink')}>{o}</span>,
+                },
+              }
+            })} />
         </Card>
       </div>
     </>
