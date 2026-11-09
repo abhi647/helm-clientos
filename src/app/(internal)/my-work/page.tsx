@@ -11,6 +11,7 @@ import { TaskFilters, TaskTable, ViewSwitch, asSort, asStatus, asView, sortRows,
 import { createClient } from '@/lib/supabase/server'
 import { AlarmClock, CalendarCheck, CalendarRange, Hourglass } from 'lucide-react'
 import { CalendarLegend, Distribution, TaskCalendar } from '@/components/viz'
+import { DataGrid } from '@/components/data-grid'
 
 const STATUS_COLOR = { todo: '#a3a3a3', in_progress: 'var(--color-info)', in_review: 'var(--color-review)', waiting_customer: 'var(--color-warn)', blocked: 'var(--color-crit)' } as const
 
@@ -108,37 +109,48 @@ export default async function MyWork({ searchParams }: { searchParams: Promise<S
           : view === 'board' ? <TaskBoard cards={flat} setStatus={setTaskStatus} hideEmptyDone />
           : view === 'table' ? <TaskTable rows={sortRows(flat, sort)} sort={sort} sortHref={(k) => link({ sort: k === 'due' ? undefined : k })} setStatus={setTaskStatus} contextLabel="Project" />
           : tasks.length ? groups.filter((g) => g.tasks.length).map((g) => (
-          <Card key={g.key} flush title={g.title} extra={`${g.tasks.length}`} className="overflow-x-auto">
-            <div className="min-w-[760px]">
-              {g.tasks.map((t) => (
-                <div key={t.id} className="row grid-cols-[minmax(0,1fr)_200px_70px_60px_150px_84px] hover:bg-head">
-                  <Link href={`/projects/${t.project_id}?task=${t.id}`} className="truncate font-medium text-ink no-underline hover:underline">{t.parent ? <span className="font-normal text-muted-foreground">{t.parent.title} › </span> : null}{t.title}</Link>
-                  <span className="flex min-w-0 items-center gap-1.5 truncate text-xs text-muted-foreground">{whose && t.assignee ? <><Avatar name={t.assignee.full_name} size={16} /><span className="truncate text-ink">{t.assignee.full_name}</span> · </> : null}<span className="truncate">{t.projects?.customers?.name} · {t.projects?.name}</span></span>
-                  <span className={cn('font-mono text-xs', g.key === 'overdue' && 'font-semibold text-crit-ink')}>{shortDate(t.due_date)}</span>
-                  <span className="text-right font-mono text-xs text-muted-foreground">{t.task_estimates?.estimate ? effortShort(t.task_estimates.estimate, t.task_estimates.unit) : ''}</span>
-                  <StatusSelect label={`Status of ${t.title}`} value={t.status} options={statusOptions} onChange={setTaskStatus.bind(null, t.id)} />
-                  <span><Visibility value={t.visibility} /></span>
-                </div>
-              ))}
-            </div>
+          <Card key={g.key} flush title={g.title} extra={`${g.tasks.length}`}>
+            <DataGrid label={g.title}
+              columns={[
+                { key: 'task', label: 'Task' }, { key: 'where', label: whose ? 'Owner · project' : 'Project', className: 'w-[240px]' },
+                { key: 'due', label: 'Due', className: 'w-[70px]' }, { key: 'est', label: 'Est.', align: 'right', className: 'w-[60px]' },
+                { key: 'status', label: 'Status', className: 'w-[170px]' }, { key: 'vis', label: 'Sharing', className: 'w-[90px]' },
+              ]}
+              rows={g.tasks.map((t) => ({
+                id: t.id,
+                cells: {
+                  task: <Link href={`/projects/${t.project_id}?task=${t.id}`} className="block max-w-[420px] truncate font-medium text-foreground no-underline hover:underline">{t.parent ? <span className="font-normal text-muted-foreground">{t.parent.title} › </span> : null}{t.title}</Link>,
+                  where: <span className="flex min-w-0 max-w-[240px] items-center gap-1.5 truncate text-xs text-muted-foreground">{whose && t.assignee ? <><Avatar name={t.assignee.full_name} size={16} /><span className="truncate text-foreground">{t.assignee.full_name}</span> · </> : null}<span className="truncate">{t.projects?.customers?.name} · {t.projects?.name}</span></span>,
+                  due: <span className={cn('font-mono text-xs', g.key === 'overdue' && 'font-semibold text-crit-ink')}>{shortDate(t.due_date)}</span>,
+                  est: <span className="font-mono text-xs text-muted-foreground">{t.task_estimates?.estimate ? effortShort(t.task_estimates.estimate, t.task_estimates.unit) : ''}</span>,
+                  status: <StatusSelect label={`Status of ${t.title}`} value={t.status} options={statusOptions} onChange={setTaskStatus.bind(null, t.id)} />,
+                  vis: <Visibility value={t.visibility} />,
+                },
+              }))} />
           </Card>
         )) : <Card><Empty title={sp.project || statusF ? 'No tasks match these filters' : whose ? 'No open tasks' : 'Nothing assigned to you'}>{sp.project || statusF ? 'Clear a filter to see more.' : 'Enjoy the quiet, or pick up a request.'}</Empty></Card>}
-        <Card flush title="My time" extra={returned.length ? <Chip tone="warn">{returned.length} returned to you</Chip> : 'Last 30 days, and anything waiting'} className="overflow-x-auto">
+        <Card flush title="My time" extra={returned.length ? <Chip tone="warn">{returned.length} returned to you</Chip> : 'Last 30 days, and anything waiting'}>
           {time?.length ? (
-            <div className="min-w-[640px]">
-              {time.map((e) => (
-                <div key={e.id} className={cn('row grid-cols-[70px_minmax(0,1fr)_60px_minmax(0,1.2fr)_70px]', e.returned_note && !e.approved_at && 'bg-warn-bg/40')}>
-                  <span className="font-mono text-xs">{shortDate(e.worked_on)}</span>
-                  <Link href={`/projects/${e.tasks?.project_id}?task=${e.task_id}`} className="truncate text-ink no-underline hover:underline">{e.tasks?.projects?.name} · {e.tasks?.title}</Link>
-                  <span className="text-right font-mono text-xs">{hrs(Number(e.hours))}{e.billable ? '' : ' nb'}</span>
-                  <span className="truncate text-xs">
+            <DataGrid label="My time"
+              columns={[
+                { key: 'date', label: 'Date', sortable: true, className: 'w-[70px]' }, { key: 'task', label: 'Task' },
+                { key: 'hours', label: 'Hours', align: 'right', className: 'w-[70px]' }, { key: 'state', label: 'State' },
+                { key: 'del', label: <span className="sr-only">Delete</span>, align: 'right', className: 'w-[80px]' },
+              ]}
+              rows={(time ?? []).map((e) => ({
+                id: e.id, className: e.returned_note && !e.approved_at ? 'bg-warn-bg/40' : undefined,
+                values: { date: e.worked_on },
+                cells: {
+                  date: <span className="font-mono text-xs">{shortDate(e.worked_on)}</span>,
+                  task: <Link href={`/projects/${e.tasks?.project_id}?task=${e.task_id}`} className="block max-w-[360px] truncate text-foreground no-underline hover:underline">{e.tasks?.projects?.name} · {e.tasks?.title}</Link>,
+                  hours: <span className="font-mono text-xs">{hrs(Number(e.hours))}{e.billable ? '' : ' nb'}</span>,
+                  state: <span className="block max-w-[320px] truncate text-xs">
                     {e.statement_id ? <Chip tone="good">Billed</Chip> : e.approved_at ? <Chip tone="info">Approved</Chip>
                       : e.returned_note ? <span className="text-warn-ink"><Chip tone="warn">Returned</Chip> {e.returned_note}</span> : <Chip>Waiting</Chip>}
-                  </span>
-                  <span className="text-right">{!e.approved_at && !e.statement_id ? <ActionButton run={deleteTime.bind(null, e.id)} variant="ghost" className="h-7 text-xs" confirm="Delete this entry? Log it again on the right task or date if needed.">Delete</ActionButton> : null}</span>
-                </div>
-              ))}
-            </div>
+                  </span>,
+                  del: !e.approved_at && !e.statement_id ? <ActionButton run={deleteTime.bind(null, e.id)} variant="ghost" className="h-7 text-xs" confirm="Delete this entry? Log it again on the right task or date if needed.">Delete</ActionButton> : null,
+                },
+              }))} />
           ) : <p className="m-0 p-3 text-xs text-muted-foreground">No time logged in the last 30 days. Open a task to log time.</p>}
         </Card>
         <p className="m-0 text-xs text-muted-foreground">Your PM approves your hours each week; approved hours are locked. A returned entry says what to fix: delete it and log it again. {time?.length ? `${hrs((time ?? []).filter((e) => !e.approved_at && !e.returned_note).reduce((s, e) => s + Number(e.hours), 0))} waiting for approval.` : ''}</p>

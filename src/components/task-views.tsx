@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { DataGrid } from '@/components/data-grid'
 import { AutoSaveSelect, StatusSelect } from '@/components/forms'
 import { Avatar, TASK_STRIPE, TaskStatusChip, cn } from '@/components/ui'
 import type { ActionResult } from '@/app/_actions/shared'
@@ -50,7 +51,7 @@ export const statusFilterOptions = [{ value: '', label: 'Any status' }, ...STATU
 export type TableRow = {
   id: string; title: string; href: string; status: Status; overdue: boolean; selected?: boolean
   parent?: string | null; context?: string | null; owner?: { name: string; customer: boolean } | null
-  start?: string | null; due?: string | null; effort?: string | null; logged?: string | null
+  start?: string | null; due?: string | null; dueIso?: string | null; effort?: string | null; logged?: string | null
 }
 export type SortKey = 'title' | 'status' | 'owner' | 'due' | 'context'
 export const asSort = (v: string | undefined): SortKey => (v === 'title' || v === 'status' || v === 'owner' || v === 'context' ? v : 'due')
@@ -68,42 +69,46 @@ export function sortRows<T extends { title: string; status: Status; owner?: { na
   return [...rows].sort((a, b) => by[key](a, b) || a.title.localeCompare(b.title))
 }
 
-/** Every task and subtask in one flat table. Column headers sort; status changes in place. */
-export function TaskTable({ rows, sort, sortHref, setStatus, contextLabel, showEffort }: {
-  rows: TableRow[]; sort: SortKey; sortHref: (k: SortKey) => string
+/** Every task and subtask in one flat table (overtrue DataGrid): headers sort, search narrows, status changes in place. */
+export function TaskTable({ rows, sort, setStatus, contextLabel, showEffort }: {
+  rows: TableRow[]; sort: SortKey; sortHref?: (k: SortKey) => string
   setStatus: (id: string, status: Status) => Promise<ActionResult>; contextLabel?: string; showEffort?: boolean
 }) {
-  // whole class names, so Tailwind finds them
-  const cols = contextLabel
-    ? (showEffort ? 'grid-cols-[minmax(220px,1fr)_minmax(140px,200px)_160px_150px_64px_64px_64px_64px]' : 'grid-cols-[minmax(220px,1fr)_minmax(140px,200px)_160px_150px_64px_64px]')
-    : (showEffort ? 'grid-cols-[minmax(220px,1fr)_160px_150px_64px_64px_64px_64px]' : 'grid-cols-[minmax(220px,1fr)_160px_150px_64px_64px]')
-  const head = (k: SortKey | null, label: string, right?: boolean) => k
-    ? <Link href={sortHref(k)} aria-sort={sort === k ? 'ascending' : undefined} className={cn('text-inherit no-underline hover:underline', right && 'text-right', sort === k && 'text-ink')}>{label}{sort === k ? ' ↓' : ''}</Link>
-    : <span className={cn(right && 'text-right')}>{label}</span>
+  const order = Object.keys(TASK_STATUS)
   return (
-    <div className="card min-w-0 overflow-x-auto">
-      <div className={cn(contextLabel ? 'min-w-[900px]' : 'min-w-[720px]')}>
-        <div className={cn('row row-head', cols)}>
-          {head('title', 'Task')}{contextLabel ? head('context', contextLabel) : null}{head('status', 'Status')}{head('owner', 'Owner')}
-          {head(null, 'Start')}{head('due', 'Due')}{showEffort ? <>{head(null, 'Estimate', true)}{head(null, 'Logged', true)}</> : null}
-        </div>
-        {rows.length ? rows.map((r) => (
-          <div key={r.id} className={cn('row border-l-[3px]', cols, TASK_STRIPE[r.overdue ? 'overdue' : r.status], r.selected ? 'bg-selected' : 'hover:bg-head')}>
-            <Link href={r.href} scroll={false} className={cn('truncate no-underline hover:underline', r.status === 'done' ? 'text-muted-foreground' : 'font-medium text-ink')}>
+    <section data-slot="section-card" className="min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04),0_6px_16px_-12px_rgb(0_0_0/0.10)]">
+      <DataGrid label="Tasks" search searchLabel="Search tasks" pageSize={50} initialSort={{ key: sort, direction: 1 }}
+        empty={<p className="m-0 text-xs text-muted-foreground">No tasks match these filters.</p>}
+        columns={[
+          { key: 'title', label: 'Task', sortable: true },
+          ...(contextLabel ? [{ key: 'context', label: contextLabel, sortable: true, className: 'w-[180px]' }] : []),
+          { key: 'status', label: 'Status', sortable: true, className: 'w-[170px]' },
+          { key: 'owner', label: 'Owner', sortable: true, className: 'w-[150px]' },
+          { key: 'start', label: 'Start', className: 'w-[70px]' },
+          { key: 'due', label: 'Due', sortable: true, className: 'w-[70px]' },
+          ...(showEffort ? [{ key: 'effort', label: 'Estimate', align: 'right' as const, className: 'w-[72px]' }, { key: 'logged', label: 'Logged', align: 'right' as const, className: 'w-[72px]' }] : []),
+        ]}
+        rows={rows.map((r) => ({
+          id: r.id,
+          // each row's left edge carries the colour of its state (see the legend)
+          className: cn('border-l-[3px]', TASK_STRIPE[r.overdue ? 'overdue' : r.status], r.selected && 'bg-primary/5'),
+          values: { title: r.title, context: r.context, status: order.indexOf(r.status), owner: r.owner?.name ?? '\uffff', due: r.dueIso ?? '9999' },
+          cells: {
+            title: <Link href={r.href} scroll={false} className={cn('block max-w-[420px] truncate no-underline hover:underline', r.status === 'done' ? 'text-muted-foreground' : 'font-medium text-foreground')}>
               {r.parent ? <span className="font-normal text-muted-foreground">{r.parent} › </span> : null}{r.title}
-            </Link>
-            {contextLabel ? <span className="truncate text-xs text-muted-foreground">{r.context}</span> : null}
-            <span className="flex items-center gap-1.5">
+            </Link>,
+            context: <span className="block max-w-[180px] truncate text-xs text-muted-foreground">{r.context}</span>,
+            status: <span className="flex items-center gap-1.5">
               <span className="sr-only"><TaskStatusChip status={r.status} overdue={r.overdue} /></span>
               <StatusSelect key={`${r.id}-${r.status}`} label={`Status of ${r.title}`} value={r.status} options={STATUS_OPTIONS} onChange={setStatus.bind(null, r.id)} />
-            </span>
-            <span className="flex min-w-0 items-center gap-1.5">{r.owner ? <><Avatar name={r.owner.name} customer={r.owner.customer} /><span className="truncate">{r.owner.name}</span></> : <span className="text-muted-foreground">Unassigned</span>}</span>
-            <span className="font-mono text-xs text-muted-foreground">{r.start ?? ''}</span>
-            <span className={cn('font-mono text-xs', r.overdue && 'font-semibold text-crit-ink')}>{r.due ?? ''}</span>
-            {showEffort ? <><span className="text-right font-mono text-xs">{r.effort ?? '–'}</span><span className="text-right font-mono text-xs">{r.logged ?? '–'}</span></> : null}
-          </div>
-        )) : <p className="m-0 p-3 text-xs text-muted-foreground">No tasks match these filters.</p>}
-      </div>
-    </div>
+            </span>,
+            owner: <span className="flex min-w-0 items-center gap-1.5">{r.owner ? <><Avatar name={r.owner.name} customer={r.owner.customer} /><span className="truncate">{r.owner.name}</span></> : <span className="text-muted-foreground">Unassigned</span>}</span>,
+            start: <span className="font-mono text-xs text-muted-foreground">{r.start ?? ''}</span>,
+            due: <span className={cn('font-mono text-xs', r.overdue && 'font-semibold text-crit-ink')}>{r.due ?? ''}</span>,
+            effort: <span className="font-mono text-xs">{r.effort ?? '–'}</span>,
+            logged: <span className="font-mono text-xs">{r.logged ?? '–'}</span>,
+          },
+        }))} />
+    </section>
   )
 }

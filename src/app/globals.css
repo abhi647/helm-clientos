@@ -177,8 +177,9 @@
 @layer components {
   /* dense by default: 32px controls, 36px rows, 12px card padding; phones get 40px touch targets */
   .label { @apply text-[11px] font-medium text-muted-foreground; }
-  .card { @apply rounded-lg border border-border bg-card shadow-card; }
-  .card-head { @apply flex min-h-10 items-center gap-2 border-b border-line-soft px-3.5 py-1.5; }
+  /* the few panels that aren't a SectionCard (plan list, approvals) share its surface */
+  .card { @apply overflow-hidden rounded-xl border border-border/70 bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04),0_6px_16px_-12px_rgb(0_0_0/0.10)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.05),0_1px_2px_rgb(0_0_0/0.5)]; }
+  .card-head { @apply flex min-h-10 items-center gap-2 border-b border-border/60 px-3.5 py-1.5; }
   .btn { @apply inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-border bg-card px-3 text-[13px] font-medium whitespace-nowrap text-foreground no-underline shadow-[0_1px_1px_rgb(0_0_0/.04)] transition-[background-color,border-color] hover:border-control hover:bg-muted disabled:pointer-events-none disabled:opacity-50 max-sm:h-10; }
   .btn-primary { @apply border-primary bg-primary font-semibold text-primary-foreground shadow-[0_1px_2px_rgb(42_91_255/.3)] hover:border-primary hover:bg-[color-mix(in_oklab,var(--color-primary)_88%,black)] hover:text-primary-foreground; }
   .btn-ghost { @apply border-transparent bg-transparent text-primary shadow-none hover:border-transparent hover:bg-accent; }
