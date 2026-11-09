@@ -1,8 +1,10 @@
 'use client'
 
-import { useActionState, useRef, useState } from 'react'
+import { useActionState, useState } from 'react'
 import type { ActionResult } from '@/app/_actions/shared'
+import { DataGrid } from '@/components/data-grid'
 import { btn } from '@/components/ui'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 
 type FormAction = (prev: ActionResult | null, form: FormData) => Promise<ActionResult>
@@ -11,7 +13,8 @@ export type TimeRow = { id: string; date: string; where: string; task: string; h
 
 /** One person's waiting entries: tick some (or all), then approve, or return them with a note. */
 export function TimesheetForm({ person, rows, approve, sendBack }: { person: string; rows: TimeRow[]; approve: FormAction; sendBack: FormAction }) {
-  const ref = useRef<HTMLFormElement>(null)
+  const [ticked, setTicked] = useState<Set<string>>(() => new Set(rows.map((r) => r.id)))
+  const toggle = (id: string, on: boolean) => setTicked((t) => { const n = new Set(t); if (on) n.add(id); else n.delete(id); return n })
   const [returning, setReturning] = useState(false)
   const [last, setLast] = useState<'approve' | 'return'>('approve')
   const [approved, runApprove, approving] = useActionState<ActionResult | null, FormData>(async (prev, form) => {
@@ -26,30 +29,35 @@ export function TimesheetForm({ person, rows, approve, sendBack }: { person: str
   }, null)
   const state = last === 'approve' ? approved : returned
   const pending = approving || sending
-  const tickAll = (on: boolean) => ref.current?.querySelectorAll<HTMLInputElement>('input[name=entry]').forEach((c) => { c.checked = on })
+  const all = ticked.size === rows.length ? true : ticked.size ? 'indeterminate' as const : false
 
   return (
-    <form ref={ref} className="flex flex-col">
-      <div className="overflow-x-auto">
-        <div className="min-w-[680px]">
-          <div className="row row-head grid-cols-[28px_80px_minmax(0,1fr)_minmax(0,1fr)_64px_minmax(0,1fr)]">
-            <input type="checkbox" aria-label={`Tick all of ${person}'s entries`} defaultChecked onChange={(e) => tickAll(e.target.checked)} />
-            <span>Date</span><span>Project</span><span>Task</span><span className="text-right">Hours</span><span>Note</span>
-          </div>
-          {rows.map((r) => (
-            <label key={r.id} className="row cursor-pointer grid-cols-[28px_80px_minmax(0,1fr)_minmax(0,1fr)_64px_minmax(0,1fr)] hover:bg-head">
-              <input type="checkbox" name="entry" value={r.id} defaultChecked aria-label={`${r.date} ${r.task}`} />
-              <span className="font-mono text-xs">{r.date}</span>
-              <span className="truncate text-xs text-muted-foreground">{r.where}</span>
-              <span className="truncate">{r.task}</span>
-              <span className="text-right font-mono text-xs">{r.hours}{r.billable ? '' : <span className="ml-1 text-muted-foreground" title="Not billable">nb</span>}</span>
-              <span className="truncate text-xs text-muted-foreground">{r.note}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 border-t border-line-soft px-3 py-2.5">
-        <button type="submit" formAction={runApprove} disabled={pending} className={btn('default')}>{approving ? 'Approving…' : 'Approve ticked'}</button>
+    <form className="flex flex-col">
+      {/* the ticked entries go with the form */}
+      {[...ticked].map((id) => <input key={id} type="hidden" name="entry" value={id} />)}
+      <DataGrid label={`${person}'s entries`}
+        columns={[
+          { key: 'tick', label: <Checkbox aria-label={`Tick all of ${person}'s entries`} checked={all} onCheckedChange={(v) => setTicked(v === true ? new Set(rows.map((r) => r.id)) : new Set())} />, className: 'w-[36px]' },
+          { key: 'date', label: 'Date', sortable: true, className: 'w-[90px]' },
+          { key: 'where', label: 'Project', sortable: true },
+          { key: 'task', label: 'Task', sortable: true },
+          { key: 'hours', label: 'Hours', sortable: true, align: 'right', className: 'w-[70px]' },
+          { key: 'note', label: 'Note' },
+        ]}
+        rows={rows.map((r) => ({
+          id: r.id,
+          values: { date: r.date, where: r.where, task: r.task, hours: Number(r.hours) },
+          cells: {
+            tick: <Checkbox aria-label={`${r.date} ${r.task}`} checked={ticked.has(r.id)} onCheckedChange={(v) => toggle(r.id, v === true)} />,
+            date: <span className="font-mono text-xs">{r.date}</span>,
+            where: <span className="block max-w-[220px] truncate text-xs text-muted-foreground">{r.where}</span>,
+            task: <span className="block max-w-[260px] truncate">{r.task}</span>,
+            hours: <span className="font-mono text-xs">{r.hours}{r.billable ? '' : <span className="ml-1 text-muted-foreground" title="Not billable">nb</span>}</span>,
+            note: <span className="block max-w-[240px] truncate text-xs text-muted-foreground">{r.note}</span>,
+          },
+        }))} />
+      <div className="flex flex-wrap items-center gap-2 border-t border-border/60 px-3 py-2.5">
+        <button type="submit" formAction={runApprove} disabled={pending || !ticked.size} className={btn('default')}>{approving ? 'Approving…' : 'Approve ticked'}</button>
         {returning ? (
           <>
             <Input name="note" required minLength={3} maxLength={500} autoFocus aria-label="What should change" placeholder="What should change, e.g. log the 3rd on the reporting task" className="min-w-[260px] flex-1" />

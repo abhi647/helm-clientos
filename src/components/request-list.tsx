@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { DataGrid } from '@/components/data-grid'
 import { LinkTabs } from '@/components/link-tabs'
 import { Card, Empty, PriorityText, RequestStatusChip } from '@/components/ui'
@@ -41,7 +42,7 @@ export async function RequestList({ me, projectId, filter = 'open', basePath }: 
             priority: ['critical', 'high', 'medium', 'low'].indexOf(r.priority), age: -Date.parse(r.created_at) },
           cells: {
             id: <span className="font-mono text-xs text-muted-foreground">{r.number}</span>,
-            title: <span className="flex min-w-0 items-baseline gap-2"><span className="truncate font-medium">{r.title}</span><span className="truncate text-xs text-muted-foreground">{r.owner?.full_name ?? (staff ? 'Unassigned' : '')}</span></span>,
+            title: <span className="flex min-w-0 items-baseline gap-2"><Link href={`${detail}/${r.id}`} className="truncate font-medium text-foreground no-underline hover:underline">{r.title}</Link><span className="truncate text-xs text-muted-foreground">{r.owner?.full_name ?? (staff ? 'Unassigned' : '')}</span></span>,
             customer: <span className="block truncate text-xs">{r.customers?.name}</span>,
             stage: <RequestStatusChip status={r.status} />,
             type: <span className="text-xs">{label(r.type)}</span>,

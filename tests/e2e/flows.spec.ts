@@ -158,7 +158,7 @@ test('customer approves v2 and sees only shared discussion', async ({ page }) =>
   await expect(page.getByText('Resubmitted · v2 · Rahul')).toBeVisible()
 
   await page.goto('/portal')
-  await page.locator('.row', { hasText: 'Power BI Implementation' }).getByRole('link', { name: 'Open' }).click()
+  await page.locator('tr, .row', { hasText: 'Power BI Implementation' }).getByRole('link', { name: 'Open' }).click()
   await page.getByRole('link', { name: 'Data mapping' }).click()
   await expect(page.getByText('Shared: validation results are attached.')).toBeVisible()
   await expect(page.getByText('Internal: keep the OData fallback warm.')).toHaveCount(0)
@@ -172,8 +172,8 @@ test('PM: meeting action becomes a task, @mention, send a form', async ({ page }
   await page.getByRole('link', { name: 'Power BI Implementation' }).click()
   await page.getByRole('link', { name: 'Meetings' }).click()
   await page.getByRole('link', { name: /Weekly project review/ }).click()
-  await page.locator('.row', { hasText: 'Draft the UAT test scenarios' }).getByRole('button', { name: 'Create task' }).click()
-  await expect(page.locator('.row', { hasText: 'Draft the UAT test scenarios' }).getByText('In the plan →')).toBeVisible()
+  await page.locator('tr, .row', { hasText: 'Draft the UAT test scenarios' }).getByRole('button', { name: 'Create task' }).click()
+  await expect(page.locator('tr, .row', { hasText: 'Draft the UAT test scenarios' }).getByText('In the plan →')).toBeVisible()
 
   const reply = page.getByLabel('Reply')
   await reply.fill('@Mi')
@@ -186,7 +186,7 @@ test('PM: meeting action becomes a task, @mention, send a form', async ({ page }
   await page.goto('/projects')
   await page.getByRole('link', { name: 'Power BI Implementation' }).click()
   await page.getByRole('link', { name: 'Forms' }).click()
-  await page.locator('.row', { hasText: 'UAT feedback' }).getByRole('button', { name: 'Send' }).click()
+  await page.locator('tr, .row', { hasText: 'UAT feedback' }).getByRole('button', { name: 'Send' }).click()
   await expect(page.getByText('UAT feedback form sent.')).toBeVisible()
   await shot(page, '14-forms')
 })
@@ -209,7 +209,7 @@ test('customer executive fills in the UAT form and sees the mention', async ({ p
 test('admin switches a playbook rule', async ({ page }) => {
   await signIn(page, 'admin@example.com')
   await page.goto('/admin')
-  const rule = page.locator('.row', { hasText: 'Project is marked Completed' })
+  const rule = page.locator('tr, .row', { hasText: 'Project is marked Completed' })
   await rule.getByRole('switch').click()
   await expect(rule.getByRole('switch')).toHaveAttribute('aria-checked', 'false')
   await shot(page, '16-admin')
@@ -284,7 +284,7 @@ test('a file left waiting for its check (scanner was down) is checked when opene
 
   await signIn(page, 'abhijit@example.com')
   await page.goto('/admin/health')
-  const files = page.locator('.card', { has: page.getByRole('heading', { name: 'Files' }) })
+  const files = page.locator('[data-slot="section-card"]', { has: page.getByRole('heading', { name: 'Files' }) })
   await expect(files.getByText('Waiting for the security check')).toBeVisible()
   await expect(files.getByText(/Checked by|File type check only|not answering/)).toBeVisible()
 
@@ -415,7 +415,7 @@ test('system health: the uptime check answers, a background job is recorded, and
   await expect(page.getByText(/Sent through/)).toBeVisible()
   await page.getByLabel('Send a test email to').fill('someone@example.com')
   await page.getByRole('button', { name: 'Send test email' }).click()
-  await expect(page.getByText(/No email service is set up|Sent to someone@example.com/)).toBeVisible()
+  await expect(page.getByText(/No email service is set up|Sent to someone@example.com/).first()).toBeVisible()
   await shot(page, '39-system-health')
 })
 
@@ -423,7 +423,7 @@ test('customer level: the account team and the customer\'s people, managed on th
   await signIn(page, 'rahul@example.com')
   await page.goto('/customers')
   await page.getByRole('link', { name: /Nesma Group/ }).click()
-  const team = page.locator('.card', { hasText: 'Seven Billion team' })
+  const team = page.locator('[data-slot="section-card"]', { hasText: 'Seven Billion team' })
   const open = (d: import('@playwright/test').Locator) => d.evaluate((el) => { (el as HTMLDetailsElement).open = true })
   await open(team.locator('details', { hasText: '+ Add a team member' }))
   await team.getByLabel('Team member').selectOption({ label: 'Sahil' })
@@ -432,7 +432,7 @@ test('customer level: the account team and the customer\'s people, managed on th
   await expect(team.getByText('Data engineer')).toBeVisible()
 
   // a new person from the customer, then their role and invoice access changed in place
-  const people = page.locator('.card', { hasText: 'People at Nesma Group' })
+  const people = page.locator('[data-slot="section-card"]', { hasText: 'People at Nesma Group' })
   await open(people.locator('details', { hasText: '+ Add someone from Nesma Group' }))
   await people.getByLabel('Full name').fill('Leila Haddad')
   await people.getByLabel('Work email').fill('leila@nesma.example.com')
@@ -454,7 +454,7 @@ test('customer level: the account team and the customer\'s people, managed on th
   // the customer sees who serves them
   await signIn(page, 'michel@nesma.example.com')
   await page.goto('/portal')
-  const yours = page.locator('.card', { hasText: 'Your Seven Billion team' })
+  const yours = page.locator('[data-slot="section-card"]', { hasText: 'Your Seven Billion team' })
   await expect(yours.getByText('Sahil')).toBeVisible()
   await expect(yours.getByText('Data engineer')).toBeVisible()
 })
@@ -472,7 +472,7 @@ test('deleting: a task and a phase from the plan, then the whole project after t
   await expect(page).not.toHaveURL(/task=/)
   await expect(tasks).toHaveCount(before - 1)
   await page.locator('summary', { hasText: 'Delete a phase…' }).click()
-  const phases = page.locator('details[open]', { hasText: 'Delete a phase…' }).locator('.row')
+  const phases = page.locator('details[open]', { hasText: 'Delete a phase…' }).locator('tr, .row')
   const phaseName = (await phases.first().locator('span').first().textContent())!.split(' · ')[0]!.trim()
   const phaseCount = await phases.count()
   await phases.first().getByRole('button', { name: 'Delete' }).click()
@@ -503,7 +503,7 @@ test('hours credit: finance sets a monthly plan, the customer sees the meter and
   await signIn(page, 'finance@example.com')
   await page.goto('/customers')
   await page.getByRole('link', { name: /CBD Group/ }).click()
-  const card = page.locator('.card', { has: page.getByRole('heading', { name: 'Hours credit' }) })
+  const card = page.locator('[data-slot="section-card"]', { has: page.getByRole('heading', { name: 'Hours credit' }) })
   await expect(card.getByText('No hours plan')).toBeVisible()
   await card.locator('summary', { hasText: 'Set up hours credit' }).click()
   await card.getByLabel('Hours plan').selectOption('monthly')
@@ -531,8 +531,8 @@ test('hours credit: finance sets a monthly plan, the customer sees the meter and
   // a PM's own hours go to an admin or the CEO
   await signIn(page, 'abhijit@example.com')
   await page.goto('/timesheets/approve')
-  await page.locator('.card', { hasText: 'e2e credit hours' }).getByRole('button', { name: 'Approve ticked' }).click()
-  await expect(page.locator('.card', { hasText: 'Recently approved' }).getByText(/Data Platform Implementation/).first()).toBeVisible()
+  await page.locator('[data-slot="section-card"]', { hasText: 'e2e credit hours' }).getByRole('button', { name: 'Approve ticked' }).click()
+  await expect(page.locator('[data-slot="section-card"]', { hasText: 'Recently approved' }).getByText(/Data Platform Implementation/).first()).toBeVisible()
 
   // the customer sees the hours on their home meters and on the Hours page
   await signIn(page, 'lead@cbd.example.com')
@@ -581,7 +581,7 @@ test('privacy and terms are public; the CEO exports a customer\'s data, then del
 
   // the delete is on record for the admins
   await page.goto('/admin/health')
-  await expect(page.getByText(/deleted CBD Group and all its data/)).toBeVisible()
+  await expect(page.getByText(/deleted CBD Group and all its data/).first()).toBeVisible()
   // and nobody else can export
   await signIn(page, 'rahul@example.com')
   expect((await page.request.get(`/api/customers/${data.customer.id}/export`)).status()).toBe(403)
@@ -614,7 +614,7 @@ test('billing set-up: finance picks time & materials in the wizard, the customer
   // the customer's executive approves the rates in the portal
   await signIn(page, 'michel@nesma.example.com')
   await page.goto('/portal/billing')
-  const card = page.locator('.card', { hasText: 'Rates for Infor LN Integration' })
+  const card = page.locator('[data-slot="section-card"]', { hasText: 'Rates for Infor LN Integration' })
   await expect(card.getByText('Sahil')).toBeVisible()
   await card.getByRole('button', { name: 'Approve' }).click()
   await expect(card).toHaveCount(0)
@@ -649,15 +649,15 @@ test('time to billing: hours typed in the week grid, one returned, the rest appr
   // the PM returns the 4 hours with a note and approves the rest
   await signIn(page, 'rahul@example.com')
   await page.goto('/timesheets/approve')
-  const sheet = page.locator('.card', { hasText: 'Testing: Build' })
+  const sheet = page.locator('[data-slot="section-card"]', { hasText: 'Testing: Build' })
   await sheet.getByLabel("Tick all of Sahil's entries").uncheck()
-  await sheet.locator('label.row', { hasText: 'Testing: Build' }).getByRole('checkbox').check()
+  await sheet.locator('tr', { hasText: 'Testing: Build' }).getByRole('checkbox').check()
   await sheet.getByRole('button', { name: 'Return ticked…' }).click()
   await sheet.getByLabel('What should change').fill('Log testing on the UAT task')
   await sheet.getByRole('button', { name: 'Return with this note' }).click()
-  await expect(page.locator('.card', { hasText: 'Returned' }).getByText(/Log testing on the UAT task/)).toBeVisible()
-  await page.locator('.card', { hasText: 'API Development: Build' }).getByRole('button', { name: 'Approve ticked' }).click()
-  await expect(page.locator('.card', { hasText: 'Recently approved' }).getByText(/Infor LN Integration/).first()).toBeVisible()
+  await expect(page.locator('[data-slot="section-card"]', { hasText: 'Returned' }).getByText(/Log testing on the UAT task/)).toBeVisible()
+  await page.locator('[data-slot="section-card"]', { hasText: 'API Development: Build' }).getByRole('button', { name: 'Approve ticked' }).click()
+  await expect(page.locator('[data-slot="section-card"]', { hasText: 'Recently approved' }).getByText(/Infor LN Integration/).first()).toBeVisible()
 
   // the consultant sees the approved hours locked and the returned ones in amber
   await signIn(page, 'sahil@example.com')
@@ -671,7 +671,7 @@ test('time to billing: hours typed in the week grid, one returned, the rest appr
   await page.getByRole('link', { name: /Nesma Group/ }).click()
   await page.getByRole('link', { name: 'Infor LN Integration' }).first().click()
   await page.getByRole('link', { name: 'Billing', exact: true }).click()
-  const unbilled = page.locator('.card', { has: page.getByRole('heading', { name: 'Unbilled time' }) })
+  const unbilled = page.locator('[data-slot="section-card"]', { has: page.getByRole('heading', { name: 'Unbilled time' }) })
   await expect(unbilled.getByText('Sahil')).toBeVisible()
   await shot(page, '41-unbilled-time')
   await page.getByRole('button', { name: /^Create statement for / }).click()
@@ -709,15 +709,15 @@ test('fixed price: milestones agreed once, each billed once when delivered', asy
   // agreed in the signed contract: approved here, the customer is told
   await page.getByText('✓ Approve the rates for the customer').click()
   await page.getByRole('button', { name: 'Approve the rates for the customer' }).click()
-  const milestones = page.locator('.card', { has: page.getByRole('heading', { name: 'Milestones' }) })
+  const milestones = page.locator('[data-slot="section-card"]', { has: page.getByRole('heading', { name: 'Milestones' }) })
   await expect(milestones.getByText('Discovery sign-off')).toBeVisible()
   await shot(page, '42-fixed-price-milestones')
-  await milestones.locator('.row', { hasText: 'Discovery sign-off' }).getByRole('button').click()
+  await milestones.locator('tr, .row', { hasText: 'Discovery sign-off' }).getByRole('button').click()
   await page.waitForURL(/\/billing\/[0-9a-f-]{36}$/)
   await expect(page.getByLabel('Quantity for Discovery sign-off')).toHaveValue('1')
   await page.getByRole('link', { name: '← Billing' }).click()
-  await expect(milestones.locator('.row', { hasText: 'Discovery sign-off' }).getByRole('link', { name: 'Open statement →' })).toBeVisible()
-  await expect(milestones.locator('.row', { hasText: 'Go-live' }).getByRole('button', { name: 'Bill early' })).toBeVisible()   // not due yet: no phase, no date
+  await expect(milestones.locator('tr, .row', { hasText: 'Discovery sign-off' }).getByRole('link', { name: 'Open statement →' })).toBeVisible()
+  await expect(milestones.locator('tr, .row', { hasText: 'Go-live' }).getByRole('button', { name: 'Bill early' })).toBeVisible()   // not due yet: no phase, no date
 })
 
 test('dedicated people: billed by the month less leave, through the monthly billing run', async ({ page }) => {
@@ -748,13 +748,13 @@ test('dedicated people: billed by the month less leave, through the monthly bill
   await page.getByRole('button', { name: 'Save billing set-up' }).click()
   await page.getByText('✓ Approve the rates for the customer').click()
   await page.getByRole('button', { name: 'Approve the rates for the customer' }).click()
-  const bill = page.locator('.card', { has: page.getByRole('heading', { name: `Bill ${month}` }) })
+  const bill = page.locator('[data-slot="section-card"]', { has: page.getByRole('heading', { name: `Bill ${month}` }) })
   await expect(bill.getByText(/Sahil: \d+ working days/)).toBeVisible()
   if (weekday) await expect(bill.getByText(/1 on leave/)).toBeVisible()
 
   // the monthly billing run lists it with the reason, and creates the statement
   await page.goto('/finance')
-  const run = page.locator('.card', { has: page.getByRole('heading', { name: 'Billing run' }) })
+  const run = page.locator('[data-slot="section-card"]', { has: page.getByRole('heading', { name: 'Billing run' }) })
   await expect(run.getByLabel(`Bill Support Engagement for ${month}`)).toBeChecked()
   await shot(page, '43-billing-run')
   await run.getByRole('button', { name: /^Create the ticked statements/ }).click()

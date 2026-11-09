@@ -37,7 +37,7 @@ export function TaskFilters({ fields, keep }: { fields: FilterField[]; keep: Rec
       {Object.entries(keep).filter(([, v]) => v).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
       {fields.map((f) => (
         <AutoSaveSelect key={f.name} name={f.name} defaultValue={f.value} aria-label={f.label}
-          className={cn('input w-auto py-0', f.value && 'border-brand bg-selected font-semibold')}>
+          className={cn(f.value && 'border-primary/30 bg-primary/10 font-semibold text-primary')}>
           {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </AutoSaveSelect>
       ))}

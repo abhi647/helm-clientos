@@ -36,6 +36,8 @@ async function user(email, full_name, meta) {
 
 async function main() {
   // wipe demo data (orgs cascade to customers, profiles and everything else), then the demo logins
+  // cost rates point at whoever last set them, which would block the cascade
+  ok(await db.from('cost_rates').delete().neq('profile_id', '00000000-0000-0000-0000-000000000000'), 'wipe cost rates')
   ok(await db.from('orgs').delete().neq('id', '00000000-0000-0000-0000-000000000000'), 'wipe orgs')
   for (const u of ok(await db.auth.admin.listUsers({ perPage: 200 }), 'listUsers').users) {
     if (u.email?.endsWith('example.com')) ok(await db.auth.admin.deleteUser(u.id), 'deleteUser')

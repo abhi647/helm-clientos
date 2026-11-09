@@ -25,7 +25,7 @@ export function ActivityFeed({
       )}
     >
       <CardHeader className="flex min-h-10 items-center border-b border-border/60 px-3.5 py-1.5 [.border-b]:pb-1.5">
-        <CardTitle className="text-[13px] font-semibold">{title}</CardTitle>
+        <CardTitle className="text-[13px] font-semibold"><h2 className="m-0 text-[length:inherit] font-[inherit]">{title}</h2></CardTitle>
       </CardHeader>
       <CardContent className="px-3.5 py-0">
         <ol className="divide-y divide-border">

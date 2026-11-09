@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { approveTime, returnTime, unapproveTime } from '@/app/_actions/work'
+import { DataGrid } from '@/components/data-grid'
 import { ActionButton } from '@/components/forms'
 import { TimesheetForm, type TimeRow } from '@/components/timesheet'
 import { TimesheetTabs } from '../tabs'
@@ -69,30 +70,43 @@ export default async function TimesheetsPage() {
 
         {returned?.length ? (
           <Card flush title="Returned" extra="The person deletes the entry and logs it again">
-            {returned.map((e) => (
-              <div key={e.id} className="row grid-cols-[140px_80px_minmax(0,1fr)_64px_minmax(0,1.4fr)] max-sm:grid-cols-1">
-                <span className="truncate">{e.person?.full_name}</span>
-                <span className="font-mono text-xs">{shortDate(e.worked_on)}</span>
-                <span className="truncate text-xs text-muted-foreground">{where(e)} · {e.tasks.title}</span>
-                <span className="text-right font-mono text-xs">{+Number(e.hours).toFixed(2)}</span>
-                <span className="truncate text-xs text-warn-ink" title={e.returned_note ?? ''}>{e.returned_note} · {relativeTime(e.returned_at!)}</span>
-              </div>
-            ))}
+            <DataGrid label="Returned"
+              columns={[
+                { key: 'person', label: 'Person', sortable: true, className: 'w-[140px]' }, { key: 'date', label: 'Date', sortable: true, className: 'w-[80px]' },
+                { key: 'what', label: 'Project · task' }, { key: 'hours', label: 'Hours', align: 'right', className: 'w-[64px]' }, { key: 'note', label: 'Note' },
+              ]}
+              rows={returned.map((e) => ({
+                id: e.id, values: { person: e.person?.full_name, date: e.worked_on },
+                cells: {
+                  person: <span className="block truncate">{e.person?.full_name}</span>,
+                  date: <span className="font-mono text-xs">{shortDate(e.worked_on)}</span>,
+                  what: <span className="block max-w-[320px] truncate text-xs text-muted-foreground">{where(e)} · {e.tasks.title}</span>,
+                  hours: <span className="font-mono text-xs">{+Number(e.hours).toFixed(2)}</span>,
+                  note: <span className="block max-w-[320px] truncate text-xs text-warn-ink" title={e.returned_note ?? ''}>{e.returned_note} · {relativeTime(e.returned_at!)}</span>,
+                },
+              }))} />
           </Card>
         ) : null}
 
         {approved?.length ? (
           <Card flush title="Recently approved" extra="Not billed yet: an approval can still be undone">
-            {approved.map((e) => (
-              <div key={e.id} className="row grid-cols-[140px_80px_minmax(0,1fr)_64px_minmax(0,0.8fr)_auto] max-sm:grid-cols-1">
-                <span className="truncate">{e.person?.full_name}</span>
-                <span className="font-mono text-xs">{shortDate(e.worked_on)}</span>
-                <span className="truncate text-xs text-muted-foreground">{where(e)} · {e.tasks.title}</span>
-                <span className="text-right font-mono text-xs">{+Number(e.hours).toFixed(2)}</span>
-                <span className="truncate text-xs text-muted-foreground">{e.approver?.full_name ? `by ${e.approver.full_name}` : ''} {relativeTime(e.approved_at!)}</span>
-                <ActionButton run={unapproveTime.bind(null, e.id)} variant="ghost" className="h-7 text-xs">Undo</ActionButton>
-              </div>
-            ))}
+            <DataGrid label="Recently approved"
+              columns={[
+                { key: 'person', label: 'Person', sortable: true, className: 'w-[140px]' }, { key: 'date', label: 'Date', sortable: true, className: 'w-[80px]' },
+                { key: 'what', label: 'Project · task' }, { key: 'hours', label: 'Hours', align: 'right', className: 'w-[64px]' },
+                { key: 'by', label: 'Approved' }, { key: 'undo', label: <span className="sr-only">Undo</span>, align: 'right', className: 'w-[80px]' },
+              ]}
+              rows={approved.map((e) => ({
+                id: e.id, values: { person: e.person?.full_name, date: e.worked_on },
+                cells: {
+                  person: <span className="block truncate">{e.person?.full_name}</span>,
+                  date: <span className="font-mono text-xs">{shortDate(e.worked_on)}</span>,
+                  what: <span className="block max-w-[320px] truncate text-xs text-muted-foreground">{where(e)} · {e.tasks.title}</span>,
+                  hours: <span className="font-mono text-xs">{+Number(e.hours).toFixed(2)}</span>,
+                  by: <span className="block truncate text-xs text-muted-foreground">{e.approver?.full_name ? `by ${e.approver.full_name}` : ''} {relativeTime(e.approved_at!)}</span>,
+                  undo: <ActionButton run={unapproveTime.bind(null, e.id)} variant="ghost" className="h-7 text-xs">Undo</ActionButton>,
+                },
+              }))} />
           </Card>
         ) : null}
         <p className="m-0 text-xs text-muted-foreground">

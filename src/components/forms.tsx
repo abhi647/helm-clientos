@@ -213,6 +213,6 @@ export function ApproveForCustomer({ action, idName, id, label = 'Approve for th
 }
 
 /** A select that saves its form as soon as it changes (e.g. a rate card's currency), so the choice is never lost. */
-export function AutoSaveSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} onChange={(e) => e.currentTarget.form?.requestSubmit()} />
+export function AutoSaveSelect(props: Omit<React.ComponentProps<typeof NativeSelect>, 'onChange'>) {
+  return <NativeSelect size="sm" {...props} onChange={(e) => e.currentTarget.form?.requestSubmit()} />
 }

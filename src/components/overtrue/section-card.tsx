@@ -1,6 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
 import {
-  Card,
   CardContent,
   CardHeader,
   CardTitle,
@@ -9,7 +8,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export interface SectionCardProps extends Omit<
-  ComponentProps<typeof Card>,
+  ComponentProps<"section">,
   "title"
 > {
   title?: ReactNode;
@@ -29,10 +28,11 @@ export function SectionCard({
   ...props
 }: SectionCardProps) {
   return (
-    <Card
+    // a <section> landmark rather than a plain card div, so each panel is a region with its heading
+    <section
       data-slot="section-card"
       className={cn(
-        "min-w-0 gap-0 overflow-hidden rounded-xl border border-border/70 bg-card py-0 text-card-foreground ring-0",
+        "flex flex-col min-w-0 gap-0 overflow-hidden rounded-xl border border-border/70 bg-card py-0 text-card-foreground ring-0",
         "shadow-[0_1px_2px_rgb(0_0_0/0.04),0_6px_16px_-12px_rgb(0_0_0/0.10)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.05),0_1px_2px_rgb(0_0_0/0.5)]",
         className,
       )}
@@ -43,7 +43,8 @@ export function SectionCard({
           <div data-slot="section-card-heading" className="min-w-0 flex-1">
             {title && (
               <CardTitle className="m-0 text-[13px] leading-5 font-semibold tracking-tight text-card-foreground">
-                {title}
+                {/* a real heading, so the page outline and screen readers see each panel */}
+                <h2 className="m-0 text-[length:inherit] leading-[inherit] font-[inherit]">{title}</h2>
               </CardTitle>
             )}
             {description && (
@@ -65,6 +66,6 @@ export function SectionCard({
       <CardContent className={cn("p-3", contentClassName)}>
         {children}
       </CardContent>
-    </Card>
+    </section>
   );
 }

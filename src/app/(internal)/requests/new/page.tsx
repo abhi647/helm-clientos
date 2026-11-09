@@ -38,7 +38,7 @@ export default async function LogRequest({ searchParams }: { searchParams: Promi
           <div className="flex flex-wrap gap-1.5">
             {(customers ?? []).map((c) => (
               <Link key={c.id} href={`/requests/new?customer=${c.id}${kind !== 'request' ? `&kind=${kind}` : ''}`} aria-current={c.id === customer?.id ? 'page' : undefined}
-                className={btn('outline', c.id === customer?.id && 'border-ink bg-head font-semibold')}>{c.name}</Link>
+                className={btn('outline', 'shrink', c.id === customer?.id && 'border-primary/30 bg-primary/10 font-semibold text-primary hover:bg-primary/15 hover:text-primary')}>{c.name}</Link>
             ))}
           </div>
         </Card>
@@ -47,7 +47,7 @@ export default async function LogRequest({ searchParams }: { searchParams: Promi
             <nav aria-label="Request form" className="mb-3 flex flex-wrap gap-1.5">
               {(Object.keys(REQUEST_KINDS) as (keyof typeof REQUEST_KINDS)[]).map((key) => (
                 <Link key={key} href={href({ kind: key })} aria-current={key === kind ? 'page' : undefined}
-                  className={btn('outline', key === kind && 'border-ink bg-head font-semibold')}>{REQUEST_KINDS[key].tab}</Link>
+                  className={btn('outline', 'shrink', key === kind && 'border-primary/30 bg-primary/10 font-semibold text-primary hover:bg-primary/15 hover:text-primary')}>{REQUEST_KINDS[key].tab}</Link>
               ))}
             </nav>
             <ActionForm key={`${customer.id}-${kind}`} action={createRequest} submit="Log the request" resetOnSuccess={false}>

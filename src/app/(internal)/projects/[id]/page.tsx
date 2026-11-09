@@ -177,8 +177,8 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
             ...people.filter((p) => p.id !== me.id).map((p) => ({ value: p.id, label: `${p.full_name}${p.kind === 'customer' ? ' (customer)' : ''}` }))] },
           { name: 'status', label: 'Status', value: statusF ?? '', options: statusFilterOptions },
         ]} />
-        <Link href={link({ open: openOnly ? undefined : '1' })} className={btn('outline', openOnly && 'border-brand bg-selected font-semibold')}>Open only</Link>
-        <Link href={link({ preview: preview ? undefined : '1', task: undefined })} className={btn('outline', preview && 'border-brand bg-selected font-semibold')}>{preview ? 'Exit customer preview' : 'Customer preview'}</Link>
+        <Link href={link({ open: openOnly ? undefined : '1' })} className={btn('outline', 'shrink', openOnly && 'border-primary/30 bg-primary/10 font-semibold text-primary hover:bg-primary/15 hover:text-primary')}>Open only</Link>
+        <Link href={link({ preview: preview ? undefined : '1', task: undefined })} className={btn('outline', 'shrink', preview && 'border-primary/30 bg-primary/10 font-semibold text-primary hover:bg-primary/15 hover:text-primary')}>{preview ? 'Exit customer preview' : 'Customer preview'}</Link>
         <div className="ml-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
           <span><b className="font-mono text-ink">{stats.total}</b> tasks</span>
           <span><b className="font-mono text-good-ink">{stats.done}</b> done</span>
