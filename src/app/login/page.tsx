@@ -2,7 +2,9 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { LoginForm } from './login-form'
+import { cookies } from 'next/headers'
 import { BrandLockup } from '@/components/brand'
+import { LAST_SIGN_IN_COOKIE, parseLastSignIn } from '@/lib/last-sign-in'
 
 export const metadata: Metadata = { title: 'Sign in' }
 
@@ -11,12 +13,13 @@ const ERRORS: Record<string, string> = {
   'link-expired': 'That sign-in link has expired or was already used. Request a new one below.',
   'wrong-password': 'Wrong email or password. First time here, or forgot it? Use “Set or reset your password” below, or sign in with a passkey.',
   'too-many': 'Too many attempts. Please wait a few minutes and try again.',
-  'not-invited': 'That account has no access to Helm yet. Use the email address you were invited with, or ask your Seven Billion contact to invite you.',
+  'not-invited': 'That Google or Microsoft account is not the email you were invited with, so it has no access to Helm. Sign in with your invited email (or ask for an invite), then connect this account from Your profile to use it next time.',
 }
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string; email?: string }> }) {
   const { next, error, email } = await searchParams
   const badCode = error === 'bad-code' && !!email
+  const last = parseLastSignIn((await cookies()).get(LAST_SIGN_IN_COOKIE)?.value)
   return (
     <main className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <div className="flex items-center justify-center bg-white px-4 py-10">
@@ -27,7 +30,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <h1 className="m-0 mb-1 text-xl font-semibold">Sign in</h1>
           <p className="mt-0 mb-5 text-[13px] text-muted-foreground">Projects, requests, approvals and updates, in one place.</p>
           {error && ERRORS[error] && !badCode ? <p role="alert" className="mb-4 rounded-md bg-warn-bg p-2.5 text-xs text-warn-ink">{ERRORS[error]}</p> : null}
-          <LoginForm next={next ?? '/'} codeFor={badCode ? email : undefined} codeError={badCode} />
+          <LoginForm next={next ?? '/'} codeFor={badCode ? email : undefined} codeError={badCode} last={last} />
           <p className="mt-8 mb-0 text-xs text-muted-foreground"><Link href="/privacy" className="text-muted-foreground">Privacy</Link> · <Link href="/terms" className="text-muted-foreground">Terms of use</Link></p>
         </div>
       </div>

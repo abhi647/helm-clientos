@@ -1673,14 +1673,14 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "access_revoked_at": string | null,"avatar_color": string | null,"avatar_path": string | null,"bio": string | null,"can_view_invoices": boolean,"created_at": string,"customer_id": string | null,"customer_role": Database["public"]['Enums']["customer_role"] | null,"email": string,"full_name": string,"id": string,"internal_role": Database["public"]['Enums']["internal_role"] | null,"job_title": string | null,"kind": Database["public"]['Enums']["user_kind"],"location": string | null,"org_id": string | null,"phone": string | null,"timezone": string | null
+                    "access_revoked_at": string | null,"avatar_color": string | null,"avatar_path": string | null,"bio": string | null,"can_view_invoices": boolean,"created_at": string,"customer_id": string | null,"customer_role": Database["public"]['Enums']["customer_role"] | null,"email": string,"full_name": string,"id": string,"internal_role": Database["public"]['Enums']["internal_role"] | null,"job_title": string | null,"kind": Database["public"]['Enums']["user_kind"],"last_sign_in_via": string | null,"last_sign_in_via_at": string | null,"location": string | null,"org_id": string | null,"phone": string | null,"timezone": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "access_revoked_at"?: string | null,"avatar_color"?: string | null,"avatar_path"?: string | null,"bio"?: string | null,"can_view_invoices"?: boolean,"created_at"?: string,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email": string,"full_name"?: string,"id": string,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"job_title"?: string | null,"kind": Database["public"]['Enums']["user_kind"],"location"?: string | null,"org_id"?: string | null,"phone"?: string | null,"timezone"?: string | null
+                    "access_revoked_at"?: string | null,"avatar_color"?: string | null,"avatar_path"?: string | null,"bio"?: string | null,"can_view_invoices"?: boolean,"created_at"?: string,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email": string,"full_name"?: string,"id": string,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"job_title"?: string | null,"kind": Database["public"]['Enums']["user_kind"],"last_sign_in_via"?: string | null,"last_sign_in_via_at"?: string | null,"location"?: string | null,"org_id"?: string | null,"phone"?: string | null,"timezone"?: string | null
                   }
                   Update: {
-                    "access_revoked_at"?: string | null,"avatar_color"?: string | null,"avatar_path"?: string | null,"bio"?: string | null,"can_view_invoices"?: boolean,"created_at"?: string,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email"?: string,"full_name"?: string,"id"?: string,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"job_title"?: string | null,"kind"?: Database["public"]['Enums']["user_kind"],"location"?: string | null,"org_id"?: string | null,"phone"?: string | null,"timezone"?: string | null
+                    "access_revoked_at"?: string | null,"avatar_color"?: string | null,"avatar_path"?: string | null,"bio"?: string | null,"can_view_invoices"?: boolean,"created_at"?: string,"customer_id"?: string | null,"customer_role"?: Database["public"]['Enums']["customer_role"] | null,"email"?: string,"full_name"?: string,"id"?: string,"internal_role"?: Database["public"]['Enums']["internal_role"] | null,"job_title"?: string | null,"kind"?: Database["public"]['Enums']["user_kind"],"last_sign_in_via"?: string | null,"last_sign_in_via_at"?: string | null,"location"?: string | null,"org_id"?: string | null,"phone"?: string | null,"timezone"?: string | null
                   }
                   Relationships: [
                     {
@@ -2749,6 +2749,8 @@ isOneToOne: false
 "internal_role": Database["public"]['Enums']["internal_role"] | null,
 "job_title": string | null,
 "kind": Database["public"]['Enums']["user_kind"],
+"last_sign_in_via": string | null,
+"last_sign_in_via_at": string | null,
 "location": string | null,
 "org_id": string | null,
 "phone": string | null,
@@ -2764,6 +2766,9 @@ isOneToOne: false
 { Args: { "p_profile": string,"p_year": number }; Returns: {
               "allowance": number,"key": string,"leave_type_id": string,"name": string,"paid": boolean,"pending": number,"remaining": number,"used": number
             }[]
+                           },
+"note_sign_in":
+{ Args: { "via": string }; Returns: undefined
                            },
 "outbox_health":
 { Args: Record<PropertyKey, never>; Returns: {

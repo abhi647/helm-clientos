@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rememberSignIn } from '@/lib/last-sign-in.server'
 
 const safeNext = (n: string) => (n.startsWith('/') && !n.startsWith('//') ? n : '/')
 
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
   if (email && /^\d{6,10}$/.test(code)) {
     const supabase = await createClient()
     const { error } = await supabase.auth.verifyOtp({ email, token: code, type: 'email' })
-    if (!error) return NextResponse.redirect(new URL(next, origin), 303)
+    if (!error) return rememberSignIn(NextResponse.redirect(new URL(next, origin), 303), supabase, 'code', email)
   }
   const back = new URL('/login', origin)
   back.search = new URLSearchParams({ error: 'bad-code', email, next }).toString()

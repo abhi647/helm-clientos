@@ -2,7 +2,8 @@
 
 import { useActionState, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PasskeySignIn } from '@/components/passkeys'
+import { LastUsed, PasskeySignIn } from '@/components/passkeys'
+import { METHOD_LABEL, type LastSignIn } from '@/lib/last-sign-in'
 import { sendMagicLink, type LoginState } from './actions'
 import { btn } from '@/components/ui'
 import { Input } from '@/components/ui/input'
@@ -37,13 +38,13 @@ const MICROSOFT = process.env.NEXT_PUBLIC_MICROSOFT_SIGNIN === 'true'
 
 /** Google or Microsoft: one click, no email to wait for. Invite-only still holds: sign-ups are off in Supabase. */
 function signInWith(provider: 'google' | 'azure', next: string) {
-  const redirectTo = `${window.location.origin}/auth/confirm?next=${encodeURIComponent(next)}`
+  const redirectTo = `${window.location.origin}/auth/confirm?via=${provider}&next=${encodeURIComponent(next)}`
   return createClient().auth.signInWithOAuth(provider === 'google'
     ? { provider, options: { redirectTo, queryParams: { prompt: 'select_account' } } }
     : { provider, options: { redirectTo, scopes: 'email', queryParams: { prompt: 'select_account' } } })
 }
 
-export function LoginForm({ next, codeFor, codeError }: { next: string; codeFor?: string; codeError?: boolean }) {
+export function LoginForm({ next, codeFor, codeError, last }: { next: string; codeFor?: string; codeError?: boolean; last?: LastSignIn | null }) {
   const [reset, setReset] = useState(false)
   const [sent, sendCode, sending] = useActionState<LoginState, FormData>(sendMagicLink, { status: 'idle' })
   const [signingIn, setSigningIn] = useState(false)
@@ -63,29 +64,39 @@ export function LoginForm({ next, codeFor, codeError }: { next: string; codeFor?
       </form>
     )
   }
+  const used = last?.method
+  const viaEmail = used === 'password' || used === 'code'
   return (
     <div className="flex flex-col gap-2.5">
+      {last ? (
+        <p className="m-0 mb-1 rounded-md border border-line bg-head px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+          Last time on this device: <b className="font-medium text-ink">{METHOD_LABEL[last.method]}</b>
+          {last.email ? <> as <b className="font-medium text-ink">{last.email}</b></> : null}
+        </p>
+      ) : null}
       {GOOGLE ? (
         <button type="button" className={btn('outline', 'h-10 text-sm')} onClick={() => signInWith('google', next)}>
           <svg aria-hidden viewBox="0 0 24 24" className="size-4"><path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2-1.9 3.3-4.7 3.3-8z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.8c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.9A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.8 14.1a6.6 6.6 0 0 1 0-4.2V7H2.1a11 11 0 0 0 0 10l3.7-2.9z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2A11 11 0 0 0 2.1 7l3.7 2.9C6.7 7.3 9.1 5.4 12 5.4z"/></svg>
           Continue with Google (Gmail)
+          {used === 'google' ? <LastUsed /> : null}
         </button>
       ) : null}
       {MICROSOFT ? (
         <button type="button" className={btn('outline', 'h-10 text-sm')} onClick={() => signInWith('azure', next)}>
           <svg aria-hidden viewBox="0 0 24 24" className="size-4"><path fill="#F25022" d="M2 2h9.5v9.5H2z"/><path fill="#7FBA00" d="M12.5 2H22v9.5h-9.5z"/><path fill="#00A4EF" d="M2 12.5h9.5V22H2z"/><path fill="#FFB900" d="M12.5 12.5H22V22h-9.5z"/></svg>
           Continue with Microsoft (Outlook)
+          {used === 'azure' ? <LastUsed /> : null}
         </button>
       ) : null}
-      <PasskeySignIn next={next} />
-      <div className="my-1 flex items-center gap-2 text-[11px] text-muted-foreground"><span className="h-px flex-1 bg-line" />or with your email and password<span className="h-px flex-1 bg-line" /></div>
+      <PasskeySignIn next={next} lastUsed={used === 'passkey'} />
+      <div className="my-1 flex items-center gap-2 text-[11px] text-muted-foreground"><span className="h-px flex-1 bg-line" />or with your email and password{viaEmail ? <LastUsed inline /> : null}<span className="h-px flex-1 bg-line" /></div>
       {/* a full-page post (src/app/auth/password), so browsers recognise the sign-in and offer to save the password */}
       <form action="/auth/password" method="post" onSubmit={() => setSigningIn(true)} className="flex flex-col gap-2.5">
         <input type="hidden" name="next" value={next} />
         <label htmlFor="email" className="label">Work email</label>
-        <Input id="email" name="email" type="email" required autoComplete="username webauthn" autoFocus={!sso} placeholder="you@company.com" className="w-auto h-10 text-sm" />
+        <Input id="email" name="email" type="email" required autoComplete="username webauthn" autoFocus={!sso && !viaEmail} defaultValue={viaEmail ? last?.email ?? undefined : undefined} placeholder="you@company.com" className="w-auto h-10 text-sm" />
         <label htmlFor="password" className="label">Password</label>
-        <Input id="password" name="password" type="password" required autoComplete="current-password" className="w-auto h-10 text-sm" />
+        <Input id="password" name="password" type="password" required autoComplete="current-password" autoFocus={viaEmail && !!last?.email} className="w-auto h-10 text-sm" />
         <button type="submit" disabled={signingIn} className={btn('default', 'h-10 text-sm')}>{signingIn ? 'Signing in…' : 'Sign in'}</button>
       </form>
       <button type="button" onClick={() => setReset(true)} className="text-center text-xs font-medium text-link">Set or reset your password</button>

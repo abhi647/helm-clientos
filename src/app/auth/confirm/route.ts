@@ -1,6 +1,7 @@
 import type { EmailOtpType } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rememberSignIn } from '@/lib/last-sign-in.server'
 
 const TYPES: EmailOtpType[] = ['email', 'magiclink', 'invite', 'signup', 'recovery', 'email_change']
 const safeNext = (n: string | null) => (n && n.startsWith('/') && !n.startsWith('//') ? n : '/')
@@ -28,9 +29,18 @@ export async function GET(request: NextRequest) {
   }
   if (code) {
     const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) return NextResponse.redirect(new URL(next, origin))
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    // Connect Google/Microsoft from Your profile: the person was already signed in, so this is not a sign-in
+    if (!error && searchParams.get('linked')) return NextResponse.redirect(new URL('/account/profile?linked=1', origin))
+    if (!error) {
+      // via=google|azure comes from our own sign-in buttons; without it this was an email link
+      const via = searchParams.get('via')
+      const method = via === 'google' || via === 'azure' ? via : 'code'
+      return rememberSignIn(NextResponse.redirect(new URL(next, origin)), supabase, method, data.user?.email)
+    }
   }
+  // connecting failed, usually because that Google account already belongs to another Helm user
+  if (searchParams.get('linked')) return NextResponse.redirect(new URL('/account/profile?link-error=1', origin))
   // Google or Microsoft with an account nobody invited: sign-ups are off, so the provider sends back an error
   if (searchParams.get('error')) return NextResponse.redirect(new URL('/login?error=not-invited', origin))
   return NextResponse.redirect(new URL('/login?error=link-expired', origin))
@@ -45,8 +55,8 @@ export async function POST(request: NextRequest) {
   const origin = request.nextUrl.origin
   if (token_hash && TYPES.includes(type)) {
     const supabase = await createClient()
-    const { error } = await supabase.auth.verifyOtp({ type, token_hash })
-    if (!error) return NextResponse.redirect(new URL(next, origin), 303)
+    const { data, error } = await supabase.auth.verifyOtp({ type, token_hash })
+    if (!error) return rememberSignIn(NextResponse.redirect(new URL(next, origin), 303), supabase, 'code', data.user?.email)
   }
   return NextResponse.redirect(new URL('/login?error=link-expired', origin), 303)
 }

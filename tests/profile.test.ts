@@ -21,7 +21,7 @@ const webp = () => new Blob([Uint8Array.from(atob('UklGRiQAAABXRUJQVlA4IBgAAAAwA
 describe('profiles: photo and details', () => {
   afterAll(async () => {
     const id = await idOf('sahil@example.com')
-    await service.from('profiles').update({ job_title: null, phone: null, avatar_path: null, avatar_color: null }).eq('id', id)
+    await service.from('profiles').update({ job_title: null, phone: null, avatar_path: null, avatar_color: null, last_sign_in_via: null, last_sign_in_via_at: null }).eq('id', id)
     const { data } = await service.storage.from('avatars').list(id)
     if (data?.length) await service.storage.from('avatars').remove(data.map((f) => `${id}/${f.name}`))
   })
@@ -51,5 +51,24 @@ describe('profiles: photo and details', () => {
     const seen = await michel.from('profiles').select('full_name, avatar_path, job_title').eq('id', sid).maybeSingle()
     if (seen.data) expect(seen.data.avatar_path).toBe(`${sid}/test.webp`)
     expect((await michel.from('profiles').select('phone').eq('id', sid)).error).not.toBeNull()
+  })
+
+  it('the way you last signed in is noted only through note_sign_in, only on your own row', async () => {
+    const sahil = await as('sahil@example.com')
+    const sid = await idOf('sahil@example.com')
+    expect((await sahil.rpc('note_sign_in', { via: 'google' })).error).toBeNull()
+    const row = (await service.from('profiles').select('last_sign_in_via, last_sign_in_via_at').eq('id', sid).single()).data!
+    expect(row.last_sign_in_via).toBe('google')
+    expect(row.last_sign_in_via_at).not.toBeNull()
+    // not a method we know
+    expect((await sahil.rpc('note_sign_in', { via: 'carrier-pigeon' })).error).not.toBeNull()
+    // someone else cannot change yours, or read it
+    const rahul = await as('rahul@example.com')
+    await rahul.from('profiles').update({ last_sign_in_via: 'passkey' } as never).eq('id', sid)
+    expect((await service.from('profiles').select('last_sign_in_via').eq('id', sid).single()).data!.last_sign_in_via).toBe('google')
+    expect((await rahul.from('profiles').select('last_sign_in_via').eq('id', sid)).error).not.toBeNull()
+    // signed out: nothing to note
+    const anon = createClient<Database>(url, anonKey, opts)
+    expect((await anon.rpc('note_sign_in', { via: 'google' })).error).not.toBeNull()
   })
 })

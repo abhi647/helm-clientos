@@ -1054,7 +1054,7 @@ test.describe('on a phone', () => {
 test('Google or Microsoft with an account nobody invited lands back on sign-in with a clear message; staff need no authenticator', async ({ page }) => {
   await page.goto('/auth/confirm?error=access_denied&error_description=Signups+not+allowed+for+this+instance')
   await page.waitForURL(/\/login\?error=not-invited/)
-  await expect(page.getByText('That account has no access to Helm yet')).toBeVisible()
+  await expect(page.getByText('is not the email you were invited with')).toBeVisible()
   await signIn(page, 'sahil@example.com')
   await expect(page).toHaveURL(/\/home/)
   await page.goto('/mfa')

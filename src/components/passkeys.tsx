@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { KeyRound } from 'lucide-react'
 import { markSignInSet } from '@/app/account/actions'
 import { createClient } from '@/lib/supabase/client'
+import { encodeLastSignIn, LAST_SIGN_IN_COOKIE, LAST_SIGN_IN_MAX_AGE } from '@/lib/last-sign-in'
 import { btn } from '@/components/ui'
 
 /**
@@ -20,8 +21,11 @@ const go = (next: string) => window.location.assign(next.startsWith('/') && !nex
 const cancelled = (e: { code?: string; name?: string; message?: string } | null) =>
   !!e && (/abort|cancel|NotAllowed/i.test(`${e.code ?? ''} ${e.name ?? ''}`) || /not allowed|timed out|cancel/i.test(e.message ?? ''))
 
+/** The "Last used" tag on a sign-in button. */
+export const LastUsed = ({ inline }: { inline?: boolean }) => <span className={`${inline ? '' : 'ml-auto '}rounded-full bg-good-bg px-1.5 py-px text-[10px] font-medium text-good-ink`}>Last used</span>
+
 /** "Sign in with a passkey", plus passkey suggestions in the email field's autofill where the browser supports it. */
-export function PasskeySignIn({ next }: { next: string }) {
+export function PasskeySignIn({ next, lastUsed }: { next: string; lastUsed?: boolean }) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const available = usePasskeySupport()
@@ -30,8 +34,14 @@ export function PasskeySignIn({ next }: { next: string }) {
   const signIn = useCallback(async (conditional: boolean) => {
     if (!conditional) { autofill.current?.abort(); setBusy(true); setError(null) }
     const signal = conditional ? (autofill.current = new AbortController()).signal : undefined
-    const { data, error } = await createClient().auth.signInWithPasskey({ options: { ...(conditional ? { mediation: 'conditional' as const, signal } : {}) } })
-    if (data?.session) return go(next)
+    const supabase = createClient()
+    const { data, error } = await supabase.auth.signInWithPasskey({ options: { ...(conditional ? { mediation: 'conditional' as const, signal } : {}) } })
+    if (data?.session) {
+      // remember "Passkey" as the last way in, on this device and on the profile
+      document.cookie = `${LAST_SIGN_IN_COOKIE}=${encodeLastSignIn('passkey', data.session.user.email)}; path=/; max-age=${LAST_SIGN_IN_MAX_AGE}; samesite=lax${location.protocol === 'https:' ? '; secure' : ''}`
+      await supabase.rpc('note_sign_in', { via: 'passkey' }).then(() => undefined, () => undefined)
+      return go(next)
+    }
     setBusy(false)
     if (error && !cancelled(error as never) && !conditional) {
       setError(/not found|unknown|no passkey|credential/i.test(error.message)
@@ -52,6 +62,7 @@ export function PasskeySignIn({ next }: { next: string }) {
     <>
       <button type="button" disabled={busy} onClick={() => void signIn(false)} className={btn('outline', 'h-10 text-sm')}>
         <KeyRound aria-hidden className="size-4" />{busy ? 'Waiting for your passkey…' : 'Sign in with a passkey'}
+        {lastUsed ? <LastUsed /> : null}
       </button>
       {error ? <p role="alert" className="m-0 text-xs text-crit-ink">{error}</p> : null}
     </>

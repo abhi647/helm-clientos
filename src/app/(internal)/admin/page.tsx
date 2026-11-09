@@ -9,6 +9,7 @@ import { Avatar, btn, Card, Chip, PageHeader } from '@/components/ui'
 import { avatarUrl } from '@/lib/avatar'
 import { env } from '@/lib/env'
 import { label, relativeTime } from '@/lib/format'
+import { isMethod, METHOD_LABEL, type SignInMethod } from '@/lib/last-sign-in'
 import { requireStaff } from '@/lib/session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -50,6 +51,9 @@ export default async function Admin() {
   const { data: auth } = await createAdminClient().auth.admin.listUsers({ perPage: 1000 })
   const removed = new Set((staff ?? []).filter((p) => p.access_revoked_at).map((p) => p.id))
   const lastSeen = new Map((auth?.users ?? []).map((u) => [u.id, u.last_sign_in_at]))
+  // how each person last signed in: not readable by other users, so through the admin client here too
+  const { data: vias } = await createAdminClient().from('profiles').select('id, last_sign_in_via').in('id', (staff ?? []).map((p) => p.id))
+  const lastVia = new Map((vias ?? []).filter((v) => isMethod(v.last_sign_in_via)).map((v) => [v.id, METHOD_LABEL[v.last_sign_in_via as SignInMethod]]))
   const { count: blocked } = await supabase.from('documents').select('id', { count: 'exact', head: true }).in('scan_status', ['infected', 'rejected'])
   const { count: unscanned } = await supabase.from('documents').select('id', { count: 'exact', head: true }).in('scan_status', ['pending', 'not_scanned'])
   const enabled = new Map((rules ?? []).map((r) => [r.key, r.enabled]))
@@ -81,7 +85,7 @@ export default async function Admin() {
                 cells: {
                   name: <span className="flex min-w-0 items-center gap-2"><Avatar name={p.full_name} src={avatarUrl(p.avatar_path)} color={p.avatar_color} size={24} /><span className="flex min-w-0 flex-col leading-tight"><span className="truncate font-medium">{p.full_name}</span>{p.job_title ? <span className="truncate text-[11px] text-muted-foreground">{p.job_title}</span> : null}</span>{p.id === me.id ? <Chip>You</Chip> : null}</span>,
                   email: <span className="block truncate text-xs text-muted-foreground">{p.email}</span>,
-                  seen: <span className="text-xs text-muted-foreground">{lastSeen.get(p.id) ? relativeTime(lastSeen.get(p.id)!) : 'Never'}</span>,
+                  seen: <span className="flex flex-col text-xs leading-tight text-muted-foreground">{lastSeen.get(p.id) ? relativeTime(lastSeen.get(p.id)!) : 'Never'}{lastSeen.get(p.id) && lastVia.get(p.id) ? <span className="text-[11px]">with {lastVia.get(p.id)}</span> : null}</span>,
                   role: p.id === me.id ? <span className="text-xs">{label(p.internal_role ?? '')}</span> : <RoleSelect userId={p.id} role={removed.has(p.id) ? 'remove' : p.internal_role!} />,
                 },
               }))} />

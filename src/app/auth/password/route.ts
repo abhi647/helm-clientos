@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rememberSignIn } from '@/lib/last-sign-in.server'
 
 const safeNext = (n: string) => (n.startsWith('/') && !n.startsWith('//') ? n : '/')
 
@@ -23,5 +24,5 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) return back(error.status === 429 ? 'too-many' : 'wrong-password')
-  return NextResponse.redirect(new URL(next, request.nextUrl.origin), 303)
+  return rememberSignIn(NextResponse.redirect(new URL(next, request.nextUrl.origin), 303), supabase, 'password', email)
 }
