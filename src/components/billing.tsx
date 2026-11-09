@@ -1,3 +1,4 @@
+import { DataGrid } from '@/components/data-grid'
 import { Chip } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
 import { money } from '@/lib/format'
@@ -39,17 +40,22 @@ type RateLine = { id: string; kind: Enums<'billing_kind'>; label: string; unit: 
 /** Read-only rate card lines (staff and customers). */
 export function RateLines({ lines, currency }: { lines: RateLine[]; currency: string }) {
   return (
-    <div className="min-w-[560px]">
-      <div className="row row-head grid-cols-[minmax(0,1fr)_170px_130px_110px]"><span>Item</span><span>Model</span><span className="text-right">Rate</span><span className="text-right">Planned</span></div>
-      {lines.map((l) => (
-        <div key={l.id} className="row grid-cols-[minmax(0,1fr)_170px_130px_110px]">
-          <span className="flex min-w-0 flex-col"><span className="truncate font-medium">{l.label}</span>{l.description ? <span className="truncate text-xs text-muted-foreground">{l.description}</span> : null}</span>
-          <span className="text-xs">{KIND_LABEL[l.kind]}</span>
-          <span className="text-right font-mono text-xs">{money(l.rate, currency, { exact: true })} <span className="text-muted-foreground">/ {l.unit}</span></span>
-          <span className="text-right font-mono text-xs">{PLANNED_LABEL[l.kind] && l.planned_quantity != null ? `${l.planned_quantity} ${PLANNED_LABEL[l.kind]!.toLowerCase()}` : '–'}</span>
-        </div>
-      ))}
-    </div>
+    <DataGrid label="Rates"
+      columns={[
+        { key: 'item', label: 'Item' },
+        { key: 'model', label: 'Model', className: 'w-[180px]' },
+        { key: 'rate', label: 'Rate', align: 'right', className: 'w-[150px]' },
+        { key: 'planned', label: 'Planned', align: 'right', className: 'w-[120px]' },
+      ]}
+      rows={lines.map((l) => ({
+        id: l.id,
+        cells: {
+          item: <span className="flex min-w-0 flex-col"><span className="truncate font-medium">{l.label}</span>{l.description ? <span className="truncate text-xs text-muted-foreground">{l.description}</span> : null}</span>,
+          model: <span className="text-xs">{KIND_LABEL[l.kind]}</span>,
+          rate: <span className="font-mono text-xs">{money(l.rate, currency, { exact: true })} <span className="text-muted-foreground">/ {l.unit}</span></span>,
+          planned: <span className="font-mono text-xs">{PLANNED_LABEL[l.kind] && l.planned_quantity != null ? `${l.planned_quantity} ${PLANNED_LABEL[l.kind]!.toLowerCase()}` : '–'}</span>,
+        },
+      }))} />
   )
 }
 
@@ -60,19 +66,26 @@ export function StatementLines({ lines, currency }: { lines: StatementLine[]; cu
   const shown = lines.filter((l) => Number(l.quantity) > 0)
   const subtotal = shown.reduce((a, l) => a + Number(l.amount ?? 0), 0)
   return (
-    <div className="min-w-[560px]">
-      <div className="row row-head grid-cols-[minmax(0,1fr)_110px_130px_140px]"><span>Item</span><span className="text-right">Quantity</span><span className="text-right">Rate</span><span className="text-right">Amount</span></div>
-      {shown.map((l) => (
-        <div key={l.id} className="row grid-cols-[minmax(0,1fr)_110px_130px_140px]">
-          <span className="flex min-w-0 flex-col"><span className="truncate font-medium">{l.label}</span>{l.note ? <span className="truncate text-xs text-muted-foreground">{l.note}</span> : null}</span>
-          <span className="text-right font-mono text-xs">{Number(l.quantity)} {plural(l.unit, Number(l.quantity))}</span>
-          <span className="text-right font-mono text-xs">{money(l.rate, currency, { exact: true })}</span>
-          <span className="text-right font-mono text-xs">{money(l.amount, currency, { exact: true })}</span>
-        </div>
-      ))}
-      <div className="row grid-cols-[minmax(0,1fr)_140px] bg-head">
+    <div className="min-w-0">
+      <DataGrid label="Statement lines"
+        columns={[
+          { key: 'item', label: 'Item' },
+          { key: 'qty', label: 'Quantity', align: 'right', className: 'w-[120px]' },
+          { key: 'rate', label: 'Rate', align: 'right', className: 'w-[130px]' },
+          { key: 'amount', label: 'Amount', align: 'right', className: 'w-[140px]' },
+        ]}
+        rows={shown.map((l) => ({
+          id: l.id,
+          cells: {
+            item: <span className="flex min-w-0 flex-col"><span className="truncate font-medium">{l.label}</span>{l.note ? <span className="max-w-[420px] truncate text-xs text-muted-foreground">{l.note}</span> : null}</span>,
+            qty: <span className="font-mono text-xs">{Number(l.quantity)} {plural(l.unit, Number(l.quantity))}</span>,
+            rate: <span className="font-mono text-xs">{money(l.rate, currency, { exact: true })}</span>,
+            amount: <span className="font-mono text-xs">{money(l.amount, currency, { exact: true })}</span>,
+          },
+        }))} />
+      <div className="flex items-center justify-between gap-3 border-t border-border/60 bg-muted/30 px-3 py-2">
         <span className="text-xs text-muted-foreground">Subtotal before tax. Tax and the invoice total are added in Zoho Books.</span>
-        <span className="text-right font-mono text-xs font-semibold">{money(subtotal, currency, { exact: true })}</span>
+        <span className="tabular font-mono text-xs font-semibold">{money(subtotal, currency, { exact: true })}</span>
       </div>
     </div>
   )

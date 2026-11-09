@@ -8,6 +8,7 @@ import { BillingSetupWizard, type SetupInitial, type Unit } from '@/components/b
 import { ActionButton, ActionForm, ApproveForCustomer } from '@/components/forms'
 import { DetailList } from '@/components/overtrue/detail-list'
 import { ResourceProgress } from '@/components/overtrue/resource-progress'
+import { DataGrid } from '@/components/data-grid'
 import { StatementsTable, type StatementRow } from '@/components/statements-table'
 import { UnbilledTime } from '@/components/time-billing'
 import { btn, Card, Chip, cn, Empty, Stat } from '@/components/ui'
@@ -208,21 +209,24 @@ export default async function ProjectBilling({ params, searchParams }: { params:
           </div>
           <Card flush title={`Bill ${chosen.name}`} description="Working days in the month less each person’s leave; their timesheets do not change the amount"
             extra={<PeriodSwitch current={sp.period} names={[thisMonth.name, lastMonth.name]} />}>
-            <div className="overflow-x-auto">
-              <div className="min-w-[640px]">
-                <div className="row row-head grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_90px_130px_130px]"><span>Person</span><span>Basis</span><span className="text-right">Quantity</span><span className="text-right">Rate</span><span className="text-right">Amount</span></div>
-                {due.map((r) => (
-                  <div key={r.line_id} className="row grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_90px_130px_130px]">
-                    <span className="truncate font-medium">{r.label}</span>
-                    <span className="truncate text-xs text-muted-foreground">{r.basis}</span>
-                    <span className="tabular text-right text-xs">{+Number(r.quantity).toFixed(2)} {r.unit === 'month' ? 'mo' : 'd'}</span>
-                    <span className="tabular text-right text-xs">{money(Number(r.rate), currency, { exact: true })}</span>
-                    <span className="tabular text-right font-medium">{money(Number(r.amount), currency, { exact: true })}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="border-t border-line-soft p-3">
+            <DataGrid label="This month's billing"
+              columns={[
+                { key: 'person', label: 'Person' }, { key: 'basis', label: 'Basis' },
+                { key: 'qty', label: 'Quantity', align: 'right', className: 'w-[90px]' },
+                { key: 'rate', label: 'Rate', align: 'right', className: 'w-[130px]' },
+                { key: 'amount', label: 'Amount', align: 'right', className: 'w-[130px]' },
+              ]}
+              rows={due.map((r) => ({
+                id: r.line_id!,
+                cells: {
+                  person: <span className="block truncate font-medium">{r.label}</span>,
+                  basis: <span className="block max-w-[360px] truncate text-xs text-muted-foreground">{r.basis}</span>,
+                  qty: <span className="tabular text-xs">{+Number(r.quantity).toFixed(2)} {r.unit === 'month' ? 'mo' : 'd'}</span>,
+                  rate: <span className="tabular text-xs">{money(Number(r.rate), currency, { exact: true })}</span>,
+                  amount: <span className="tabular font-medium">{money(Number(r.amount), currency, { exact: true })}</span>,
+                },
+              }))} />
+            <div className="border-t border-border/60 p-3">
               {due[0]?.statement_id ? <Link href={`/projects/${id}/billing/${due[0].statement_id}`} className="text-xs">A statement already covers {chosen.name} →</Link> : (
                 <ActionForm action={createStatement} submit={`Create statement for ${chosen.name}`} resetOnSuccess={false}>
                   <input type="hidden" name="project_id" value={id} />
@@ -245,24 +249,27 @@ export default async function ProjectBilling({ params, searchParams }: { params:
               pct={planned ? (100 * logged) / planned : undefined} tone={planned && logged > planned ? 'crit' : planned && logged > 0.85 * planned ? 'warn' : 'neutral'} icon={<Clock />} />
           </div>
           <Card flush title="Milestones" description="Bill each one when it is delivered. The customer approves the statement; then it goes to Zoho.">
-            <div className="overflow-x-auto">
-              <div className="min-w-[760px]">
-                <div className="row row-head grid-cols-[minmax(0,1fr)_minmax(0,1fr)_140px_130px_190px]"><span>Milestone</span><span>Delivered with</span><span className="text-right">Amount</span><span>Status</span><span /></div>
-                {milestones.map((m) => (
-                  <div key={m.line.id} className="row grid-cols-[minmax(0,1fr)_minmax(0,1fr)_140px_130px_190px]">
-                    <span className="truncate font-medium">{m.line.label}</span>
-                    <span className="flex min-w-0 items-center gap-2 text-xs">{m.phase ? <><span className="truncate">{m.phase.name}</span><Ticks value={m.pct} /><span className="tabular text-muted-foreground">{Math.round(m.pct)}%</span></> : null}
-                      {m.line.bill_on ? <span className="text-muted-foreground">{m.phase ? 'or ' : ''}on {shortDate(m.line.bill_on)}</span> : !m.phase ? <span className="text-muted-foreground">By hand</span> : null}</span>
-                    <span className="tabular text-right font-medium">{money(Number(m.line.rate), currency, { exact: true })}<span className="block text-[11px] font-normal text-muted-foreground">{contract ? `${Math.round((100 * Number(m.line.rate)) / contract)}%` : ''}</span></span>
-                    <span>{m.statement ? <StatementStatus status={m.statement.status} /> : <Chip tone="neutral">Not billed</Chip>}</span>
-                    <span className="text-right">{m.statement ? <Link href={`/projects/${id}/billing/${m.statement.id}`} className="text-xs">Open statement →</Link>
-                      : <ActionButton run={billMilestone.bind(null, m.line.id, id)} primary={due.some((d) => d.line_id === m.line.id)} className="h-7 px-2.5 text-xs"
-                          confirm={`Bill "${m.line.label}" (${money(Number(m.line.rate), currency, { exact: true })})? A statement is created for the customer to approve.`}>
-                          {due.some((d) => d.line_id === m.line.id) ? 'Bill milestone' : 'Bill early'}</ActionButton>}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <DataGrid label="Milestones"
+              columns={[
+                { key: 'milestone', label: 'Milestone' }, { key: 'with', label: 'Delivered with' },
+                { key: 'amount', label: 'Amount', align: 'right', className: 'w-[140px]' },
+                { key: 'status', label: 'Status', className: 'w-[140px]' },
+                { key: 'act', label: <span className="sr-only">Action</span>, align: 'right', className: 'w-[170px]' },
+              ]}
+              rows={milestones.map((m) => ({
+                id: m.line.id,
+                cells: {
+                  milestone: <span className="block truncate font-medium">{m.line.label}</span>,
+                  with: <span className="flex min-w-0 items-center gap-2 text-xs">{m.phase ? <><span className="truncate">{m.phase.name}</span><Ticks value={m.pct} /><span className="tabular text-muted-foreground">{Math.round(m.pct)}%</span></> : null}
+                    {m.line.bill_on ? <span className="text-muted-foreground">{m.phase ? 'or ' : ''}on {shortDate(m.line.bill_on)}</span> : !m.phase ? <span className="text-muted-foreground">By hand</span> : null}</span>,
+                  amount: <span className="tabular font-medium">{money(Number(m.line.rate), currency, { exact: true })}<span className="block text-[11px] font-normal text-muted-foreground">{contract ? `${Math.round((100 * Number(m.line.rate)) / contract)}%` : ''}</span></span>,
+                  status: m.statement ? <StatementStatus status={m.statement.status} /> : <Chip tone="neutral">Not billed</Chip>,
+                  act: m.statement ? <Link href={`/projects/${id}/billing/${m.statement.id}`} className="text-xs">Open statement →</Link>
+                    : <ActionButton run={billMilestone.bind(null, m.line.id, id)} primary={due.some((d) => d.line_id === m.line.id)} className="h-7 px-2.5 text-xs"
+                        confirm={`Bill "${m.line.label}" (${money(Number(m.line.rate), currency, { exact: true })})? A statement is created for the customer to approve.`}>
+                        {due.some((d) => d.line_id === m.line.id) ? 'Bill milestone' : 'Bill early'}</ActionButton>,
+                },
+              }))} />
           </Card>
         </>
       ) : null}
@@ -271,14 +278,16 @@ export default async function ProjectBilling({ params, searchParams }: { params:
       {!showWizard && live && model !== 'time_materials' && unitLines.length ? (
         <Card flush title="Bill deliverables" description="Counts what was delivered in the period at the agreed unit rates; adjust the counts on the draft before sending"
           extra={<PeriodSwitch current={sp.period} names={[thisMonth.name, lastMonth.name]} />}>
-          <div className="row row-head grid-cols-[minmax(0,1fr)_140px]"><span>Deliverable</span><span className="text-right">Rate</span></div>
-          {unitLines.map((l) => (
-            <div key={l.id} className="row grid-cols-[minmax(0,1fr)_140px]">
-              <span className="truncate font-medium">{l.label}</span>
-              <span className="tabular text-right text-xs">{money(Number(l.rate), currency, { exact: true })} / {l.unit}</span>
-            </div>
-          ))}
-          <div className="border-t border-line-soft p-3">
+          <DataGrid label="Deliverables"
+            columns={[{ key: 'item', label: 'Deliverable' }, { key: 'rate', label: 'Rate', align: 'right', className: 'w-[150px]' }]}
+            rows={unitLines.map((l) => ({
+              id: l.id,
+              cells: {
+                item: <span className="font-medium">{l.label}</span>,
+                rate: <span className="tabular text-xs">{money(Number(l.rate), currency, { exact: true })} / {l.unit}</span>,
+              },
+            }))} />
+          <div className="border-t border-border/60 p-3">
             <ActionForm action={createStatement} submit="Create statement for the period" resetOnSuccess={false}>
               <input type="hidden" name="project_id" value={id} />
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -363,18 +372,20 @@ export default async function ProjectBilling({ params, searchParams }: { params:
       {/* ------------------------------------------------ agreed rates */}
       {!showWizard && card ? (
         <Card flush title={`Rates v${card.version}`} description={card.notes || undefined} extra={<RateCardStatus status={card.status} />}>
-          <div className="overflow-x-auto">
-            <div className="min-w-[520px]">
-              <div className="row row-head grid-cols-[minmax(0,1fr)_150px_140px]"><span>{model === 'fixed_price' ? 'Milestone or person' : model === 'retainer' ? 'Item' : 'Person'}</span><span>Type</span><span className="text-right">Rate</span></div>
-              {lines.map((l) => (
-                <div key={l.id} className="row grid-cols-[minmax(0,1fr)_150px_140px]">
-                  <span className="truncate">{(l.kind === 'day_rate' || l.kind === 'resource') && l.rate_line_people.length === 1 ? nameOf.get(l.rate_line_people[0]!.profile_id) ?? l.label : l.label}</span>
-                  <span className="text-xs text-muted-foreground">{l.kind === 'day_rate' ? (l.rate_line_people.length > 1 ? `Shared day rate · ${l.rate_line_people.length} people` : 'Time & materials') : l.kind === 'resource' ? 'Dedicated' : l.kind === 'overage' ? 'Hours over allowance' : l.kind === 'delivery' ? (l.unit === 'milestone' ? `Milestone${l.bill_on ? ` · ${shortDate(l.bill_on)}` : ''}` : 'Per delivery') : l.kind === 'retainer' ? 'Monthly fee' : `Per ${l.unit}`}</span>
-                  <span className="tabular text-right">{money(Number(l.rate), currency, { exact: true })}<span className="text-xs text-muted-foreground"> / {l.unit === 'milestone' ? 'milestone' : l.unit}</span></span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <DataGrid label="Rates"
+            columns={[
+              { key: 'who', label: model === 'fixed_price' ? 'Milestone or person' : model === 'retainer' ? 'Item' : 'Person' },
+              { key: 'type', label: 'Type', className: 'w-[200px]' },
+              { key: 'rate', label: 'Rate', align: 'right', className: 'w-[160px]' },
+            ]}
+            rows={lines.map((l) => ({
+              id: l.id,
+              cells: {
+                who: <span className="block truncate">{(l.kind === 'day_rate' || l.kind === 'resource') && l.rate_line_people.length === 1 ? nameOf.get(l.rate_line_people[0]!.profile_id) ?? l.label : l.label}</span>,
+                type: <span className="text-xs text-muted-foreground">{l.kind === 'day_rate' ? (l.rate_line_people.length > 1 ? `Shared day rate · ${l.rate_line_people.length} people` : 'Time & materials') : l.kind === 'resource' ? 'Dedicated' : l.kind === 'overage' ? 'Hours over allowance' : l.kind === 'delivery' ? (l.unit === 'milestone' ? `Milestone${l.bill_on ? ` · ${shortDate(l.bill_on)}` : ''}` : 'Per delivery') : l.kind === 'retainer' ? 'Monthly fee' : `Per ${l.unit}`}</span>,
+                rate: <span className="tabular">{money(Number(l.rate), currency, { exact: true })}<span className="text-xs text-muted-foreground"> / {l.unit === 'milestone' ? 'milestone' : l.unit}</span></span>,
+              },
+            }))} />
         </Card>
       ) : null}
 
@@ -385,23 +396,27 @@ export default async function ProjectBilling({ params, searchParams }: { params:
 
       {deals?.length ? (
         <Card flush title="History from HubSpot & Zoho" extra={`${deals.length} billing period${deals.length === 1 ? '' : 's'}`}>
-          <div className="overflow-x-auto">
-            <div className="min-w-[680px]">
-              <div className="row row-head grid-cols-[minmax(0,1fr)_140px_130px_120px_110px]"><span>Deal</span><span>Stage</span><span>Invoice</span><span className="text-right">Total</span><span>Zoho status</span></div>
-              {deals.map((d) => {
-                const inv = d.invoice_number ? (invoices ?? []).find((i) => i.number === d.invoice_number) : undefined
-                return (
-                  <div key={d.id} className="row grid-cols-[minmax(0,1fr)_140px_130px_120px_110px]">
-                    <span className="truncate" title={d.deal_name}>{d.deal_name}</span>
-                    <span className="truncate text-xs text-muted-foreground">{d.stage_label}</span>
-                    <span className="font-mono text-xs">{d.invoice_number ?? '–'}</span>
-                    <span className="tabular text-right text-xs">{inv ? money(inv.total, inv.currency, { exact: true }) : '–'}</span>
-                    <span className="text-xs">{inv ? inv.status : d.invoice_number ? <span className="text-muted-foreground">Not synced</span> : '–'}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+          <DataGrid label="History"
+            columns={[
+              { key: 'deal', label: 'Deal', sortable: true }, { key: 'stage', label: 'Stage', sortable: true, className: 'w-[150px]' },
+              { key: 'invoice', label: 'Invoice', sortable: true, className: 'w-[130px]' },
+              { key: 'total', label: 'Total', sortable: true, align: 'right', className: 'w-[130px]' },
+              { key: 'zoho', label: 'Zoho status', className: 'w-[110px]' },
+            ]}
+            rows={deals.map((d) => {
+              const inv = d.invoice_number ? (invoices ?? []).find((i) => i.number === d.invoice_number) : undefined
+              return {
+                id: d.id,
+                values: { deal: d.deal_name, stage: d.stage_label, invoice: d.invoice_number, total: inv ? Number(inv.total) : null },
+                cells: {
+                  deal: <span className="block max-w-[380px] truncate" title={d.deal_name}>{d.deal_name}</span>,
+                  stage: <span className="text-xs text-muted-foreground">{d.stage_label}</span>,
+                  invoice: <span className="font-mono text-xs">{d.invoice_number ?? '–'}</span>,
+                  total: <span className="tabular text-xs">{inv ? money(inv.total, inv.currency, { exact: true }) : '–'}</span>,
+                  zoho: <span className="text-xs">{inv ? inv.status : d.invoice_number ? <span className="text-muted-foreground">Not synced</span> : '–'}</span>,
+                },
+              }
+            })} />
         </Card>
       ) : null}
     </div>
