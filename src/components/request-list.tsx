@@ -1,5 +1,6 @@
-import Link from 'next/link'
-import { Card, Empty, PriorityText, RequestStatusChip, cn } from '@/components/ui'
+import { DataGrid } from '@/components/data-grid'
+import { LinkTabs } from '@/components/link-tabs'
+import { Card, Empty, PriorityText, RequestStatusChip } from '@/components/ui'
 import { ageInDays, label } from '@/lib/format'
 import type { Profile } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
@@ -19,31 +20,35 @@ export async function RequestList({ me, projectId, filter = 'open', basePath }: 
   const { data } = await q
   const detail = staff ? '/requests' : '/portal/requests'
   return (
-    <Card flush className="overflow-x-auto">
-      <div className="flex flex-wrap gap-1.5 border-b border-line px-2.5 py-2">
-        {(Object.keys(FILTERS) as RequestFilter[]).map((f) => (
-          <Link key={f} href={`${basePath}?filter=${f}`} aria-current={f === filter ? 'true' : undefined}
-            className={cn('inline-flex h-6 items-center rounded-sm px-2 text-[11px] font-semibold no-underline', f === filter ? 'bg-ink text-white hover:text-white' : 'bg-neutral-bg text-neutral-ink')}>{FILTERS[f]}</Link>
-        ))}
+    <Card flush>
+      <div className="border-b border-border/60 px-3 py-2">
+        <LinkTabs label="Request filter" value={filter} items={(Object.keys(FILTERS) as RequestFilter[]).map((f) => ({ value: f, label: FILTERS[f], href: `${basePath}?filter=${f}` }))} />
       </div>
-      {data?.length ? (
-        <div className="min-w-[700px]">
-          <div className={cn('row row-head', staff ? 'grid-cols-[80px_minmax(0,1fr)_120px_130px_110px_90px_48px]' : 'grid-cols-[80px_minmax(0,1fr)_130px_110px_90px_48px]')}>
-            <span>ID</span><span>Request</span>{staff ? <span>Customer</span> : null}<span>Stage</span><span>Type</span><span>Priority</span><span className="text-right">Age</span>
-          </div>
-          {data.map((r) => (
-            <Link key={r.id} href={`${detail}/${r.id}`} className={cn('row text-ink no-underline hover:bg-head', staff ? 'grid-cols-[80px_minmax(0,1fr)_120px_130px_110px_90px_48px]' : 'grid-cols-[80px_minmax(0,1fr)_130px_110px_90px_48px]')}>
-              <span className="font-mono text-xs text-muted-foreground">{r.number}</span>
-              <span className="truncate font-medium">{r.title}<span className="ml-2 text-xs font-normal text-muted-foreground">{r.owner?.full_name ?? (staff ? 'Unassigned' : '')}</span></span>
-              {staff ? <span className="truncate text-xs">{r.customers?.name}</span> : null}
-              <span><RequestStatusChip status={r.status} /></span>
-              <span className="truncate text-xs">{label(r.type)}</span>
-              <span className="text-xs"><PriorityText priority={r.priority} /></span>
-              <span className="text-right font-mono text-xs text-muted-foreground">{ageInDays(r.created_at)}</span>
-            </Link>
-          ))}
-        </div>
-      ) : <Empty title="No requests here">{staff ? 'Customers raise requests from their portal.' : 'Use “New request” to ask Seven Billion for anything.'}</Empty>}
+      <DataGrid search searchLabel="Search requests" pageSize={25} label="Requests" initialSort={{ key: 'age', direction: 1 }}
+        empty={<Empty title="No requests here">{staff ? 'Customers raise requests from their portal.' : 'Use “New request” to ask Seven Billion for anything.'}</Empty>}
+        columns={[
+          { key: 'id', label: 'ID', sortable: true, className: 'w-[80px]' },
+          { key: 'title', label: 'Request', sortable: true },
+          ...(staff ? [{ key: 'customer', label: 'Customer', sortable: true, className: 'w-[130px]' }] : []),
+          { key: 'stage', label: 'Stage', sortable: true, className: 'w-[140px]' },
+          { key: 'type', label: 'Type', sortable: true, className: 'w-[110px]' },
+          { key: 'priority', label: 'Priority', sortable: true, className: 'w-[90px]' },
+          { key: 'age', label: 'Age', sortable: true, align: 'right', className: 'w-[60px]' },
+        ]}
+        rows={(data ?? []).map((r) => ({
+          id: r.id, href: `${detail}/${r.id}`,
+          values: { id: r.number, title: r.title, customer: r.customers?.name, stage: r.status, type: label(r.type),
+            priority: ['critical', 'high', 'medium', 'low'].indexOf(r.priority), age: -Date.parse(r.created_at) },
+          cells: {
+            id: <span className="font-mono text-xs text-muted-foreground">{r.number}</span>,
+            title: <span className="flex min-w-0 items-baseline gap-2"><span className="truncate font-medium">{r.title}</span><span className="truncate text-xs text-muted-foreground">{r.owner?.full_name ?? (staff ? 'Unassigned' : '')}</span></span>,
+            customer: <span className="block truncate text-xs">{r.customers?.name}</span>,
+            stage: <RequestStatusChip status={r.status} />,
+            type: <span className="text-xs">{label(r.type)}</span>,
+            priority: <span className="text-xs"><PriorityText priority={r.priority} /></span>,
+            age: <span className="font-mono text-xs text-muted-foreground">{ageInDays(r.created_at)}</span>,
+          },
+        }))} />
     </Card>
   )
 }

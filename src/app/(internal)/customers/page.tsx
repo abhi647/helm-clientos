@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { createCustomer } from '@/app/_actions/admin'
+import { DataGrid } from '@/components/data-grid'
 import { ActionForm } from '@/components/forms'
 import { btn, Card, Empty, Health, PageHeader } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
@@ -34,25 +35,32 @@ export default async function Customers() {
           </details>
         ) : null} />
       <div className="p-4">
-        <Card flush className="overflow-x-auto">
-          {data?.length ? (
-            <div className="min-w-[640px]">
-              <div className="row row-head grid-cols-[minmax(0,1fr)_140px_110px_110px_100px]"><span>Customer</span><span>Health</span><span className="text-right">Active projects</span><span className="text-right">Open requests</span><span className="text-right">Portal users</span></div>
-              {data.map((c) => {
-                const active = (c.projects ?? []).filter((p) => p.status === 'active')
-                const worst = WORST.find((h) => active.some((p) => p.health === h))
-                return (
-                  <Link key={c.id} href={`/customers/${c.id}`} className="row grid-cols-[minmax(0,1fr)_140px_110px_110px_100px] text-ink no-underline hover:bg-head">
-                    <span className="truncate font-semibold">{c.name}</span>
-                    <span>{worst ? <Health health={worst} /> : <span className="text-xs text-muted-foreground">No active work</span>}</span>
-                    <span className="text-right font-mono text-xs">{active.length}</span>
-                    <span className="text-right font-mono text-xs">{(c.requests ?? []).filter((r) => !['delivered', 'cancelled'].includes(r.status)).length}</span>
-                    <span className="text-right font-mono text-xs">{(c.profiles ?? []).length}</span>
-                  </Link>
-                )
-              })}
-            </div>
-          ) : <Empty title="No customers yet">Customers are created from HubSpot Closed Won deals.</Empty>}
+        <Card flush>
+          <DataGrid search searchLabel="Search customers" pageSize={25} label="Customers"
+            empty={<Empty title="No customers yet">Customers are created from HubSpot Closed Won deals.</Empty>}
+            columns={[
+              { key: 'name', label: 'Customer', sortable: true },
+              { key: 'health', label: 'Health', sortable: true, className: 'w-[160px]' },
+              { key: 'active', label: 'Active projects', sortable: true, align: 'right', className: 'w-[120px]' },
+              { key: 'open', label: 'Open requests', sortable: true, align: 'right', className: 'w-[120px]' },
+              { key: 'portal', label: 'Portal users', sortable: true, align: 'right', className: 'w-[110px]' },
+            ]}
+            rows={(data ?? []).map((c) => {
+              const active = (c.projects ?? []).filter((p) => p.status === 'active')
+              const worst = WORST.find((h) => active.some((p) => p.health === h))
+              const open = (c.requests ?? []).filter((r) => !['delivered', 'cancelled'].includes(r.status)).length
+              return {
+                id: c.id, href: `/customers/${c.id}`,
+                values: { name: c.name, health: worst ? WORST.indexOf(worst) : 9, active: active.length, open, portal: (c.profiles ?? []).length },
+                cells: {
+                  name: <Link href={`/customers/${c.id}`} className="font-semibold text-foreground no-underline hover:underline">{c.name}</Link>,
+                  health: worst ? <Health health={worst} /> : <span className="text-xs text-muted-foreground">No active work</span>,
+                  active: <span className="tabular font-mono text-xs">{active.length}</span>,
+                  open: <span className="tabular font-mono text-xs">{open}</span>,
+                  portal: <span className="tabular font-mono text-xs">{(c.profiles ?? []).length}</span>,
+                },
+              }
+            })} />
         </Card>
       </div>
     </>
