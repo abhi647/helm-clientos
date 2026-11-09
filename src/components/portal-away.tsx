@@ -6,8 +6,9 @@ const fmt = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-GB'
 /** For customers: when the Seven Billion people on their work are away in the next six weeks. Dates only. */
 export async function PortalAway() {
   const supabase = await createClient()
-  const from = new Date().toISOString().slice(0, 10)
-  const to = new Date(Date.now() + 42 * 86_400_000).toISOString().slice(0, 10)
+  const now = new Date()
+  const from = now.toISOString().slice(0, 10)
+  const to = new Date(now.getTime() + 42 * 86_400_000).toISOString().slice(0, 10)
   const { data } = await supabase.rpc('customer_team_leave', { p_from: from, p_to: to })
   return (
     <Card flush title="Who's away" description="Your Seven Billion team, next six weeks">
