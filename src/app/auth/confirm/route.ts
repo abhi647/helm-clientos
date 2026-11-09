@@ -30,8 +30,6 @@ export async function GET(request: NextRequest) {
   if (code) {
     const supabase = await createClient()
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-    // Connect Google/Microsoft from Your profile: the person was already signed in, so this is not a sign-in
-    if (!error && searchParams.get('linked')) return NextResponse.redirect(new URL('/account/profile?linked=1', origin))
     if (!error) {
       // via=google|azure comes from our own sign-in buttons; without it this was an email link
       const via = searchParams.get('via')
@@ -39,8 +37,6 @@ export async function GET(request: NextRequest) {
       return rememberSignIn(NextResponse.redirect(new URL(next, origin)), supabase, method, data.user?.email)
     }
   }
-  // connecting failed, usually because that Google account already belongs to another Helm user
-  if (searchParams.get('linked')) return NextResponse.redirect(new URL('/account/profile?link-error=1', origin))
   // Google or Microsoft with an account nobody invited: sign-ups are off, so the provider sends back an error
   if (searchParams.get('error')) return NextResponse.redirect(new URL('/login?error=not-invited', origin))
   return NextResponse.redirect(new URL('/login?error=link-expired', origin))

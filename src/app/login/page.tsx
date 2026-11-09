@@ -13,7 +13,7 @@ const ERRORS: Record<string, string> = {
   'link-expired': 'That sign-in link has expired or was already used. Request a new one below.',
   'wrong-password': 'Wrong email or password. First time here, or forgot it? Use “Set or reset your password” below, or sign in with a passkey.',
   'too-many': 'Too many attempts. Please wait a few minutes and try again.',
-  'not-invited': 'That Google or Microsoft account is not the email you were invited with, so it has no access to Helm. Sign in with your invited email (or ask for an invite), then connect this account from Your profile to use it next time.',
+  'not-invited': 'That Google account is not the email you were invited with. Use the email address you were invited with, or ask your Seven Billion contact to invite you.',
 }
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string; email?: string }> }) {
