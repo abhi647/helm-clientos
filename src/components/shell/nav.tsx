@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  Building2, CalendarDays, Clock, Folder, House, Inbox, Menu, MessageSquareHeart, PanelLeftClose, PanelLeftOpen, Receipt, Settings, SquareCheck,
+  Building2, CalendarDays, Clock, Folder, House, Inbox, Menu, MessageSquareHeart, PanelLeftClose, PanelLeftOpen, Receipt, Settings, Sparkles, SquareCheck,
 } from 'lucide-react'
 import { cn } from '@/components/ui'
 import { BrandMark } from '@/components/brand'
@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 const SECTIONS = [
   { title: 'Workspace', items: [
     { href: '/home', label: 'Home', icon: House },
+    { href: '/assistant', label: 'Ask Helm', icon: Sparkles },
     { href: '/my-work', label: 'My Work', icon: SquareCheck },
     { href: '/calendar', label: 'Calendar', icon: CalendarDays },
     { href: '/requests', label: 'Requests', icon: Inbox },

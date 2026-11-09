@@ -123,6 +123,64 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"ai_chats": {
+                  Row: {
+                    "created_at": string,"id": string,"messages": NonNullable<Json>,"notes": NonNullable<Json>,"profile_id": string,"title": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"messages"?: NonNullable<Json>,"notes"?: NonNullable<Json>,"profile_id"?: string,"title"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"messages"?: NonNullable<Json>,"notes"?: NonNullable<Json>,"profile_id"?: string,"title"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ai_chats_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ai_chats_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"ai_proposals": {
+                  Row: {
+                    "chat_id": string,"created_at": string,"decided_at": string | null,"error": string | null,"id": string,"input": NonNullable<Json>,"profile_id": string,"result": Json | null,"status": string,"summary": string,"tool": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "chat_id": string,"created_at"?: string,"decided_at"?: string | null,"error"?: string | null,"id"?: string,"input": NonNullable<Json>,"profile_id"?: string,"result"?: Json | null,"status"?: string,"summary"?: string,"tool": string
+                  }
+                  Update: {
+                    "chat_id"?: string,"created_at"?: string,"decided_at"?: string | null,"error"?: string | null,"id"?: string,"input"?: NonNullable<Json>,"profile_id"?: string,"result"?: Json | null,"status"?: string,"summary"?: string,"tool"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ai_proposals_chat_id_fkey"
+      columns: ["chat_id"]
+isOneToOne: false
+      referencedRelation: "ai_chats"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ai_proposals_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "directory"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ai_proposals_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"approval_events": {
                   Row: {
                     "action": Database["public"]['Enums']["approval_action"],"actor_id": string | null,"approval_id": string,"comment": string | null,"created_at": string,"customer_id": string,"id": number,"version": number

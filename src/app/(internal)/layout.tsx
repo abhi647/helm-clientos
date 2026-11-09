@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import { CommandPalette, type PaletteItem } from '@/components/shell/command-palette'
 import { MobileNav, Rail } from '@/components/shell/nav'
 import { QuickCreate } from '@/components/shell/quick-create'
+import { AssistantPanel } from '@/components/assistant/panel'
 import { UserMenu } from '@/components/shell/user-menu'
 import { canSeeFinance, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
@@ -25,6 +26,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
     ...(projects ?? []).map((p) => ({ group: 'Projects', label: p.name, hint: p.customers?.name, href: `/projects/${p.id}` })),
     ...(customers ?? []).map((c) => ({ group: 'Customers', label: c.name, href: `/customers/${c.id}` })),
     ...(requests ?? []).map((r) => ({ group: 'Open requests', label: `${r.number} ${r.title}`, href: `/requests/${r.id}` })),
+    { group: 'Create', label: 'Ask Helm (assistant)', href: '/assistant' },
     { group: 'Create', label: 'New request', href: '/requests/new' },
     ...(admin || pmOf ? [{ group: 'Create', label: 'New project', href: '/projects/new' }] : []),
   ]
@@ -35,6 +37,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
         <header className="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-border bg-background/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md">
           <MobileNav hide={hidden} />
           <div className="flex min-w-0 flex-1 items-center max-sm:justify-end"><CommandPalette items={palette} /></div>
+          <AssistantPanel />
           <QuickCreate canCreateProject={admin || !!pmOf} />
           <UserMenu profile={me} base="" />
         </header>

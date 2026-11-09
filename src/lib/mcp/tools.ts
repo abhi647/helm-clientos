@@ -29,19 +29,50 @@ const dbProblem = (error: { message: string } | null) =>
   problem(error?.message?.includes('row-level security') ? 'Helm does not allow this for your account.' : `Helm could not do that: ${error?.message ?? 'unknown error'}`)
 const staffOnly = (h: Helm) => { if (!h.staff) throw new HelmError('Only the Seven Billion team can do this. Use add_comment or create_request instead.') }
 
-/** Registers a tool: parses input, resolves the person, turns errors into messages the AI can act on. */
-function tool<S extends z.ZodObject>(server: McpServer, name: string, config: { title: string; description: string; input: S; write?: boolean }, run: Tool<z.infer<S>>) {
-  server.registerTool(name, {
-    title: config.title, description: config.description, inputSchema: config.input,
-    annotations: { readOnlyHint: !config.write, destructiveHint: false, idempotentHint: !config.write, openWorldHint: false },
-  }, (async (args: z.infer<S>, ctx: Ctx) => {
-    try {
-      const out = await run(await helm(ctx.http?.authInfo), args)
-      return out && typeof out === 'object' && 'content' in out ? out : text(out)
-    } catch (err) {
-      return problem(err instanceof HelmError ? err.message : `Something went wrong in Helm: ${err instanceof Error ? err.message : 'unknown error'}`)
+/** One Helm tool: what it does, its input, whether it changes data, and the code that runs as the signed-in person. */
+export type HelmTool = { name: string; title: string; description: string; input: z.ZodObject; write: boolean; run: Tool<Args> }
+const DEFS: HelmTool[] = []
+
+function tool<S extends z.ZodObject>(name: string, config: { title: string; description: string; input: S; write?: boolean }, run: Tool<z.infer<S>>) {
+  DEFS.push({ name, title: config.title, description: config.description, input: config.input, write: !!config.write, run: run as Tool<Args> })
+}
+
+/**
+ * Runs a tool as the person: validates the input, then turns any failure into a message the AI (or the person) can
+ * act on. Shared by the MCP connector and the in-app assistant, so both behave the same.
+ */
+export async function runHelmTool(h: Helm | (() => Promise<Helm>), name: string, args: unknown): Promise<{ ok: true; data: unknown } | { ok: false; error: string }> {
+  const def = DEFS.find((d) => d.name === name)
+  if (!def) return { ok: false, error: `Helm has no tool called ${name}.` }
+  const parsed = def.input.safeParse(args ?? {})
+  if (!parsed.success) return { ok: false, error: `The input for ${name} is not valid: ${parsed.error.issues.map((i) => `${i.path.join('.') || 'input'}: ${i.message}`).join('; ')}` }
+  try {
+    const out = await def.run(typeof h === 'function' ? await h() : h, parsed.data as Args)
+    if (out && typeof out === 'object' && 'isError' in out && (out as { isError?: boolean }).isError) {
+      const content = (out as { content?: { text?: string }[] }).content
+      return { ok: false, error: content?.[0]?.text ?? 'Helm could not do that.' }
     }
-  }) as never)
+    if (out && typeof out === 'object' && 'content' in out) return { ok: true, data: (out as { content?: { text?: string }[] }).content?.[0]?.text ?? '' }
+    return { ok: true, data: out }
+  } catch (err) {
+    return { ok: false, error: err instanceof HelmError ? err.message : `Something went wrong in Helm: ${err instanceof Error ? err.message : 'unknown error'}` }
+  }
+}
+
+/** Every Helm tool, in a fixed order (the assistant's prompt cache depends on it). */
+export const helmTools = (): readonly HelmTool[] => DEFS
+
+/** Registers the tools on an MCP server (the Helm connector for Claude, ChatGPT, Cursor…). */
+export function registerHelmTools(server: McpServer) {
+  for (const def of DEFS) {
+    server.registerTool(def.name, {
+      title: def.title, description: def.description, inputSchema: def.input,
+      annotations: { readOnlyHint: !def.write, destructiveHint: false, idempotentHint: !def.write, openWorldHint: false },
+    }, (async (args: Args, ctx: Ctx) => {
+      const res = await runHelmTool(() => helm(ctx.http?.authInfo), def.name, args)
+      return res.ok ? text(res.data) : problem(res.error)
+    }) as never)
+  }
 }
 
 const person = (p: { id: string; full_name: string; kind?: string } | null | undefined) => (p ? { id: p.id, name: p.full_name, ...(p.kind ? { side: p.kind === 'customer' ? 'customer' : 'seven_billion' } : {}) } : null)
@@ -60,9 +91,9 @@ const taskOut = (t: TaskRow, staff: boolean) => ({
   link: `${process.env.NEXT_PUBLIC_SITE_URL}/${staff ? '' : 'portal/'}projects/${t.project_id}?task=${t.id}`,
 })
 
-export function registerHelmTools(server: McpServer) {
+function defineHelmTools() {
   // ------------------------------------------------------------------ who and what
-  tool(server, 'whoami', {
+  tool('whoami', {
     title: 'Who am I in Helm', input: z.object({}),
     description: 'The signed-in Helm user: name, side (Seven Billion team or customer), role and company. Call this first to know what you can do.',
   }, async ({ me, staff }) => ({
@@ -72,7 +103,7 @@ export function registerHelmTools(server: McpServer) {
       : 'read your company\'s projects, tasks, requests and updates; comment; create requests',
   }))
 
-  tool(server, 'list_projects', {
+  tool('list_projects', {
     title: 'List projects', input: z.object({ search: z.string().max(100).optional(), status: z.enum(['active', 'on_hold', 'completed']).optional() }),
     description: 'Projects you can see, with customer, status, health, PM and dates. Filter by name or status (active, on_hold, completed).',
   }, async ({ db }, { search, status }) => {
@@ -84,7 +115,7 @@ export function registerHelmTools(server: McpServer) {
     return (data ?? []).map((p) => ({ id: p.id, name: p.name, customer: p.customers?.name, status: p.status, health: p.health, pm: person(p.pm), start_date: p.start_date, end_date: p.end_date }))
   })
 
-  tool(server, 'get_project', {
+  tool('get_project', {
     title: 'Project overview', input: z.object({ project_id: id }),
     description: 'One project: phases with progress, task counts by status, overdue tasks, open requests and the latest published weekly update.',
   }, async ({ db, staff }, { project_id }) => {
@@ -110,7 +141,7 @@ export function registerHelmTools(server: McpServer) {
   })
 
   // ------------------------------------------------------------------ tasks
-  tool(server, 'list_tasks', {
+  tool('list_tasks', {
     title: 'List tasks',
     input: z.object({
       project_id: id.optional(), assignee: z.string().optional().describe('"me", "unassigned", or a person id from list_people'),
@@ -134,7 +165,7 @@ export function registerHelmTools(server: McpServer) {
     return (data as unknown as TaskRow[]).map((t) => taskOut(t, staff))
   })
 
-  tool(server, 'my_work', {
+  tool('my_work', {
     title: 'My work', input: z.object({}),
     description: 'Your open tasks, grouped: overdue, due today, this week, waiting on the customer, later. The same as the My Work page.',
   }, async ({ db, me, staff }) => {
@@ -148,7 +179,7 @@ export function registerHelmTools(server: McpServer) {
     return groups
   })
 
-  tool(server, 'get_task', {
+  tool('get_task', {
     title: 'Task details', input: z.object({ task_id: id }),
     description: 'One task: description, owner, dates, subtasks, the discussion you can see and (for the team) hours logged.',
   }, async ({ db, staff }, { task_id }) => {
@@ -168,7 +199,7 @@ export function registerHelmTools(server: McpServer) {
     }
   })
 
-  tool(server, 'create_task', {
+  tool('create_task', {
     title: 'Create a task', write: true,
     input: z.object({
       project_id: id, title: z.string().trim().min(2).max(200), description: z.string().max(10_000).optional(),
@@ -215,7 +246,7 @@ export function registerHelmTools(server: McpServer) {
     return { created: taskOut(task as unknown as TaskRow, true) }
   })
 
-  tool(server, 'update_task', {
+  tool('update_task', {
     title: 'Update a task', write: true,
     input: z.object({
       task_id: id, title: z.string().trim().min(2).max(200).optional(), description: z.string().max(10_000).optional(),
@@ -248,7 +279,7 @@ export function registerHelmTools(server: McpServer) {
     return { updated: taskOut(data as unknown as TaskRow, true) }
   })
 
-  tool(server, 'log_time', {
+  tool('log_time', {
     title: 'Log time on a task', write: true,
     input: z.object({
       task_id: id, hours: z.number().positive().max(24).multipleOf(0.25).describe('in quarters of an hour: 0.25, 0.5, 1.75…'),
@@ -266,7 +297,7 @@ export function registerHelmTools(server: McpServer) {
   })
 
   // ------------------------------------------------------------------ requests
-  tool(server, 'list_requests', {
+  tool('list_requests', {
     title: 'List requests',
     input: z.object({ project_id: id.optional(), status: z.array(z.enum(REQUEST_STATUS)).optional(), open_only: z.boolean().default(true), search: z.string().max(100).optional() }),
     description: 'Customer requests (requirements, changes, bugs, data or access requests) you can see. Open ones only unless open_only is false.',
@@ -284,7 +315,7 @@ export function registerHelmTools(server: McpServer) {
     }))
   })
 
-  tool(server, 'get_request', {
+  tool('get_request', {
     title: 'Request details', input: z.object({ request_id: id }),
     description: 'One request: what is needed and why, stage, owner, and the discussion you can see.',
   }, async ({ db, staff }, { request_id }) => {
@@ -300,7 +331,7 @@ export function registerHelmTools(server: McpServer) {
     }
   })
 
-  tool(server, 'create_request', {
+  tool('create_request', {
     title: 'Create a request', write: true,
     input: z.object({
       title: z.string().trim().min(3).max(200), what: z.string().trim().min(3).max(5000).describe('what is needed'), why: z.string().max(5000).default(''),
@@ -320,7 +351,7 @@ export function registerHelmTools(server: McpServer) {
     return { created: { id: data.id, number: data.number, link: `${process.env.NEXT_PUBLIC_SITE_URL}/${staff ? '' : 'portal/'}requests/${data.id}` } }
   })
 
-  tool(server, 'set_request_stage', {
+  tool('set_request_stage', {
     title: 'Move a request to a stage', write: true,
     input: z.object({ request_id: id, status: z.enum(REQUEST_STATUS), note: z.string().max(500).optional() }),
     description: 'Moves a request along: submitted, under_review, clarification, estimated, approved, scheduled, in_development, uat, delivered, cancelled. Seven Billion team only.',
@@ -331,7 +362,7 @@ export function registerHelmTools(server: McpServer) {
   })
 
   // ------------------------------------------------------------------ discussion, people, approvals
-  tool(server, 'add_comment', {
+  tool('add_comment', {
     title: 'Comment on a task or request', write: true,
     input: z.object({
       on: z.enum(['task', 'request']), id, body: z.string().trim().min(1).max(10_000),
@@ -348,7 +379,7 @@ export function registerHelmTools(server: McpServer) {
     return error ? dbProblem(error) : `Comment posted${staff ? (a.shared ? ' (the customer can see it)' : ' (team only)') : ''}.`
   })
 
-  tool(server, 'list_people', {
+  tool('list_people', {
     title: 'List people', input: z.object({ project_id: id.optional().describe('include the people at this project\'s customer') }),
     description: 'People you can assign or mention: the Seven Billion team, plus the customer\'s people for a project. Use the ids with create_task or update_task.',
   }, async ({ db }, { project_id }) => {
@@ -360,7 +391,7 @@ export function registerHelmTools(server: McpServer) {
     return error ? dbProblem(error) : (data ?? []).map((p) => person(p))
   })
 
-  tool(server, 'list_approvals', {
+  tool('list_approvals', {
     title: 'List approvals', input: z.object({ status: z.enum(['pending', 'approved', 'changes_requested', 'cancelled']).default('pending'), mine: z.boolean().default(false).describe('only approvals waiting on you') }),
     description: 'Approvals (estimates, sign-offs) and where they stand. Read only: deciding an approval is done in Helm itself.',
   }, async ({ db, me }, a) => {
@@ -371,7 +402,7 @@ export function registerHelmTools(server: McpServer) {
     return (data ?? []).map((x) => ({ id: x.id, title: x.title, kind: x.kind, status: x.status, summary: x.summary, due_date: x.due_date, effort: x.effort ? `${x.effort} ${x.effort_unit}` : null, customer: x.customers?.name, project: x.projects?.name ?? null, approver: person(x.approver) }))
   })
 
-  tool(server, 'list_updates', {
+  tool('list_updates', {
     title: 'Weekly updates', input: z.object({ project_id: id, limit: z.number().int().min(1).max(52).default(4) }),
     description: 'The published weekly status updates of a project, newest first: done, in progress, next week, waiting on the customer, health.',
   }, async ({ db }, a) => {
@@ -379,7 +410,7 @@ export function registerHelmTools(server: McpServer) {
     return error ? dbProblem(error) : data ?? []
   })
 
-  tool(server, 'search', {
+  tool('search', {
     title: 'Search Helm', input: z.object({ query: z.string().trim().min(2).max(100) }),
     description: 'Finds projects, tasks and requests whose name or title contains the words. Use it to get ids for the other tools.',
   }, async ({ db, staff }, { query }) => {
@@ -396,3 +427,4 @@ export function registerHelmTools(server: McpServer) {
     }
   })
 }
+defineHelmTools()

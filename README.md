@@ -359,7 +359,7 @@ Access is enforced inside Postgres at two levels, so a bug in a page cannot leak
 | 3 | Supabase → Database → Backups | Turn on **Point-in-Time Recovery** (Pro plan add-on), which allows restoring to any second in the retention window. Daily backups alone can lose up to a day. |
 | 4 | Supabase project region | Pick the region at creation; it can't be moved later. Mumbai (`ap-south-1`) is next to Vercel `bom1`. If a customer's contract requires their data to stay in a specific country or region, check Supabase's region list before creating the project. |
 | 5 | Supabase → Authentication → URL configuration and Rate limits | Use only your production domain for redirects. Keep the default sign-in rate limits. |
-| 6 | Vercel | Mark the server-only keys (`SUPABASE_SECRET_KEY`, `RESEND_API_KEY`, `CRON_SECRET`, `ZOHO_*`, `HUBSPOT_*`) as **Sensitive**. Never prefix them with `NEXT_PUBLIC_`. |
+| 6 | Vercel | Mark the server-only keys (`SUPABASE_SECRET_KEY`, `RESEND_API_KEY`, `CRON_SECRET`, `ZOHO_*`, `HUBSPOT_*`, `ANTHROPIC_API_KEY`) as **Sensitive**. Never prefix them with `NEXT_PUBLIC_`. |
 
 - The secret key is server-only (`src/lib/supabase/admin.ts` imports `server-only`). It is used for the email outbox, integrations and invites.
 - Access is decided in the database, so a bug in a page cannot leak another customer's data. `tests/rls.test.ts` proves this, including attempts to forge requests, post internal comments as a customer, or escalate a profile.
@@ -378,3 +378,17 @@ Access is enforced inside Postgres at two levels, so a bug in a page cannot leak
 | `Helm-Build-Coverage.md`, `Helm-Verification.md` | Coverage and verification notes for the **1 October browser prototype**, not for this build. |
 
 That prototype stored its demo data in the browser. It remains in git history (commit `b35391c`) for reference. This repository's `main` is the production build described above: Supabase, row and field security, two-step sign-in, email, and the HubSpot and Zoho integrations.
+
+## Ask Helm (the assistant)
+
+Team members talk to Helm on **Ask Helm** (sidebar, or ⌘J for a side panel that knows the page you are on).
+Claude (`claude-opus-5-5`, through the Anthropic SDK) reads with the same tools as the Helm MCP connector
+(`src/lib/mcp/tools.ts`), acting as the signed-in person, so Row Level Security decides what it sees. Tools that change
+data never run straight away: each becomes a card the person confirms or cancels, and only a confirmed card runs, as
+them. There are no tools that delete, approve for customers, bill or change settings.
+
+- Set `ANTHROPIC_API_KEY` (server-only, Sensitive in Vercel). Without it the assistant says it is not set up.
+- Chats and proposals live in `ai_chats` and `ai_proposals` (migration 034), private to each team member.
+- The system prompt and tool list never change between turns, so they stay in Anthropic's prompt cache; today's date
+  and the current page travel with each message instead.
+
