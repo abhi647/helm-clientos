@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createCustomer, inviteStaff, syncZohoNow } from '@/app/_actions/admin'
+import { DataGrid } from '@/components/data-grid'
 import { ActionButton, ActionForm } from '@/components/forms'
 import { AccountOwnerSelect, AutomationToggle, ConsultantScopeToggle, RoleSelect } from '@/components/admin-controls'
 import { Avatar, btn, Card, Chip, PageHeader } from '@/components/ui'
@@ -65,44 +66,62 @@ export default async function Admin() {
         actions={<Link href="/admin/health" className={btn('outline')}>System health</Link>} />
       <div className="flex flex-wrap items-start gap-3 p-4">
         <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-3">
-          <Card flush className="overflow-x-auto" title="Team" extra={`${staff?.length ?? 0} people`}>
-            <div className="min-w-[620px]">
-              <div className="row row-head grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px_150px]"><span>Name</span><span>Email</span><span>Last sign-in</span><span>Role</span></div>
-              {(staff ?? []).map((p) => (
-                <div key={p.id} className="row grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px_150px]">
-                  <span className="flex min-w-0 items-center gap-2"><Avatar name={p.full_name} /><span className="truncate font-medium">{p.full_name}</span>{p.id === me.id ? <Chip>You</Chip> : null}</span>
-                  <span className="truncate text-xs text-muted-foreground">{p.email}</span>
-                  <span className="text-xs text-muted-foreground">{lastSeen.get(p.id) ? relativeTime(lastSeen.get(p.id)!) : 'Never'}</span>
-                  <span>{p.id === me.id ? <span className="text-xs">{label(p.internal_role ?? '')}</span>
-                    : <RoleSelect userId={p.id} role={removed.has(p.id) ? 'remove' : p.internal_role!} />}</span>
-                </div>
-              ))}
-            </div>
+          <Card flush title="Team" extra={`${staff?.length ?? 0} people`}>
+            <DataGrid label="Team" search searchLabel="Search people"
+              columns={[
+                { key: 'name', label: 'Name', sortable: true },
+                { key: 'email', label: 'Email', sortable: true },
+                { key: 'seen', label: 'Last sign-in', sortable: true, className: 'w-[120px]' },
+                { key: 'role', label: 'Role', sortable: true, className: 'w-[170px]' },
+              ]}
+              rows={(staff ?? []).map((p) => ({
+                id: p.id,
+                values: { name: p.full_name, email: p.email, seen: lastSeen.get(p.id) ? -Date.parse(lastSeen.get(p.id)!) : null, role: removed.has(p.id) ? 'zz' : p.internal_role },
+                cells: {
+                  name: <span className="flex min-w-0 items-center gap-2"><Avatar name={p.full_name} /><span className="truncate font-medium">{p.full_name}</span>{p.id === me.id ? <Chip>You</Chip> : null}</span>,
+                  email: <span className="block truncate text-xs text-muted-foreground">{p.email}</span>,
+                  seen: <span className="text-xs text-muted-foreground">{lastSeen.get(p.id) ? relativeTime(lastSeen.get(p.id)!) : 'Never'}</span>,
+                  role: p.id === me.id ? <span className="text-xs">{label(p.internal_role ?? '')}</span> : <RoleSelect userId={p.id} role={removed.has(p.id) ? 'remove' : p.internal_role!} />,
+                },
+              }))} />
           </Card>
 
-          <Card flush className="overflow-x-auto" title="Customers" extra={`${customers?.length ?? 0} customers`}>
-            <div className="min-w-[660px]">
-              <div className="row row-head grid-cols-[minmax(0,1fr)_80px_120px_120px_170px]"><span>Customer</span><span>Active</span><span>HubSpot</span><span>Zoho</span><span>Account owner</span></div>
-              {(customers ?? []).map((c) => (
-                <div key={c.id} className="row grid-cols-[minmax(0,1fr)_80px_120px_120px_170px]">
-                  <Link href={`/customers/${c.id}`} className="truncate font-medium">{c.name}</Link>
-                  <span className="font-mono text-xs">{(activeProjects ?? []).filter((p) => p.customer_id === c.id).length}</span>
-                  <span className="truncate font-mono text-xs text-muted-foreground">{c.hubspot_company_id ?? '–'}</span>
-                  <span className="truncate font-mono text-xs text-muted-foreground">{c.zoho_customer_id ?? '–'}</span>
-                  <AccountOwnerSelect customerId={c.id} value={c.account_owner_id ?? ''} people={(staff ?? []).map((s) => ({ id: s.id, name: s.full_name }))} />
-                </div>
-              ))}
-            </div>
+          <Card flush title="Customers" extra={`${customers?.length ?? 0} customers`}>
+            <DataGrid label="Customers" search searchLabel="Search customers"
+              columns={[
+                { key: 'name', label: 'Customer', sortable: true },
+                { key: 'active', label: 'Active', sortable: true, align: 'right', className: 'w-[80px]' },
+                { key: 'hubspot', label: 'HubSpot', sortable: true, className: 'w-[130px]' },
+                { key: 'zoho', label: 'Zoho', sortable: true, className: 'w-[170px]' },
+                { key: 'owner', label: 'Account owner', className: 'w-[180px]' },
+              ]}
+              rows={(customers ?? []).map((c) => {
+                const active = (activeProjects ?? []).filter((p) => p.customer_id === c.id).length
+                return {
+                  id: c.id,
+                  values: { name: c.name, active, hubspot: c.hubspot_company_id, zoho: c.zoho_customer_id },
+                  cells: {
+                    name: <Link href={`/customers/${c.id}`} className="block truncate font-medium">{c.name}</Link>,
+                    active: <span className="tabular font-mono text-xs">{active}</span>,
+                    hubspot: <span className="block truncate font-mono text-xs text-muted-foreground">{c.hubspot_company_id ?? '–'}</span>,
+                    zoho: <span className="block truncate font-mono text-xs text-muted-foreground">{c.zoho_customer_id ?? '–'}</span>,
+                    owner: <AccountOwnerSelect customerId={c.id} value={c.account_owner_id ?? ''} people={(staff ?? []).map((s) => ({ id: s.id, name: s.full_name }))} />,
+                  },
+                }
+              })} />
           </Card>
 
           <Card flush title="Playbook automations" extra="Run in the database, so they never miss an event">
-            <div className="row row-head grid-cols-[minmax(0,1fr)_minmax(0,1fr)_90px]"><span>When</span><span>Then</span><span /></div>
-            {RULES.map((r) => (
-              <div key={r.key} className="row grid-cols-[minmax(0,1fr)_minmax(0,1fr)_90px] py-1">
-                <span>{r.when}</span><span className="text-muted-foreground">{r.then}</span>
-                <AutomationToggle ruleKey={r.key} enabled={enabled.get(r.key) ?? true} />
-              </div>
-            ))}
+            <DataGrid label="Playbook automations"
+              columns={[{ key: 'when', label: 'When' }, { key: 'then', label: 'Then' }, { key: 'on', label: 'On', align: 'right', className: 'w-[90px]' }]}
+              rows={RULES.map((r) => ({
+                id: r.key,
+                cells: {
+                  when: <span className="whitespace-normal">{r.when}</span>,
+                  then: <span className="whitespace-normal text-muted-foreground">{r.then}</span>,
+                  on: <span className="flex justify-end"><AutomationToggle ruleKey={r.key} enabled={enabled.get(r.key) ?? true} /></span>,
+                },
+              }))} />
           </Card>
         </div>
 
