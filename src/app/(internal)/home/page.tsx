@@ -6,8 +6,9 @@ import { ActionButton, ActionForm } from '@/components/forms'
 import { ActivityFeed } from '@/components/overtrue/activity-feed'
 import { Greeting } from '@/components/shell/greeting'
 import { HeartPulse, Hourglass, Receipt, Siren, Stamp, TriangleAlert } from 'lucide-react'
-import { Card, Chip, Empty, Health, Stat, cn } from '@/components/ui'
-import { ActivityCalendar, HealthDonut, LoadMatrix, StageFunnel, Ticks, WeeklyMetrics, WeeklyTrend } from '@/components/viz'
+import { Avatar, Card, Chip, Empty, Health, Stat, cn } from '@/components/ui'
+import { HealthDonut, StageFunnel, Ticks, WeeklyMetrics, WeeklyTrend } from '@/components/viz'
+import { avatarUrl } from '@/lib/avatar'
 import { initials, isOverdue, isoDaysAgo, label, relativeTime, shortDate } from '@/lib/format'
 import { loadPortfolio } from '@/lib/portfolio'
 import { canManage, requireStaff } from '@/lib/session'
@@ -19,7 +20,8 @@ import { Input } from '@/components/ui/input'
 
 export const metadata: Metadata = { title: 'Home' }
 
-const WEEKLY_CAPACITY_DAYS = 5
+const HOURS_PER_DAY = 8
+const ROLE: Record<string, string> = { pm: 'PM', consultant: 'Consultant', finance: 'Finance', ceo: 'CEO', admin: 'Admin' }
 
 export default async function Home() {
   const me = await requireStaff()
@@ -29,37 +31,49 @@ export default async function Home() {
   monday.setUTCHours(0, 0, 0, 0)
   monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7))
   const since12 = new Date(monday.getTime() - 11 * 7 * 86_400_000).toISOString()
-  const [{ rows, exceptions, counts }, setups, staff, load, events, pending, recent, taskFlow, logged, reqs] = await Promise.all([
+  const sunday = new Date(monday.getTime() + 6 * 86_400_000)
+  const wk = { from: monday.toISOString().slice(0, 10), to: sunday.toISOString().slice(0, 10) }
+  const [{ rows, exceptions, counts }, setups, staff, load, events, pending, recent, taskFlow, logged, reqs, weekTime, weekLeave, weekHolidays] = await Promise.all([
     loadPortfolio(),
     supabase.from('engagement_setups').select('*').eq('status', 'pending').order('created_at', { ascending: false }),
-    supabase.from('directory').select('id, full_name, internal_role').eq('kind', 'internal').order('full_name')
-      .overrideTypes<Pick<DirectoryRow, 'id' | 'full_name' | 'internal_role'>[], { merge: false }>(),
-    supabase.from('tasks').select('assignee_id, due_date, task_estimates(estimate, unit)').neq('status', 'done').not('assignee_id', 'is', null),
-    supabase.from('activity').select('created_at').gte('created_at', new Date(Date.now() - 182 * 86_400_000).toISOString()).limit(20_000),
+    supabase.from('directory').select('id, full_name, internal_role, access_revoked_at, avatar_path, avatar_color').eq('kind', 'internal').order('full_name')
+      .overrideTypes<Pick<DirectoryRow, 'id' | 'full_name' | 'internal_role' | 'access_revoked_at' | 'avatar_path' | 'avatar_color'>[], { merge: false }>(),
+    supabase.from('tasks').select('assignee_id, due_date, status, task_estimates(estimate, unit)').neq('status', 'done').not('assignee_id', 'is', null),
+    supabase.from('activity').select('created_at').gte('created_at', since12).limit(20_000),
     supabase.from('approvals').select('id, title, due_date, request_id, customers(name), approver:profiles!approvals_approver_id_fkey(full_name)').eq('status', 'pending').order('due_date', { ascending: true, nullsFirst: false }).limit(8),
     supabase.from('activity').select('id, summary, created_at, project_id, actor:profiles!activity_actor_id_fkey(full_name), projects(name)').order('created_at', { ascending: false }).limit(8),
     supabase.from('tasks').select('created_at, completed_at').or(`created_at.gte.${since12},completed_at.gte.${since12}`).limit(20_000),
     supabase.from('time_entries').select('worked_on, hours').gte('worked_on', since12.slice(0, 10)).limit(20_000),
     supabase.from('requests').select('status, created_at, updated_at').limit(5_000),
+    // this week, per person: hours logged, leave, and the company holidays
+    supabase.from('time_entries').select('user_id, hours').gte('worked_on', wk.from).lte('worked_on', wk.to).limit(20_000),
+    supabase.from('leave_days').select('profile_id, day, portion').gte('day', wk.from).lte('day', wk.to),
+    supabase.from('holidays').select('day').eq('optional', false).gte('day', wk.from).lte('day', wk.to),
   ])
 
-  // planned days per person for the next four weeks (from estimates in days; billed-unit estimates aren't time)
-  const weekStart = new Date()
-  weekStart.setUTCHours(0, 0, 0, 0)
-  weekStart.setUTCDate(weekStart.getUTCDate() - ((weekStart.getUTCDay() + 6) % 7))
-  const weeks = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => new Date(weekStart.getTime() + i * 7 * 86_400_000))
-  const people = (staff.data ?? []).filter((p) => ['pm', 'consultant'].includes(p.internal_role ?? ''))
-  const hours = new Map<string, number[]>(people.map((p) => [p.id, weeks.map(() => 0)]))
-  for (const t of load.data ?? []) {
-    if (!t.due_date || !hours.has(t.assignee_id!)) continue
-    const w = Math.floor((Date.parse(`${t.due_date}T00:00:00Z`) - weekStart.getTime()) / (7 * 86_400_000))
-    const est = t.task_estimates?.unit === 'day' ? Number(t.task_estimates.estimate ?? 0) : 0
-    if (w >= 0 && w < weeks.length) hours.get(t.assignee_id!)![w]! += est
-  }
+  // the team this week: open work, what is due or late, hours logged against what they could work (less leave, holidays)
+  const todayIso = new Date().toISOString().slice(0, 10)
+  const holidaySet = new Set((weekHolidays.data ?? []).map((h) => h.day))
+  const workdays = [0, 1, 2, 3, 4].map((i) => new Date(monday.getTime() + i * 86_400_000).toISOString().slice(0, 10)).filter((d) => !holidaySet.has(d))
+  const dayName = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' })
+  const team = (staff.data ?? []).filter((p) => !p.access_revoked_at).map((p) => {
+    const mine = (load.data ?? []).filter((t) => t.assignee_id === p.id)
+    const away = (weekLeave.data ?? []).filter((l) => l.profile_id === p.id && workdays.includes(l.day))
+    const awayDays = away.reduce((a, l) => a + Number(l.portion), 0)
+    const capacity = Math.max(0, (workdays.length - awayDays) * HOURS_PER_DAY)
+    const logged = (weekTime.data ?? []).filter((e) => e.user_id === p.id).reduce((a, e) => a + Number(e.hours), 0)
+    const planned = mine.filter((t) => t.due_date && t.due_date >= wk.from && t.due_date <= wk.to && t.task_estimates?.unit === 'day')
+      .reduce((a, t) => a + Number(t.task_estimates?.estimate ?? 0), 0)
+    return {
+      ...p, open: mine.length, overdue: mine.filter((t) => t.due_date && t.due_date < todayIso).length,
+      due: mine.filter((t) => t.due_date && t.due_date >= todayIso && t.due_date <= wk.to).length,
+      blocked: mine.filter((t) => t.status === 'blocked' || t.status === 'waiting_customer').length,
+      away, awayDays, capacity, logged, planned,
+    }
+  }).filter((p) => p.open || p.logged || p.awayDays || ['pm', 'consultant'].includes(p.internal_role ?? ''))
+  const offThisWeek = team.filter((p) => p.awayDays).length
+  const hrsShort = (h: number) => `${+h.toFixed(1)} h`
   const crit = exceptions.filter((e) => e.severity === 'crit').length
-  const perDay = new Map<string, number>()
-  for (const e of events.data ?? []) { const d = e.created_at.slice(0, 10); perDay.set(d, (perDay.get(d) ?? 0) + 1) }
-  const activity = [...perDay].map(([date, value]) => ({ date, value }))
   const byHealth = (h: string) => rows.filter((r) => r.health === h).length
   const weekLabel = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
   const weekIndex = (iso: string | null) => iso ? Math.floor((Date.parse(iso.length === 10 ? `${iso}T00:00:00Z` : iso) - Date.parse(since12)) / (7 * 86_400_000)) : -1
@@ -188,12 +202,42 @@ export default async function Home() {
               <StageFunnel steps={funnel} />
             </Card>
           </div>
-          <Card title="Team load" description={`Planned days per person per week, from task estimates · capacity ${WEEKLY_CAPACITY_DAYS} days`}>
-            {people.length ? <LoadMatrix capacity={WEEKLY_CAPACITY_DAYS} columns={weeks.map(weekLabel)} rows={people.map((p) => ({ label: p.full_name, values: hours.get(p.id)!.map((d) => +d.toFixed(1)) }))} />
-              : <Empty title="No team members yet" />}
-          </Card>
-          <Card title="Delivery activity" description="Updates, comments and status changes, last 6 months">
-            <ActivityCalendar data={activity} unit="events" />
+          <Card flush title="Team this week" description={`${workdays.length} working days${holidaySet.size ? ` (${holidaySet.size} holiday)` : ''} · ${HOURS_PER_DAY} h a day, less leave`}
+            extra={offThisWeek ? <Link href="/leave?tab=team" className="text-xs font-medium">{offThisWeek} away this week →</Link> : <Link href="/leave?tab=team" className="text-xs font-medium">Team calendar →</Link>}>
+            <DataGrid label="Team this week" initialSort={{ key: 'overdue', direction: -1 }}
+              empty={<Empty title="No team members yet" />}
+              columns={[
+                { key: 'person', label: 'Person', sortable: true },
+                { key: 'away', label: 'Away', className: 'w-[130px]' },
+                { key: 'open', label: 'Open', sortable: true, align: 'right', className: 'w-[60px]' },
+                { key: 'due', label: 'Due', sortable: true, align: 'right', className: 'w-[55px]' },
+                { key: 'overdue', label: 'Late', sortable: true, align: 'right', className: 'w-[55px]' },
+                { key: 'logged', label: 'Logged this week', sortable: true, className: 'w-[190px]' },
+              ]}
+              rows={team.map((p) => {
+                const pct = p.capacity ? Math.min(100, (100 * p.logged) / p.capacity) : 0
+                return {
+                  id: p.id,
+                  values: { person: p.full_name, open: p.open, due: p.due, overdue: p.overdue, logged: p.capacity ? p.logged / p.capacity : 0 },
+                  cells: {
+                    person: <span className="flex min-w-0 items-center gap-2"><Avatar name={p.full_name} src={avatarUrl(p.avatar_path)} color={p.avatar_color} size={22} />
+                      <span className="truncate font-medium">{p.full_name}</span><span className="text-[11px] text-muted-foreground">{ROLE[p.internal_role ?? ''] ?? ''}</span></span>,
+                    away: p.away.length
+                      ? <span title={p.away.map((l) => `${dayName(l.day)}${Number(l.portion) < 1 ? ' (half)' : ''}`).join(', ')}><Chip tone="info">{p.awayDays >= workdays.length ? 'All week' : p.away.map((l) => dayName(l.day)).join(' ')}{p.away.some((l) => Number(l.portion) < 1) ? ' ½' : ''}</Chip></span>
+                      : <span className="text-xs text-muted-foreground">–</span>,
+                    open: <span className="tabular font-mono text-xs">{p.open || '–'}</span>,
+                    due: <span className="tabular font-mono text-xs">{p.due || '–'}</span>,
+                    overdue: <span className={cn('tabular font-mono text-xs', p.overdue ? 'font-semibold text-crit-ink' : 'text-muted-foreground')}>{p.overdue || '–'}</span>,
+                    logged: p.capacity ? (
+                      <span className="flex items-center gap-2" title={`${hrsShort(p.logged)} of ${p.capacity} h${p.planned ? ` · ${p.planned} d planned from estimates` : ''}`}>
+                        <span className="h-1.5 w-20 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label={`${p.full_name}: ${hrsShort(p.logged)} of ${p.capacity} hours`}>
+                          <span className={cn('block h-full rounded-full', p.logged > p.capacity ? 'bg-warn' : 'bg-primary')} style={{ width: `${pct}%` }} /></span>
+                        <span className="tabular text-xs"><b className="font-medium">{hrsShort(p.logged)}</b><span className="text-muted-foreground"> / {p.capacity} h</span></span>
+                      </span>
+                    ) : <span className="text-xs text-muted-foreground">Away</span>,
+                  },
+                }
+              })} />
           </Card>
         </div>
 
