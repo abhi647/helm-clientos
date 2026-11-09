@@ -7,7 +7,7 @@ import { StatementStatus, period } from '@/components/billing'
 import { PaymentsCard } from '@/components/payments'
 import { BillingRun } from '@/components/billing-run'
 import { UnbilledTime } from '@/components/time-billing'
-import { Card, Chip, Empty, PageHeader, cn } from '@/components/ui'
+import { btn, Card, Chip, cn, Empty, PageHeader } from '@/components/ui'
 import { daysFromToday, label, money, relativeTime, shortDate } from '@/lib/format'
 import { canSeeFinance, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
@@ -39,7 +39,7 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
   return (
     <>
       <PageHeader title="Finance" meta={<span className="text-xs text-muted-foreground">Synced from Zoho Books{lastSync ? ` · last sync ${relativeTime(lastSync)}` : ''}</span>}
-        actions={<><Link href="/finance/costs" className="btn">Cost rates</Link><ActionButton run={syncZohoNow}>Sync now</ActionButton></>} />
+        actions={<><Link href="/finance/costs" className={btn('outline')}>Cost rates</Link><ActionButton run={syncZohoNow}>Sync now</ActionButton></>} />
       <div className="flex flex-col gap-3 p-4">
         <BillingRun month={month} />
         <Card flush title="Invoices" className="overflow-x-auto">

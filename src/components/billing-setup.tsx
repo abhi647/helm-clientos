@@ -6,8 +6,10 @@ import { CalendarClock, Clock, Flag, Plus, Trash2, UserCheck } from 'lucide-reac
 import { toast } from 'sonner'
 import { setupBilling, type BillingSetup } from '@/app/_actions/billing'
 import { Steps } from '@/components/overtrue/steps'
-import { cn } from '@/components/ui'
+import { btn, cn } from '@/components/ui'
 import { CURRENCIES } from '@/lib/currencies'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Input } from '@/components/ui/input'
 
 export type Model = 'time_materials' | 'dedicated' | 'fixed_price' | 'retainer'
 export type Unit = 'hour' | 'day' | 'month'
@@ -130,7 +132,7 @@ export function BillingSetupWizard({ projectId, people, phases, initial }: { pro
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-end gap-3">
               <label className="flex flex-col gap-1"><span className="label">Contract value</span>
-                <input value={contract} onChange={(e) => setContract(e.target.value)} inputMode="decimal" className="input tabular w-44" placeholder="e.g. 14,00,000" /></label>
+                <Input value={contract} onChange={(e) => setContract(e.target.value)} inputMode="decimal" className="tabular w-44" placeholder="e.g. 14,00,000" /></label>
               <span className="flex flex-col gap-1"><span className="label">Schedule in</span>
                 <Seg label="Schedule in" value={byPercent ? 'pct' : 'amt'} onChange={(v) => setByPercent(v === 'pct')} options={[{ value: 'amt', label: 'Amounts' }, { value: 'pct', label: '% of contract' }]} /></span>
               <span className={cn('ml-auto text-xs', pctTotal === 100 || !contract ? 'text-muted-foreground' : 'font-medium text-warn-ink')}>
@@ -140,22 +142,22 @@ export function BillingSetupWizard({ projectId, people, phases, initial }: { pro
               <div className="row row-head grid-cols-[minmax(0,1fr)_120px_190px_150px_32px] min-w-[680px]"><span>Billing schedule</span><span className="text-right">{byPercent ? '% of contract' : 'Amount'}</span><span>Due when this phase is done</span><span>…or on this date</span><span /></div>
               {milestones.map((m, i) => (
                 <div key={i} className="row grid-cols-[minmax(0,1fr)_120px_190px_150px_32px] min-w-[680px] py-1">
-                  <input aria-label={`Milestone ${i + 1} name`} value={m.label} placeholder="e.g. Kick-off (advance)" className="input"
+                  <Input aria-label={`Milestone ${i + 1} name`} value={m.label} placeholder="e.g. Kick-off (advance)" className="w-auto"
                     onChange={(e) => setMilestones(milestones.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
-                  <input aria-label={`Milestone ${i + 1} amount`} value={m.amount} inputMode="decimal" placeholder={byPercent ? '%' : '0'} className="input tabular text-right"
+                  <Input aria-label={`Milestone ${i + 1} amount`} value={m.amount} inputMode="decimal" placeholder={byPercent ? '%' : '0'} className="w-auto tabular text-right"
                     onChange={(e) => setMilestones(milestones.map((x, j) => j === i ? { ...x, amount: e.target.value } : x))} />
-                  <select aria-label={`Milestone ${i + 1} phase`} value={m.phase_id} className="input"
+                  <NativeSelect size="sm" aria-label={`Milestone ${i + 1} phase`} value={m.phase_id} 
                     onChange={(e) => setMilestones(milestones.map((x, j) => j === i ? { ...x, phase_id: e.target.value } : x))}>
                     <option value="">No phase</option>{phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                  <input type="date" aria-label={`Milestone ${i + 1} date`} value={m.bill_on} className="input"
+                  </NativeSelect>
+                  <Input type="date" aria-label={`Milestone ${i + 1} date`} value={m.bill_on} className="w-auto"
                     onChange={(e) => setMilestones(milestones.map((x, j) => j === i ? { ...x, bill_on: e.target.value } : x))} />
                   <button type="button" aria-label={`Remove milestone ${i + 1}`} disabled={milestones.length === 1} onClick={() => setMilestones(milestones.filter((_, j) => j !== i))}
-                    className="btn btn-ghost size-8 px-0 text-muted-foreground"><Trash2 className="size-4" /></button>
+                    className={btn('ghost', 'size-8 px-0 text-muted-foreground')}><Trash2 className="size-4" /></button>
                 </div>
               ))}
               <div className="row grid-cols-[minmax(0,1fr)] min-w-[680px] bg-head">
-                <button type="button" onClick={() => setMilestones([...milestones, { label: '', amount: '', phase_id: '', bill_on: '' }])} className="btn btn-ghost h-7 w-fit px-2 text-xs"><Plus className="size-3.5" />Add milestone</button>
+                <button type="button" onClick={() => setMilestones([...milestones, { label: '', amount: '', phase_id: '', bill_on: '' }])} className={btn('ghost', 'h-7 w-fit px-2 text-xs')}><Plus className="size-3.5" />Add milestone</button>
               </div>
             </div>
             <p className="m-0 text-xs text-muted-foreground">Each line becomes due when its phase is complete or on its date, and shows up in the monthly billing run. An advance on signing: give it today&apos;s date.</p>
@@ -169,13 +171,13 @@ export function BillingSetupWizard({ projectId, people, phases, initial }: { pro
         {step === 1 && model === 'retainer' ? (
           <div className="grid max-w-3xl gap-3 sm:grid-cols-4">
             <label className="flex flex-col gap-1"><span className="label">Monthly fee</span>
-              <input value={retainer.fee} onChange={(e) => setRetainer({ ...retainer, fee: e.target.value })} inputMode="decimal" className="input tabular" placeholder="0" /></label>
+              <Input value={retainer.fee} onChange={(e) => setRetainer({ ...retainer, fee: e.target.value })} inputMode="decimal" className="w-auto tabular" placeholder="0" /></label>
             <label className="flex flex-col gap-1"><span className="label">Hours included a month</span>
-              <input value={retainer.hours} onChange={(e) => setRetainer({ ...retainer, hours: e.target.value })} inputMode="decimal" className="input tabular" placeholder="e.g. 40" /></label>
+              <Input value={retainer.hours} onChange={(e) => setRetainer({ ...retainer, hours: e.target.value })} inputMode="decimal" className="w-auto tabular" placeholder="e.g. 40" /></label>
             <label className="flex flex-col gap-1"><span className="label">Carry over, at most</span>
-              <input value={retainer.rollover} onChange={(e) => setRetainer({ ...retainer, rollover: e.target.value })} inputMode="decimal" className="input tabular" placeholder="Empty: no limit" /></label>
+              <Input value={retainer.rollover} onChange={(e) => setRetainer({ ...retainer, rollover: e.target.value })} inputMode="decimal" className="w-auto tabular" placeholder="Empty: no limit" /></label>
             <label className="flex flex-col gap-1"><span className="label">Hours over: rate per hour</span>
-              <input value={retainer.overage} onChange={(e) => setRetainer({ ...retainer, overage: e.target.value })} inputMode="decimal" className="input tabular" placeholder="Empty: not billed" /></label>
+              <Input value={retainer.overage} onChange={(e) => setRetainer({ ...retainer, overage: e.target.value })} inputMode="decimal" className="w-auto tabular" placeholder="Empty: not billed" /></label>
             <p className="m-0 text-xs text-muted-foreground sm:col-span-4">The hours are the customer&apos;s monthly allowance across their projects. They see a meter, you are warned at 75%, 90% and 100%, and hours over the allowance are billed at the overage rate.</p>
           </div>
         ) : null}
@@ -187,7 +189,7 @@ export function BillingSetupWizard({ projectId, people, phases, initial }: { pro
                 <Seg label="Rate unit" value={unit} onChange={setUnit} options={units.map((u) => ({ value: u, label: UNIT_LABEL[u] }))} /></span>
               {model === 'time_materials' ? (
                 <label className="flex items-center gap-2"><span className="label">Monthly cap</span>
-                  <input value={cap} onChange={(e) => setCap(e.target.value)} inputMode="decimal" className="input tabular w-36" placeholder="Optional" /></label>
+                  <Input value={cap} onChange={(e) => setCap(e.target.value)} inputMode="decimal" className="tabular w-36" placeholder="Optional" /></label>
               ) : null}
             </div>
             <div className="overflow-x-auto rounded-md border border-border">
@@ -195,17 +197,17 @@ export function BillingSetupWizard({ projectId, people, phases, initial }: { pro
               {rates.map((r, i) => (
                 <div key={r.profile_id} className="row grid-cols-[minmax(0,1fr)_160px_32px] min-w-[420px] py-1">
                   <span className="truncate font-medium">{name(r.profile_id)}</span>
-                  <input aria-label={`Rate for ${name(r.profile_id)}`} value={r.rate} inputMode="decimal" placeholder="0" className="input tabular text-right"
+                  <Input aria-label={`Rate for ${name(r.profile_id)}`} value={r.rate} inputMode="decimal" placeholder="0" className="w-auto tabular text-right"
                     onChange={(e) => setRates(rates.map((x, j) => j === i ? { ...x, rate: e.target.value } : x))} />
-                  <button type="button" aria-label={`Remove ${name(r.profile_id)}`} onClick={() => setRates(rates.filter((_, j) => j !== i))} className="btn btn-ghost size-8 px-0 text-muted-foreground"><Trash2 className="size-4" /></button>
+                  <button type="button" aria-label={`Remove ${name(r.profile_id)}`} onClick={() => setRates(rates.filter((_, j) => j !== i))} className={btn('ghost', 'size-8 px-0 text-muted-foreground')}><Trash2 className="size-4" /></button>
                 </div>
               ))}
               <div className="row grid-cols-[minmax(0,1fr)] min-w-[420px] bg-head py-1">
-                <select aria-label="Add a person" value="" className="input w-64" disabled={!unused.length}
+                <NativeSelect size="sm" aria-label="Add a person" value="" containerClassName="w-64" disabled={!unused.length}
                   onChange={(e) => { if (e.target.value) setRates([...rates, { profile_id: e.target.value, rate: '' }]) }}>
                   <option value="">{unused.length ? '+ Add a person…' : 'Everyone is listed'}</option>
                   {unused.map((p) => <option key={p.id} value={p.id}>{p.name}{p.role ? ` · ${p.role}` : ''}</option>)}
-                </select>
+                </NativeSelect>
               </div>
             </div>
             <p className="m-0 text-xs text-muted-foreground">{model === 'dedicated'
@@ -218,13 +220,13 @@ export function BillingSetupWizard({ projectId, people, phases, initial }: { pro
         {step === 2 ? (
           <div className="grid max-w-3xl gap-3 sm:grid-cols-[160px_180px_180px_minmax(0,1fr)]">
             <label className="flex flex-col gap-1"><span className="label">Currency</span>
-              <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="input font-mono">{CURRENCIES.map(([c, n]) => <option key={c} value={c}>{c} · {n}</option>)}</select></label>
+              <NativeSelect size="sm" value={currency} onChange={(e) => setCurrency(e.target.value)} className="font-mono">{CURRENCIES.map(([c, n]) => <option key={c} value={c}>{c} · {n}</option>)}</NativeSelect></label>
             <label className="flex flex-col gap-1"><span className="label">Contract value</span>
-              <input value={contract} onChange={(e) => setContract(e.target.value)} inputMode="decimal" className="input tabular" placeholder={model === 'fixed_price' ? String(total) : 'From the SOW'} /></label>
+              <Input value={contract} onChange={(e) => setContract(e.target.value)} inputMode="decimal" className="w-auto tabular" placeholder={model === 'fixed_price' ? String(total) : 'From the SOW'} /></label>
             <label className="flex flex-col gap-1"><span className="label">Customer PO number</span>
-              <input value={po} onChange={(e) => setPo(e.target.value)} className="input font-mono" placeholder="Optional" /></label>
+              <Input value={po} onChange={(e) => setPo(e.target.value)} className="w-auto font-mono" placeholder="Optional" /></label>
             <label className="flex flex-col gap-1"><span className="label">Notes for the customer</span>
-              <input value={notes} onChange={(e) => setNotes(e.target.value)} className="input" placeholder="Payment terms, what is included" /></label>
+              <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="w-auto" placeholder="Payment terms, what is included" /></label>
             <div className="rounded-md bg-head p-3 text-xs sm:col-span-4">
               <b>{MODELS.find((m) => m.model === model)?.title}</b>
               {model === 'fixed_price' ? <> · {milestones.length} milestone{milestones.length === 1 ? '' : 's'}, {currency} {total.toLocaleString('en-IN')}{extras ? ` · change requests for ${rates.length} people per ${unit}` : ''}</> : null}
@@ -238,10 +240,10 @@ export function BillingSetupWizard({ projectId, people, phases, initial }: { pro
 
         {error ? <p role="alert" className="m-0 mt-3 text-xs text-crit-ink">{error}</p> : null}
         <div className="mt-4 flex items-center gap-2 border-t border-line-soft pt-3">
-          {step > 0 ? <button type="button" className="btn" onClick={() => { setError(null); setStep(step - 1) }}>Back</button> : null}
+          {step > 0 ? <button type="button" className={btn('outline')} onClick={() => { setError(null); setStep(step - 1) }}>Back</button> : null}
           <span className="flex-1" />
-          {step < 2 ? <button type="button" className="btn btn-primary" onClick={next}>Continue</button>
-            : <button type="button" className="btn btn-primary" disabled={pending} onClick={save}>{pending ? 'Saving…' : 'Save billing set-up'}</button>}
+          {step < 2 ? <button type="button" className={btn('default')} onClick={next}>Continue</button>
+            : <button type="button" className={btn('default')} disabled={pending} onClick={save}>{pending ? 'Saving…' : 'Save billing set-up'}</button>}
         </div>
       </div>
     </section>

@@ -135,7 +135,7 @@ export default async function MyWork({ searchParams }: { searchParams: Promise<S
                     {e.statement_id ? <Chip tone="good">Billed</Chip> : e.approved_at ? <Chip tone="info">Approved</Chip>
                       : e.returned_note ? <span className="text-warn-ink"><Chip tone="warn">Returned</Chip> {e.returned_note}</span> : <Chip>Waiting</Chip>}
                   </span>
-                  <span className="text-right">{!e.approved_at && !e.statement_id ? <ActionButton run={deleteTime.bind(null, e.id)} className="btn-ghost h-7 text-xs" confirm="Delete this entry? Log it again on the right task or date if needed.">Delete</ActionButton> : null}</span>
+                  <span className="text-right">{!e.approved_at && !e.statement_id ? <ActionButton run={deleteTime.bind(null, e.id)} variant="ghost" className="h-7 text-xs" confirm="Delete this entry? Log it again on the right task or date if needed.">Delete</ActionButton> : null}</span>
                 </div>
               ))}
             </div>

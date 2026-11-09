@@ -4,8 +4,9 @@ import { useActionState, useState } from 'react'
 import { answerCsat } from '@/app/_actions/feedback'
 import type { ActionResult } from '@/app/_actions/shared'
 import { keepOnError } from '@/components/forms'
-import { cn } from '@/components/ui'
+import { btn, cn } from '@/components/ui'
 import { SCORE_LABEL } from '@/lib/csat'
+import { Textarea } from '@/components/ui/textarea'
 
 /** One-click CSAT: pick 1-5, optionally say why. Used on the portal home and on a delivered request. */
 export function CsatPrompt({ surveyId, question, compact }: { surveyId: string; question: string; compact?: boolean }) {
@@ -30,11 +31,11 @@ export function CsatPrompt({ surveyId, question, compact }: { surveyId: string; 
       {score != null ? (
         <>
           <label htmlFor={`csat-${surveyId}`} className="label">{score <= 3 ? 'What should we do better?' : 'What went well? (optional)'}</label>
-          <textarea id={`csat-${surveyId}`} name="comment" rows={2} className="textarea max-w-[520px]" />
+          <Textarea id={`csat-${surveyId}`} name="comment" rows={2} className="max-w-[520px]" />
         </>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
-        <button type="submit" disabled={pending || score == null} className="btn btn-primary">{pending ? 'Sending…' : 'Send rating'}</button>
+        <button type="submit" disabled={pending || score == null} className={btn('default')}>{pending ? 'Sending…' : 'Send rating'}</button>
         {state && !state.ok ? <p role="alert" className="m-0 text-xs text-crit-ink">{state.error}</p> : null}
       </div>
     </form>

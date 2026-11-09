@@ -8,6 +8,8 @@ import { Card } from '@/components/ui'
 import { money, relativeTime } from '@/lib/format'
 import { canSeeFinance, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 
 export const metadata: Metadata = { title: 'Statement' }
 
@@ -70,8 +72,8 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
             <ActionForm action={saveStatement} submit="Save" resetOnSuccess={false} primary={false}>
               <input type="hidden" name="statement_id" value={st.id} />
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <label className="flex items-center gap-1.5">From <input type="date" name="period_start" required defaultValue={st.period_start} className="input" /></label>
-                <label className="flex items-center gap-1.5">to <input type="date" name="period_end" required defaultValue={st.period_end} className="input" /></label>
+                <label className="flex items-center gap-1.5">From <Input type="date" name="period_start" required defaultValue={st.period_start} className="w-auto" /></label>
+                <label className="flex items-center gap-1.5">to <Input type="date" name="period_end" required defaultValue={st.period_end} className="w-auto" /></label>
               </div>
               <div className="overflow-x-auto">
                 <div className="min-w-[720px]">
@@ -81,22 +83,22 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
                       <span className="flex min-w-0 flex-col"><span className="truncate font-medium">{l.rate_card_line_id && fromTimesheets.has(l.rate_card_line_id) ? <span title="Filled from approved timesheets">⏱ </span> : null}{l.label}</span><span className="text-xs text-muted-foreground">{KIND_LABEL[l.kind]}</span></span>
                       <span className="text-right font-mono text-xs">{money(l.rate, currency, { exact: true })} <span className="text-muted-foreground">/ {l.unit}</span></span>
                       <label className="flex items-center gap-1.5">
-                        <input name={`q_${l.id}`} aria-label={`Quantity for ${l.label}`} inputMode="decimal" defaultValue={Number(l.quantity)} className="input w-[72px] text-right font-mono" />
+                        <Input name={`q_${l.id}`} aria-label={`Quantity for ${l.label}`} inputMode="decimal" defaultValue={Number(l.quantity)} className="w-[72px] text-right font-mono" />
                         <span className="text-xs text-muted-foreground">{plural(l.unit)}</span>
                       </label>
-                      <input name={`n_${l.id}`} aria-label={`Note for ${l.label}`} defaultValue={l.note} placeholder={l.kind === 'day_rate' ? 'e.g. 2 days leave' : l.kind === 'delivery' ? 'e.g. accepted 24 Sep' : ''} className="input" />
+                      <Input name={`n_${l.id}`} aria-label={`Note for ${l.label}`} defaultValue={l.note} placeholder={l.kind === 'day_rate' ? 'e.g. 2 days leave' : l.kind === 'delivery' ? 'e.g. accepted 24 Sep' : ''} className="w-auto" />
                     </div>
                   ))}
                 </div>
               </div>
-              <textarea name="note" aria-label="Note for the customer" rows={2} defaultValue={st.note} placeholder="Note for the customer (optional)" className="textarea" />
+              <Textarea name="note" aria-label="Note for the customer" rows={2} defaultValue={st.note} placeholder="Note for the customer (optional)" />
               <p className="m-0 text-xs text-muted-foreground">Rates are the approved ones and cannot be changed here. Save first, then send. Lines left at 0 are not billed.</p>
             </ActionForm>
             <div className="border-t border-line-soft pt-3 text-xs font-semibold">Preview</div>
             <div className="overflow-x-auto"><StatementLines lines={lines} currency={currency} /></div>
             <div className="flex flex-wrap items-center gap-2 border-t border-line-soft pt-3">
               <ActionButton run={submitStatement.bind(null, st.id)} primary confirm="Send this statement to the customer for approval? Save any changes first.">Send to customer for approval</ActionButton>
-              {st.status === 'draft' ? <ActionButton run={deleteStatement.bind(null, st.id, id)} className="btn-ghost" confirm="Delete this draft statement?">Delete draft</ActionButton> : null}
+              {st.status === 'draft' ? <ActionButton run={deleteStatement.bind(null, st.id, id)} variant="ghost" confirm="Delete this draft statement?">Delete draft</ActionButton> : null}
             </div>
             {canSeeFinance(me) ? (
               <ApproveForCustomer action={approveStatementForCustomer} idName="statement_id" id={st.id} label="Approve the statement for the customer"
@@ -123,7 +125,7 @@ export default async function StatementPage({ params }: { params: Promise<{ id: 
                 <input type="hidden" name="statement" value={st.id} />
                 <label className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   Proposed exchange rate: 1 {currency} =
-                  <input name="exchange_rate" inputMode="decimal" placeholder="e.g. 92.5" className="input tabular w-28" />
+                  <Input name="exchange_rate" inputMode="decimal" placeholder="e.g. 92.5" className="tabular w-28" />
                   <span>only when Zoho bills the customer in another currency; leave empty otherwise</span>
                 </label>
               </ActionForm>

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { markAllRead } from '@/app/_actions/collab'
-import { Card, Chip, Empty, cn } from '@/components/ui'
+import { btn, Card, Chip, cn, Empty } from '@/components/ui'
 import { relativeTime } from '@/lib/format'
 import { createClient } from '@/lib/supabase/server'
 
@@ -21,7 +21,7 @@ export async function Inbox({ tab: raw, basePath }: { tab?: string; basePath: st
         {(Object.keys(TABS) as Tab[]).map((t) => (
           <Link key={t} href={`${basePath}?tab=${t}`} className={cn('inline-flex h-6 items-center rounded-sm px-2 text-[11px] font-semibold no-underline', t === tab ? 'bg-ink text-white hover:text-white' : 'bg-neutral-bg text-neutral-ink')}>{TABS[t]}</Link>
         ))}
-        <form action={markAllRead} className="ml-auto"><button className="btn btn-ghost h-6 text-xs">Mark all as read</button></form>
+        <form action={markAllRead} className="ml-auto"><button className={btn('ghost', 'h-6 text-xs')}>Mark all as read</button></form>
       </div>
       {data?.length ? data.map((n) => (
         <Link key={n.id} href={n.link ?? '/'} className={cn('row grid-cols-[10px_minmax(0,1fr)_90px] py-1.5 text-ink no-underline hover:bg-head', !n.read_at && 'bg-[#fbfdfd]')}>

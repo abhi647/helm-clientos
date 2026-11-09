@@ -7,6 +7,7 @@ import { Card, PageHeader } from '@/components/ui'
 import { hrs, isoDaysAgo, money } from '@/lib/format'
 import { canSeeFinance, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { Input } from '@/components/ui/input'
 
 export const metadata: Metadata = { title: 'Cost rates' }
 
@@ -40,7 +41,7 @@ export default async function CostRates() {
                       <span className="tabular text-right text-xs">{hrs(h)}</span>
                       <span className="tabular text-right text-xs">{h ? `${Math.round((100 * hours(p.id!, true)) / h)}%` : '–'}</span>
                       <span className="tabular text-right text-xs">{c ? money(h * Number(c.hourly_cost), 'INR') : '–'}</span>
-                      <input name={`cost_${p.id}`} aria-label={`Cost per hour for ${p.full_name}`} defaultValue={c ? String(c.hourly_cost) : ''} inputMode="decimal" placeholder="Unknown" className="input tabular text-right" />
+                      <Input name={`cost_${p.id}`} aria-label={`Cost per hour for ${p.full_name}`} defaultValue={c ? String(c.hourly_cost) : ''} inputMode="decimal" placeholder="Unknown" className="w-auto tabular text-right" />
                     </div>
                   )
                 })}

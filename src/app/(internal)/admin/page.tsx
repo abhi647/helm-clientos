@@ -4,13 +4,15 @@ import { notFound } from 'next/navigation'
 import { createCustomer, inviteStaff, syncZohoNow } from '@/app/_actions/admin'
 import { ActionButton, ActionForm } from '@/components/forms'
 import { AccountOwnerSelect, AutomationToggle, ConsultantScopeToggle, RoleSelect } from '@/components/admin-controls'
-import { Avatar, Card, Chip, PageHeader } from '@/components/ui'
+import { Avatar, btn, Card, Chip, PageHeader } from '@/components/ui'
 import { env } from '@/lib/env'
 import { label, relativeTime } from '@/lib/format'
 import { requireStaff } from '@/lib/session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { CustomerInternalRow, DirectoryRow } from '@/lib/views'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Input } from '@/components/ui/input'
 
 export const metadata: Metadata = { title: 'Admin' }
 
@@ -60,7 +62,7 @@ export default async function Admin() {
   return (
     <>
       <PageHeader title="Admin" meta={<span className="text-xs text-muted-foreground">Seven Billion organisation settings</span>}
-        actions={<Link href="/admin/health" className="btn">System health</Link>} />
+        actions={<Link href="/admin/health" className={btn('outline')}>System health</Link>} />
       <div className="flex flex-wrap items-start gap-3 p-4">
         <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-3">
           <Card flush className="overflow-x-auto" title="Team" extra={`${staff?.length ?? 0} people`}>
@@ -107,23 +109,23 @@ export default async function Admin() {
         <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-3">
           <Card title="Invite a team member">
             <ActionForm action={inviteStaff} submit="Send invitation">
-              <input name="full_name" required aria-label="Full name" placeholder="Full name" className="input" />
-              <input name="email" type="email" required aria-label="Work email" placeholder="name@sevenbillion.co" className="input" />
-              <select name="internal_role" aria-label="Role" defaultValue="consultant" className="input">
+              <Input name="full_name" required aria-label="Full name" placeholder="Full name" className="w-auto" />
+              <Input name="email" type="email" required aria-label="Work email" placeholder="name@sevenbillion.co" className="w-auto" />
+              <NativeSelect size="sm" name="internal_role" aria-label="Role" defaultValue="consultant">
                 <option value="pm">PM / Account manager</option><option value="consultant">Developer / Consultant</option>
                 <option value="finance">Finance</option><option value="ceo">CEO</option><option value="admin">Admin</option>
-              </select>
+              </NativeSelect>
               <p className="m-0 text-xs text-muted-foreground">They get an email link. Sign-in is by email link or Google, never by password.</p>
             </ActionForm>
           </Card>
           <Card title="Add a customer">
             <ActionForm action={createCustomer} submit="Add customer">
-              <input name="name" required aria-label="Customer name" placeholder="Company name" className="input" />
-              <select name="account_owner_id" aria-label="Account owner" defaultValue="" className="input">
+              <Input name="name" required aria-label="Customer name" placeholder="Company name" className="w-auto" />
+              <NativeSelect size="sm" name="account_owner_id" aria-label="Account owner" defaultValue="">
                 <option value="">Account owner…</option>{(staff ?? []).map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
-              </select>
-              <input name="hubspot_company_id" aria-label="HubSpot company id" placeholder="HubSpot company id (optional)" className="input" />
-              <input name="zoho_customer_id" aria-label="Zoho customer id" placeholder="Zoho customer id (optional)" className="input" />
+              </NativeSelect>
+              <Input name="hubspot_company_id" aria-label="HubSpot company id" placeholder="HubSpot company id (optional)" className="w-auto" />
+              <Input name="zoho_customer_id" aria-label="Zoho customer id" placeholder="Zoho customer id (optional)" className="w-auto" />
             </ActionForm>
           </Card>
           <Card flush title="Security">
@@ -157,7 +159,7 @@ export default async function Admin() {
             ))}
             <div className="flex flex-wrap gap-2 border-t border-line-soft p-3">
               {zoho ? <ActionButton run={syncZohoNow}>Sync Zoho now</ActionButton> : null}
-              <Link href="/admin/import" className="btn">Import from HubSpot &amp; Zoho</Link>
+              <Link href="/admin/import" className={btn('outline')}>Import from HubSpot &amp; Zoho</Link>
             </div>
           </Card>
         </div>

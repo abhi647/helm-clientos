@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { PageHeader } from '@/components/ui'
+import { btn, PageHeader } from '@/components/ui'
 import { RequestList, parseFilter } from '@/components/request-list'
 import { requireStaff } from '@/lib/session'
 
@@ -11,7 +11,7 @@ export default async function Requests({ searchParams }: { searchParams: Promise
   const { filter } = await searchParams
   return (
     <>
-      <PageHeader title="Requests" meta={<span className="text-xs text-muted-foreground">All customers</span>} actions={<Link href="/requests/new" className="btn btn-primary">+ Log a request</Link>} />
+      <PageHeader title="Requests" meta={<span className="text-xs text-muted-foreground">All customers</span>} actions={<Link href="/requests/new" className={btn('default')}>+ Log a request</Link>} />
       <div className="p-4"><RequestList me={me} filter={parseFilter(filter)} basePath="/requests" /></div>
     </>
   )

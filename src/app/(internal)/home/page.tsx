@@ -12,6 +12,8 @@ import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import type { DirectoryRow } from '@/lib/views'
 import { TEMPLATES } from '@/lib/templates'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Input } from '@/components/ui/input'
 
 export const metadata: Metadata = { title: 'Home' }
 
@@ -107,13 +109,13 @@ export default async function Home() {
                 <ActionForm action={createEngagement} submit="Create project" className="flex-row flex-wrap items-end">
                   <input type="hidden" name="setup_id" value={s.id} />
                   <label className="flex flex-col gap-1 text-xs"><span className="label">Template</span>
-                    <select name="template_key" defaultValue={s.suggested_template} className="input">{TEMPLATES.map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}</select></label>
+                    <NativeSelect size="sm" name="template_key" defaultValue={s.suggested_template}>{TEMPLATES.map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}</NativeSelect></label>
                   <label className="flex flex-col gap-1 text-xs"><span className="label">Start</span>
-                    <input type="date" name="start_date" required defaultValue={new Date().toISOString().slice(0, 10)} className="input" /></label>
+                    <Input type="date" name="start_date" required defaultValue={new Date().toISOString().slice(0, 10)} className="w-auto" /></label>
                   <label className="flex flex-col gap-1 text-xs"><span className="label">PM</span>
-                    <select name="pm_id" defaultValue={me.id} className="input">{(staff.data ?? []).map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}</select></label>
+                    <NativeSelect size="sm" name="pm_id" defaultValue={me.id}>{(staff.data ?? []).map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}</NativeSelect></label>
                 </ActionForm>
-                <ActionButton run={dismissEngagement.bind(null, s.id)} className="btn-ghost">Dismiss</ActionButton>
+                <ActionButton run={dismissEngagement.bind(null, s.id)} variant="ghost">Dismiss</ActionButton>
               </div>
             ))}
           </div>

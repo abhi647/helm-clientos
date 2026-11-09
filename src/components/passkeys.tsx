@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { KeyRound } from 'lucide-react'
 import { markSignInSet } from '@/app/account/actions'
 import { createClient } from '@/lib/supabase/client'
+import { btn } from '@/components/ui'
 
 /**
  * Passkeys (Face ID, Touch ID, Windows Hello, a phone or a security key) through Supabase Auth.
@@ -49,7 +50,7 @@ export function PasskeySignIn({ next }: { next: string }) {
   if (!available) return null
   return (
     <>
-      <button type="button" disabled={busy} onClick={() => void signIn(false)} className="btn h-10 text-sm">
+      <button type="button" disabled={busy} onClick={() => void signIn(false)} className={btn('outline', 'h-10 text-sm')}>
         <KeyRound aria-hidden className="size-4" />{busy ? 'Waiting for your passkey…' : 'Sign in with a passkey'}
       </button>
       {error ? <p role="alert" className="m-0 text-xs text-crit-ink">{error}</p> : null}
@@ -116,12 +117,12 @@ export function PasskeyManager({ then }: { then?: string }) {
               <span className="min-w-0 flex-1 truncate">{k.friendly_name || 'Passkey'}
                 <span className="block text-[11px] text-muted-foreground">Added {day(k.created_at)}{k.last_used_at ? ` · last used ${day(k.last_used_at)}` : ''}</span>
               </span>
-              <button type="button" onClick={() => void remove(k)} className="btn btn-ghost h-7 px-2 text-xs text-crit-ink">Remove</button>
+              <button type="button" onClick={() => void remove(k)} className={btn('ghost', 'h-7 px-2 text-xs text-crit-ink')}>Remove</button>
             </li>
           ))}
         </ul>
       ) : keys ? <p className="m-0 text-xs text-muted-foreground">No passkeys yet.</p> : null}
-      <button type="button" disabled={busy} onClick={() => void add()} className={then ? 'btn btn-primary h-10 text-sm' : 'btn h-9 text-sm'}>
+      <button type="button" disabled={busy} onClick={() => void add()} className={then ? btn('default', 'h-10 text-sm') : btn('outline', 'h-9 text-sm')}>
         <KeyRound aria-hidden className="size-4" />{busy ? 'Follow your device…' : then ? 'Use a passkey instead' : 'Add a passkey on this device'}
       </button>
       {error ? <p role="alert" className="m-0 text-xs text-crit-ink">{error}</p> : null}

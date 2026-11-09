@@ -10,6 +10,9 @@ import { relativeTime, shortDate } from '@/lib/format'
 import { kindLabel } from '@/lib/page-templates'
 import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 
 export const metadata: Metadata = { title: 'Document' }
 
@@ -69,11 +72,11 @@ export default async function DocPage({ params }: { params: Promise<{ id: string
                 <ActionForm action={requestSignoff} submit={`Send version ${page.version} for sign-off`} className="mt-2">
                   <input type="hidden" name="page_id" value={page.id} />
                   <label className="label" htmlFor="so-who">Who signs off</label>
-                  <select id="so-who" name="approver_id" required className="input">{customers.map((c) => <option key={c.id} value={c.id!}>{c.full_name}</option>)}</select>
+                  <NativeSelect size="sm" id="so-who" name="approver_id" required>{customers.map((c) => <option key={c.id} value={c.id!}>{c.full_name}</option>)}</NativeSelect>
                   <label className="label" htmlFor="so-due">Due</label>
-                  <input id="so-due" type="date" name="due_date" className="input" />
+                  <Input id="so-due" type="date" name="due_date" className="w-auto" />
                   <label className="label" htmlFor="so-note">Note (optional)</label>
-                  <textarea id="so-note" name="note" rows={2} className="textarea" placeholder="Anything they should look at closely" />
+                  <Textarea id="so-note" name="note" rows={2}  placeholder="Anything they should look at closely" />
                 </ActionForm>
               </details>
             ) : <p className="m-0 mt-1 text-xs text-muted-foreground">Invite someone from the customer first (Customers → People).</p>
@@ -94,14 +97,14 @@ export default async function DocPage({ params }: { params: Promise<{ id: string
               <li key={v.version} className="flex items-center gap-2 border-t border-line-soft px-3.5 py-1.5 text-xs first:border-t-0">
                 <span className="tabular w-8 font-medium">v{v.version}</span>
                 <span className="min-w-0 flex-1 truncate text-muted-foreground">{v.saver?.full_name ?? '–'} · {relativeTime(v.saved_at)}{v.note ? ` · ${v.note}` : ''}{v.version === page.signed_version ? ' · signed' : ''}</span>
-                {v.version !== page.version ? <ActionButton run={restoreVersion.bind(null, page.id, v.version)} className="btn-ghost h-6 px-1.5 text-xs"
+                {v.version !== page.version ? <ActionButton run={restoreVersion.bind(null, page.id, v.version)} variant="ghost" className="h-6 px-1.5 text-xs"
                   confirm={`Put version ${v.version} back? It becomes the newest version; nothing is deleted.`}>Restore</ActionButton> : <Chip tone="info">Current</Chip>}
               </li>
             ))}
           </ol>
         </Card>
 
-        {manager ? <ActionButton run={deletePage.bind(null, page.id, id)} className="btn-ghost self-start text-crit-ink"
+        {manager ? <ActionButton run={deletePage.bind(null, page.id, id)} variant="ghost" className="self-start text-crit-ink"
           confirm={`Delete "${page.title}" and all its versions? This cannot be undone.`}>Delete document</ActionButton> : null}
       </aside>
     </div>

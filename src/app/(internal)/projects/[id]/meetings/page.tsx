@@ -5,6 +5,9 @@ import { Card, Empty, Visibility } from '@/components/ui'
 import { shortDate } from '@/lib/format'
 import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 
 export default async function ProjectMeetings({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -37,17 +40,17 @@ export default async function ProjectMeetings({ params }: { params: Promise<{ id
         <ActionForm action={createMeeting} submit="Create meeting">
           <input type="hidden" name="project_id" value={id} />
           <label className="label" htmlFor="m-title">Title</label>
-          <input id="m-title" name="title" required className="input" placeholder="Weekly project review" />
+          <Input id="m-title" name="title" required className="w-auto" placeholder="Weekly project review" />
           <label className="label" htmlFor="m-date">Date</label>
-          <input id="m-date" name="held_on" type="date" required defaultValue={today} className="input" />
+          <Input id="m-date" name="held_on" type="date" required defaultValue={today} className="w-auto" />
           <label className="label" htmlFor="m-att">Attendees</label>
-          <input id="m-att" name="attendees" className="input" placeholder="Rahul, Michel, Omar" />
+          <Input id="m-att" name="attendees" className="w-auto" placeholder="Rahul, Michel, Omar" />
           <label className="label" htmlFor="m-sum">Notes</label>
-          <textarea id="m-sum" name="summary" rows={4} className="textarea" placeholder="What was discussed" />
+          <Textarea id="m-sum" name="summary" rows={4}  placeholder="What was discussed" />
           <label className="label" htmlFor="m-vis">Visibility</label>
-          <select id="m-vis" name="visibility" defaultValue="shared" className="input">
+          <NativeSelect size="sm" id="m-vis" name="visibility" defaultValue="shared">
             <option value="shared">Shared with customer</option><option value="internal">Internal (Seven Billion only)</option>
-          </select>
+          </NativeSelect>
         </ActionForm>
       </Card>
     </div>

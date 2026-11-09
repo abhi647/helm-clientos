@@ -3,13 +3,14 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { recheckFiles, sendTestEmail } from '@/app/_actions/admin'
 import { ActionButton, ActionForm } from '@/components/forms'
-import { Card, Chip, Empty, PageHeader } from '@/components/ui'
+import { btn, Card, Chip, Empty, PageHeader } from '@/components/ui'
 import { mailTransport } from '@/lib/mail-transport'
 import { relativeTime } from '@/lib/format'
 import { scannerStatus } from '@/lib/scan'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { Input } from '@/components/ui/input'
 
 export const metadata: Metadata = { title: 'System health' }
 
@@ -58,7 +59,7 @@ export default async function SystemHealth() {
             </dl>
             <p className={`mt-2 mb-2 text-xs ${scanner.ok ? 'text-muted-foreground' : 'text-crit-ink'}`} role={scanner.ok ? undefined : 'alert'}>{scanner.ok ? <>Checked by <b className="text-ink">{scanner.text}</b></> : scanner.text}</p>
             {/* always shown: hiding it once nothing waits would also hide the result of the check that just emptied the list */}
-            <ActionButton run={recheckFiles} className="btn h-8 text-xs">Check waiting files now</ActionButton>
+            <ActionButton run={recheckFiles} className={btn('outline', 'h-8 text-xs')}>Check waiting files now</ActionButton>
           </Card>
           <Card className="min-w-0 flex-[1_1_320px]" title="Emails">
             <dl className="m-0 grid grid-cols-[1fr_auto] gap-y-1.5 text-[13px]">
@@ -72,7 +73,7 @@ export default async function SystemHealth() {
               Sent through <b className="text-ink">{transport.kind === 'resend' ? `Resend (${transport.from})` : 'nothing yet: no email service set up'}</b>
             </p>
             <ActionForm action={sendTestEmail} submit="Send test email" primary={false} resetOnSuccess={false}>
-              <input name="to" type="email" required aria-label="Send a test email to" placeholder="someone@company.com" defaultValue={me.email ?? ''} className="input" />
+              <Input name="to" type="email" required aria-label="Send a test email to" placeholder="someone@company.com" defaultValue={me.email ?? ''} className="w-auto" />
             </ActionForm>
           </Card>
           <Card className="min-w-0 flex-[2_1_480px]" title="Background jobs">

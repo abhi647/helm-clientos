@@ -5,6 +5,9 @@ import { Card, Empty, Visibility } from '@/components/ui'
 import { shortDate } from '@/lib/format'
 import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 
 export default async function Decisions({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -21,16 +24,16 @@ export default async function Decisions({ params }: { params: Promise<{ id: stri
             <span className="leading-snug">{d.decision}<span className="block text-xs text-muted-foreground">{d.decided_by}{d.meetings ? ` · from ${d.meetings.title}` : ''}</span></span>
             <span className="font-mono text-xs text-muted-foreground">{shortDate(d.decided_on)}</span>
             <span><Visibility value={d.visibility} /></span>
-            {manage ? <ActionButton run={deleteDecision.bind(null, d.id)} className="btn-ghost h-6 px-2 text-xs text-crit-ink" confirm={`Delete decision ${d.number}? This cannot be undone.`}>Delete</ActionButton> : null}
+            {manage ? <ActionButton run={deleteDecision.bind(null, d.id)} variant="ghost" className="h-6 px-2 text-xs text-crit-ink" confirm={`Delete decision ${d.number}? This cannot be undone.`}>Delete</ActionButton> : null}
           </div>
         )) : <Empty title="No decisions recorded" />}
       </Card>
       <Card className="min-w-0 flex-[1_1_300px]" title="Record a decision">
         <ActionForm action={addDecision} submit="Record decision">
           <input type="hidden" name="project_id" value={id} />
-          <textarea name="decision" required rows={3} aria-label="Decision" className="textarea" placeholder="What was decided" />
-          <input name="decided_by" aria-label="Decided by" className="input" placeholder="Decided by" />
-          <select name="visibility" aria-label="Visibility" defaultValue="shared" className="input"><option value="shared">Shared with customer</option><option value="internal">Internal</option></select>
+          <Textarea name="decision" required rows={3} aria-label="Decision"  placeholder="What was decided" />
+          <Input name="decided_by" aria-label="Decided by" className="w-auto" placeholder="Decided by" />
+          <NativeSelect size="sm" name="visibility" aria-label="Visibility" defaultValue="shared"><option value="shared">Shared with customer</option><option value="internal">Internal</option></NativeSelect>
         </ActionForm>
       </Card>
     </div>

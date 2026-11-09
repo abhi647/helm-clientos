@@ -7,6 +7,8 @@ import { Card, Empty } from '@/components/ui'
 import { relativeTime } from '@/lib/format'
 import { requireCustomer } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Textarea } from '@/components/ui/textarea'
 
 export const metadata: Metadata = { title: 'Feedback' }
 
@@ -43,10 +45,10 @@ export default async function PortalFeedback() {
             ))}
           </fieldset>
           <label className="flex flex-col gap-1"><span className="label">About</span>
-            <select name="project_id" className="input h-9"><option value="">Seven Billion in general</option>{(projects ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+            <NativeSelect size="sm" name="project_id" className="h-9"><option value="">Seven Billion in general</option>{(projects ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</NativeSelect>
           </label>
           <label className="flex flex-col gap-1"><span className="label">Your feedback</span>
-            <textarea name="body" required rows={5} className="textarea text-sm" placeholder="What is working, what is not, what you would change" />
+            <Textarea name="body" required rows={5} className="text-sm" placeholder="What is working, what is not, what you would change" />
           </label>
         </ActionForm>
       </Card>

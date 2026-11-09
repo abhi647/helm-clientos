@@ -5,6 +5,10 @@ import { submitForm } from '@/app/_actions/forms'
 import type { ActionResult } from '@/app/_actions/shared'
 import type { FormDef } from '@/lib/forms'
 import { keepOnError } from '@/components/forms'
+import { btn } from '@/components/ui'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 
 /** Renders one of the fixed forms. Conditional questions appear only when they apply. */
 export function FormRenderer({ def, projectId, actionId, projects }: {
@@ -22,18 +26,18 @@ export function FormRenderer({ def, projectId, actionId, projects }: {
       <input type="hidden" name="action_item_id" value={actionId ?? ''} />
       {projectId ? <input type="hidden" name="project_id" value={projectId} /> : (
         <label className="flex flex-col gap-1"><span className="label">Project</span>
-          <select name="project_id" required className="input h-9">{(projects ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+          <NativeSelect size="sm" name="project_id" required className="h-9">{(projects ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</NativeSelect>
         </label>
       )}
       {shown.map((f) => (
         <fieldset key={f.name} className="m-0 flex flex-col gap-1 border-0 p-0">
           {f.type === 'radio' ? <legend className="label mb-1">{f.label}{f.required ? ' *' : ''}</legend>
             : <label htmlFor={`f-${f.name}`} className="label">{f.label}{f.required ? ' *' : ''}</label>}
-          {f.type === 'textarea' ? <textarea id={`f-${f.name}`} name={f.name} rows={3} required={f.required} placeholder={f.placeholder} className="textarea text-sm" />
+          {f.type === 'textarea' ? <Textarea id={`f-${f.name}`} name={f.name} rows={3} required={f.required} placeholder={f.placeholder} className="text-sm" />
             : f.type === 'select' ? (
-              <select id={`f-${f.name}`} name={f.name} required={f.required} defaultValue="" className="input h-9">
+              <NativeSelect size="sm" id={`f-${f.name}`} name={f.name} required={f.required} defaultValue="" className="h-9">
                 <option value="" disabled>Choose…</option>{f.options!.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+              </NativeSelect>
             ) : f.type === 'radio' ? (
               <div className="flex flex-wrap gap-2">
                 {f.options!.map((o) => (
@@ -42,12 +46,12 @@ export function FormRenderer({ def, projectId, actionId, projects }: {
                   </label>
                 ))}
               </div>
-            ) : <input id={`f-${f.name}`} name={f.name} type={f.type} required={f.required} placeholder={f.placeholder} className="input h-9 text-sm" />}
+            ) : <Input id={`f-${f.name}`} name={f.name} type={f.type} required={f.required} placeholder={f.placeholder} className="w-auto h-9 text-sm" />}
           {f.help ? <span className="text-xs text-muted-foreground">{f.help}</span> : null}
         </fieldset>
       ))}
       <div className="flex flex-wrap items-center gap-2">
-        <button type="submit" disabled={pending} className="btn btn-primary">{pending ? 'Sending…' : 'Submit'}</button>
+        <button type="submit" disabled={pending} className={btn('default')}>{pending ? 'Sending…' : 'Submit'}</button>
         {state && !state.ok ? <p role="alert" className="m-0 text-xs text-crit-ink">{state.error}</p> : null}
       </div>
     </form>

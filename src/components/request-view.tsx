@@ -13,6 +13,9 @@ import { EffortInput } from '@/components/effort-input'
 import { canManage, type Profile } from '@/lib/session'
 import { deleteRequest } from '@/app/_actions/delete'
 import { createClient } from '@/lib/supabase/server'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 
 /** Request detail for staff and customers. What each sees is decided by RLS; staff also get the controls. */
 export async function RequestView({ id, me, created }: { id: string; me: Profile; created?: string }) {
@@ -124,16 +127,16 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
                 <input type="hidden" name="request_id" value={r.id} />
                 {r.project_id ? <input type="hidden" name="project_id" value={r.project_id} /> : (
                   <label className="flex flex-col gap-1 text-xs"><span className="label">Project</span>
-                    <select name="project_id" required className="input"><option value="">Choose…</option>{(customerProjects ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+                    <NativeSelect size="sm" name="project_id" required><option value="">Choose…</option>{(customerProjects ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</NativeSelect></label>
                 )}
                 <label className="flex flex-col gap-1 text-xs"><span className="label">Owner</span>
-                  <select name="assignee_id" aria-label="Task owner" className="input">
+                  <NativeSelect size="sm" name="assignee_id" aria-label="Task owner">
                     <option value="">Unassigned</option>
                     <optgroup label="Seven Billion">{(staffPeople ?? []).map((u) => <option key={u.id} value={u.id ?? ""}>{u.full_name}</option>)}</optgroup>
                     <optgroup label={r.customers?.name ?? 'Customer'}>{(customerUsers ?? []).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}</optgroup>
-                  </select></label>
+                  </NativeSelect></label>
                 <div className="flex flex-wrap gap-2">
-                  <input type="date" name="due_date" defaultValue={r.desired_date ?? ''} aria-label="Due date" className="input flex-1" />
+                  <Input type="date" name="due_date" defaultValue={r.desired_date ?? ''} aria-label="Due date" className="flex-1" />
                   <EffortInput name="estimate" unitName="unit" units={units ?? ['day']} placeholder="Estimate" />
                 </div>
                 <fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0 text-xs">
@@ -167,9 +170,9 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
                   <summary className="cursor-pointer text-xs font-medium text-link">Revise and resubmit as v{approval.version + 1}</summary>
                   <ActionForm action={resubmitApproval} submit="Resubmit" className="mt-2">
                     <input type="hidden" name="approval_id" value={approval.id} />
-                    <textarea name="summary" rows={3} defaultValue={approval.summary} aria-label="Revised scope" className="textarea" />
-                    <div className="flex flex-wrap gap-2"><EffortInput name="effort" unitName="effort_unit" units={units ?? ['day']} defaultValue={approval.effort} defaultUnit={approval.effort_unit} required /><input type="date" name="target_date" defaultValue={approval.target_date ?? ''} aria-label="Target date" className="input flex-1" /></div>
-                    <input name="comment" placeholder="What changed (shown in history)" aria-label="What changed" className="input" />
+                    <Textarea name="summary" rows={3} defaultValue={approval.summary} aria-label="Revised scope" />
+                    <div className="flex flex-wrap gap-2"><EffortInput name="effort" unitName="effort_unit" units={units ?? ['day']} defaultValue={approval.effort} defaultUnit={approval.effort_unit} required /><Input type="date" name="target_date" defaultValue={approval.target_date ?? ''} aria-label="Target date" className="flex-1" /></div>
+                    <Input name="comment" placeholder="What changed (shown in history)" aria-label="What changed" className="w-auto" />
                   </ActionForm>
                 </details>
               ) : null}
@@ -189,11 +192,11 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
             <Card title="Ask the customer to approve an estimate">
               <ActionForm action={requestApproval} submit="Request approval">
                 <input type="hidden" name="request_id" value={r.id} />
-                <textarea name="summary" rows={3} required placeholder="Scope: what is included and excluded" aria-label="Scope" className="textarea" />
-                <div className="flex flex-wrap gap-2"><EffortInput name="effort" unitName="effort_unit" units={units ?? ['day']} required /><input type="date" name="target_date" aria-label="Target delivery" className="input flex-1" /></div>
+                <Textarea name="summary" rows={3} required placeholder="Scope: what is included and excluded" aria-label="Scope" />
+                <div className="flex flex-wrap gap-2"><EffortInput name="effort" unitName="effort_unit" units={units ?? ['day']} required /><Input type="date" name="target_date" aria-label="Target delivery" className="flex-1" /></div>
                 <label className="flex flex-col gap-1 text-xs"><span className="label">Approver</span>
-                  <select name="approver_id" required className="input">{(customerUsers ?? []).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}</select></label>
-                <label className="flex flex-col gap-1 text-xs"><span className="label">Decision needed by</span><input type="date" name="due_date" className="input" /></label>
+                  <NativeSelect size="sm" name="approver_id" required>{(customerUsers ?? []).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}</NativeSelect></label>
+                <label className="flex flex-col gap-1 text-xs"><span className="label">Decision needed by</span><Input type="date" name="due_date" className="w-auto" /></label>
               </ActionForm>
             </Card>
           ) : null}
@@ -202,8 +205,8 @@ export async function RequestView({ id, me, created }: { id: string; me: Profile
             <Card title="Move to stage">
               <ActionForm action={setRequestStatus} submit="Update stage" primary={false}>
                 <input type="hidden" name="request_id" value={r.id} />
-                <select name="status" defaultValue={r.status} aria-label="Stage" className="input">{[...REQUEST_STATUS_ORDER, 'cancelled' as const].map((s) => <option key={s} value={s}>{label(s)}</option>)}</select>
-                <input name="note" placeholder="Note for the timeline (shared with the customer)" aria-label="Note" className="input" />
+                <NativeSelect size="sm" name="status" defaultValue={r.status} aria-label="Stage">{[...REQUEST_STATUS_ORDER, 'cancelled' as const].map((s) => <option key={s} value={s}>{label(s)}</option>)}</NativeSelect>
+                <Input name="note" placeholder="Note for the timeline (shared with the customer)" aria-label="Note" className="w-auto" />
               </ActionForm>
             </Card>
           ) : null}

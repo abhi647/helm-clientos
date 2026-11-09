@@ -4,7 +4,7 @@ import { completeAction } from '@/app/_actions/requests'
 import { ActionButton } from '@/components/forms'
 import { UpdateCard } from '@/components/project-parts'
 import { Greeting, GreetingChip } from '@/components/shell/greeting'
-import { Card, Chip, Empty, Health, cn } from '@/components/ui'
+import { btn, Card, Chip, cn, Empty, Health } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
 import { daysFromToday, isoDaysAgo, money, shortDate } from '@/lib/format'
 import { formByKey } from '@/lib/forms'
@@ -89,8 +89,8 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
                       <span className="truncate text-[13px] text-muted-foreground">{a.projects?.name ?? '–'}</span>
                       <span className={cn('font-mono text-xs', late && 'font-semibold text-crit-ink')}>{late ? `${-(daysFromToday(a.due_date) ?? 0)}d late` : shortDate(a.due_date)}</span>
                       <span className="text-right">
-                        {a.type === 'approval' ? <Link href={a.request_id ? `/portal/requests/${a.request_id}` : `/portal/approvals/${a.approval_id}`} className="btn btn-primary">{ty.cta}</Link>
-                          : a.form_key ? <Link href={`/portal/forms/${a.form_key}?project=${a.project_id ?? ''}&action=${a.id}`} className="btn btn-primary">{a.form_key === 'uat_feedback' ? 'Give feedback' : 'Fill in form'}</Link>
+                        {a.type === 'approval' ? <Link href={a.request_id ? `/portal/requests/${a.request_id}` : `/portal/approvals/${a.approval_id}`} className={btn('default')}>{ty.cta}</Link>
+                          : a.form_key ? <Link href={`/portal/forms/${a.form_key}?project=${a.project_id ?? ''}&action=${a.id}`} className={btn('default')}>{a.form_key === 'uat_feedback' ? 'Give feedback' : 'Fill in form'}</Link>
                           : <ActionButton run={completeAction.bind(null, a.id)}>{ty.cta}</ActionButton>}
                       </span>
                     </div>

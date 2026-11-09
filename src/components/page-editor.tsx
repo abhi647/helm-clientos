@@ -24,6 +24,7 @@ import { FixedToolbar } from '@/components/ui/fixed-toolbar'
 import { FixedToolbarButtons } from '@/components/ui/fixed-toolbar-buttons'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { btn } from '@/components/ui'
 
 const PLUGINS = [
   ...BasicNodesKit, ...IndentKit, ...ListKit, ...TableKit, ...LinkKit, ...AutoformatKit, ...ExitBreakKit, ...SlashKit, ...BlockPlaceholderKit,
@@ -141,7 +142,7 @@ export function PageEditor({ pageId, initial, discussions, version: startVersion
         <span className={cn('ml-auto', state.kind === 'error' || state.kind === 'conflict' ? 'font-medium text-crit-ink' : 'text-muted-foreground')} role="status" aria-live="polite">
           {state.kind === 'saved' ? `Saved · version ${shown}` : state.kind === 'saving' ? 'Saving…' : state.kind === 'unsaved' ? 'Unsaved changes' : 'message' in state ? state.message : ''}
         </span>
-        {state.kind === 'conflict' ? <button type="button" className="btn h-6 px-2 text-xs" onClick={() => router.refresh()}>Reload</button> : null}
+        {state.kind === 'conflict' ? <button type="button" className={btn('outline', 'h-6 px-2 text-xs')} onClick={() => router.refresh()}>Reload</button> : null}
       </div>
       <Plate editor={editor} readOnly={readOnly} onValueChange={schedule}>
         <DiscussionSaver onChange={schedule} initial={JSON.stringify(discussions)} />

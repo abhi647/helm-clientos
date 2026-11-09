@@ -1,7 +1,7 @@
 import { ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { Greeting, GreetingChip } from '@/components/shell/greeting'
-import { Card, Chip, Empty, Health } from '@/components/ui'
+import { btn, Card, Chip, Empty, Health } from '@/components/ui'
 import { ProgressRing } from '@/components/viz'
 import { PortalMeters } from '@/components/portal-meters'
 import { daysFromToday, money, relativeTime, shortDate } from '@/lib/format'
@@ -93,7 +93,7 @@ export async function ExecHome({ me, surveys }: { me: Profile; surveys?: React.R
                 <span className="truncate text-[13px] text-muted-foreground max-sm:hidden">{a.approver_id === me.id ? 'You' : a.approver?.full_name}</span>
                 <span className="font-mono text-xs max-sm:text-muted-foreground"><span className="sm:hidden">{a.approver_id === me.id ? 'You' : a.approver?.full_name} · due </span>{shortDate(a.due_date)}</span>
                 <span className="text-right max-sm:text-left">{a.approver_id === me.id
-                  ? <Link href={a.request_id ? `/portal/requests/${a.request_id}` : `/portal/approvals/${a.id}`} className="btn btn-primary max-sm:w-full">Review & approve</Link>
+                  ? <Link href={a.request_id ? `/portal/requests/${a.request_id}` : `/portal/approvals/${a.id}`} className={btn('default', 'max-sm:w-full')}>Review & approve</Link>
                   : <Chip tone="warn">With your team</Chip>}</span>
               </div>
             )) : <Empty title="No open approvals" />}

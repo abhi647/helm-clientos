@@ -71,7 +71,7 @@ export function ArchiveControls({ docs, archived }: { docs: FileRow[]; archived:
           <span className="flex items-center gap-1">
             <ActionButton run={archiveDocument.bind(null, d.id, !archived)} className="h-6 px-2 text-xs"
               confirm={archived ? undefined : `Archive ${d.name}? The customer will no longer see it.`}>{archived ? 'Restore' : 'Archive'}</ActionButton>
-            {archived ? <ActionButton run={deleteDocument.bind(null, d.id)} className="btn-ghost h-6 px-2 text-xs text-crit-ink"
+            {archived ? <ActionButton run={deleteDocument.bind(null, d.id)} variant="ghost" className="h-6 px-2 text-xs text-crit-ink"
               confirm={`Delete ${d.name} and all its versions for good? This cannot be undone.`}>Delete</ActionButton> : null}
           </span>
         </div>

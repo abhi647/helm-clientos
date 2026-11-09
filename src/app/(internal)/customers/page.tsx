@@ -2,10 +2,11 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { createCustomer } from '@/app/_actions/admin'
 import { ActionForm } from '@/components/forms'
-import { Card, Empty, Health, PageHeader } from '@/components/ui'
+import { btn, Card, Empty, Health, PageHeader } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
 import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { Input } from '@/components/ui/input'
 
 export const metadata: Metadata = { title: 'Customers' }
 
@@ -20,13 +21,13 @@ export default async function Customers() {
       <PageHeader title="Customers" meta={<span className="text-xs text-muted-foreground">{data?.length ?? 0} workspaces</span>}
         actions={canManage(me) ? (
           <details className="relative">
-            <summary className="btn btn-primary list-none">+ Add customer</summary>
+            <summary className={btn('default', 'list-none')}>+ Add customer</summary>
             <div className="card absolute right-0 z-20 mt-1 w-[300px] p-3 shadow-[0_4px_16px_rgba(15,42,48,.12)]">
               <ActionForm action={createCustomer} submit="Add customer">
-                <input name="name" aria-label="Customer name" placeholder="Company name" className="input" />
+                <Input name="name" aria-label="Customer name" placeholder="Company name" className="w-auto" />
                 <input type="hidden" name="account_owner_id" value={me.id} />
-                <input name="hubspot_company_id" aria-label="HubSpot company id" placeholder="HubSpot company id (optional)" className="input" />
-                <input name="zoho_customer_id" aria-label="Zoho customer id" placeholder="Zoho customer id (optional)" className="input" />
+                <Input name="hubspot_company_id" aria-label="HubSpot company id" placeholder="HubSpot company id (optional)" className="w-auto" />
+                <Input name="zoho_customer_id" aria-label="Zoho customer id" placeholder="Zoho customer id (optional)" className="w-auto" />
                 <p className="m-0 text-xs text-muted-foreground">The ids are checked against HubSpot and Zoho. Leave the name empty to use the name found there. You become the account owner.</p>
               </ActionForm>
             </div>

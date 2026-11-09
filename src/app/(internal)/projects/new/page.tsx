@@ -3,11 +3,13 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createProject } from '@/app/_actions/admin'
 import { ActionForm } from '@/components/forms'
-import { Card, PageHeader, cn } from '@/components/ui'
+import { btn, Card, cn, PageHeader } from '@/components/ui'
 import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { TEMPLATES } from '@/lib/templates'
 import type { DirectoryRow } from '@/lib/views'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Input } from '@/components/ui/input'
 
 export const metadata: Metadata = { title: 'New project' }
 
@@ -34,9 +36,9 @@ export default async function NewProject({ searchParams }: { searchParams: Promi
           <div className="flex flex-wrap gap-1.5">
             {(customers ?? []).map((c) => (
               <Link key={c.id} href={`/projects/new?customer=${c.id}`} aria-current={c.id === customer?.id ? 'page' : undefined}
-                className={cn('btn', c.id === customer?.id && 'border-ink bg-head font-semibold')}>{c.name}</Link>
+                className={btn('outline', c.id === customer?.id && 'border-ink bg-head font-semibold')}>{c.name}</Link>
             ))}
-            <Link href="/customers" className="btn btn-ghost">+ New customer</Link>
+            <Link href="/customers" className={btn('ghost')}>+ New customer</Link>
           </div>
         </Card>
         {customer ? (
@@ -44,26 +46,26 @@ export default async function NewProject({ searchParams }: { searchParams: Promi
             <ActionForm action={createProject} submit="Create project" resetOnSuccess={false}>
               <input type="hidden" name="customer_id" value={customer.id} />
               <label className="flex flex-col gap-1"><span className="label">Project name</span>
-                <input name="name" className="input" placeholder="e.g. Power BI rollout, phase 2" maxLength={160} />
+                <Input name="name" className="w-auto" placeholder="e.g. Power BI rollout, phase 2" maxLength={160} />
                 <span className="text-xs text-muted-foreground">Leave it empty to use the HubSpot deal name.</span></label>
               <label className="flex flex-col gap-1"><span className="label">Plan</span>
-                <select name="template_key" defaultValue="" className="input h-9">
+                <NativeSelect size="sm" name="template_key" defaultValue="" className="h-9">
                   <option value="">Blank: one Delivery phase, add tasks yourself</option>
                   {TEMPLATES.map((t) => <option key={t.key} value={t.key}>{t.name} ({t.weeks} weeks)</option>)}
-                </select></label>
+                </NativeSelect></label>
               <div className="flex flex-wrap gap-3">
                 <label className="flex flex-col gap-1"><span className="label">Start</span>
-                  <input type="date" name="start_date" required defaultValue={today} className="input" /></label>
+                  <Input type="date" name="start_date" required defaultValue={today} className="w-auto" /></label>
                 <label className="flex flex-col gap-1"><span className="label">End (optional)</span>
-                  <input type="date" name="end_date" className="input" />
+                  <Input type="date" name="end_date" className="w-auto" />
                   <span className="text-xs text-muted-foreground">A template sets it from its length.</span></label>
                 <label className="flex flex-col gap-1"><span className="label">Project manager</span>
-                  <select name="pm_id" defaultValue={me.id} className="input h-9">
+                  <NativeSelect size="sm" name="pm_id" defaultValue={me.id} className="h-9">
                     {(staff ?? []).map((p) => <option key={p.id} value={p.id}>{p.full_name}{p.internal_role ? ` (${p.internal_role})` : ''}</option>)}
-                  </select></label>
+                  </NativeSelect></label>
               </div>
               <label className="flex flex-col gap-1"><span className="label">HubSpot deal id (optional)</span>
-                <input name="hubspot_deal_id" inputMode="numeric" className="input" placeholder="e.g. 18234567890" maxLength={40} />
+                <Input name="hubspot_deal_id" inputMode="numeric" className="w-auto" placeholder="e.g. 18234567890" maxLength={40} />
                 <span className="text-xs text-muted-foreground">Checked against HubSpot. Billing reaches Zoho through the customer&apos;s Zoho id.</span></label>
             </ActionForm>
           </Card>

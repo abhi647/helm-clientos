@@ -3,9 +3,10 @@ import Link from 'next/link'
 import { createRequest } from '@/app/_actions/requests'
 import { ActionForm } from '@/components/forms'
 import { REQUEST_KINDS, RequestFields, requestKind } from '@/components/request-fields'
-import { Card, PageHeader, cn } from '@/components/ui'
+import { btn, Card, cn, PageHeader } from '@/components/ui'
 import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { NativeSelect } from '@/components/ui/native-select'
 
 export const metadata: Metadata = { title: 'Log a request' }
 
@@ -37,7 +38,7 @@ export default async function LogRequest({ searchParams }: { searchParams: Promi
           <div className="flex flex-wrap gap-1.5">
             {(customers ?? []).map((c) => (
               <Link key={c.id} href={`/requests/new?customer=${c.id}${kind !== 'request' ? `&kind=${kind}` : ''}`} aria-current={c.id === customer?.id ? 'page' : undefined}
-                className={cn('btn', c.id === customer?.id && 'border-ink bg-head font-semibold')}>{c.name}</Link>
+                className={btn('outline', c.id === customer?.id && 'border-ink bg-head font-semibold')}>{c.name}</Link>
             ))}
           </div>
         </Card>
@@ -46,16 +47,16 @@ export default async function LogRequest({ searchParams }: { searchParams: Promi
             <nav aria-label="Request form" className="mb-3 flex flex-wrap gap-1.5">
               {(Object.keys(REQUEST_KINDS) as (keyof typeof REQUEST_KINDS)[]).map((key) => (
                 <Link key={key} href={href({ kind: key })} aria-current={key === kind ? 'page' : undefined}
-                  className={cn('btn', key === kind && 'border-ink bg-head font-semibold')}>{REQUEST_KINDS[key].tab}</Link>
+                  className={btn('outline', key === kind && 'border-ink bg-head font-semibold')}>{REQUEST_KINDS[key].tab}</Link>
               ))}
             </nav>
             <ActionForm key={`${customer.id}-${kind}`} action={createRequest} submit="Log the request" resetOnSuccess={false}>
               <input type="hidden" name="customer_id" value={customer.id} />
               <label className="flex flex-col gap-1"><span className="label">On behalf of</span>
-                <select name="on_behalf_of" className="input h-9" defaultValue={people?.[0]?.id ?? ''}>
+                <NativeSelect size="sm" name="on_behalf_of" className="h-9" defaultValue={people?.[0]?.id ?? ''}>
                   {(people ?? []).map((p) => <option key={p.id} value={p.id ?? ""}>{p.full_name}{p.customer_role === 'customer_exec' ? ' (executive)' : ''}</option>)}
                   <option value="">{customer.name} (the company, no one person)</option>
-                </select>
+                </NativeSelect>
                 <span className="text-xs text-muted-foreground">They are emailed, can follow it in their portal, and are asked to rate it when it is delivered.</span>
               </label>
               <RequestFields kind={kind} projects={projects ?? []} />

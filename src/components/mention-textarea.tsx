@@ -5,6 +5,7 @@ import getCaretCoordinates from 'textarea-caret'
 import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { Avatar, cn } from '@/components/ui'
+import { Textarea } from '@/components/ui/textarea'
 
 export type Person = { id: string; name: string; customer: boolean }
 
@@ -72,9 +73,9 @@ export const MentionTextarea = forwardRef<{ clear: (sent?: string) => void }, {
   return (
     <Command shouldFilter={false} loop value={active} onValueChange={setActive} label="Mention someone" className="relative">
       <input type="hidden" name="mentions" value={mentionIds.join(',')} />
-      <textarea ref={area} id={id} name={name} rows={rows} required={required} placeholder={placeholder} value={text}
+      <Textarea ref={area} id={id} name={name} rows={rows} required={required} placeholder={placeholder} value={text}
         aria-autocomplete="list"
-        className={cn('textarea w-full', className)}
+        className={cn('w-full', className)}
         onChange={(e) => { setText(e.target.value); sync(e.target) }}
         onClick={(e) => sync(e.currentTarget)}
         onBlur={() => setTimeout(() => setQuery(null), 120)}

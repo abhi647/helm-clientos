@@ -9,6 +9,7 @@ import { FilterTabs } from '@/components/overtrue/filter-tabs'
 import { Empty } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
 import { money } from '@/lib/format'
+import { Input } from '@/components/ui/input'
 
 export type StatementRow = {
   id: string; start: string; end: string; status: Enums<'statement_status'>; subtotal: number; currency: string
@@ -61,7 +62,7 @@ export function StatementsTable({ rows, projectId }: { rows: StatementRow[]; pro
       {rows.some((r) => r.status === 'approved' && !r.invoice && !r.salesOrder) ? (
         <label className="flex flex-wrap items-center gap-2 border-t border-line-soft px-3 py-2 text-xs text-muted-foreground">
           Proposed exchange rate: 1 {rows[0]!.currency} =
-          <input name="exchange_rate" inputMode="decimal" placeholder="e.g. 92.5" className="input tabular w-28" />
+          <Input name="exchange_rate" inputMode="decimal" placeholder="e.g. 92.5" className="tabular w-28" />
           <span>only when Zoho bills the customer in another currency</span>
         </label>
       ) : null}

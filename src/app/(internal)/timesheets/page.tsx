@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { Card, PageHeader, Stat } from '@/components/ui'
+import { btn, Card, PageHeader, Stat } from '@/components/ui'
 import { WeekGrid, type CellState, type GridRow } from '@/components/week-grid'
 import { hrs } from '@/lib/format'
 import { requireStaff } from '@/lib/session'
@@ -80,7 +80,7 @@ export default async function MyWeek({ searchParams }: { searchParams: Promise<{
             <span className="tabular border-x border-border px-3 text-[13px] font-medium">{range}</span>
             <Link href={`?week=${iso(new Date(monday.getTime() + 7 * DAY))}`} aria-label="Next week" className="grid h-full w-8 place-items-center text-foreground no-underline hover:bg-muted"><ChevronRight className="size-4" /></Link>
           </nav>
-          {week ? <Link href="/timesheets" className="btn h-8">This week</Link> : null}
+          {week ? <Link href="/timesheets" className={btn('outline', 'h-8')}>This week</Link> : null}
           <span className="ml-auto flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full bg-info" />Billed by the hour</span>
             <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full bg-review" />Fixed fee (effort)</span>

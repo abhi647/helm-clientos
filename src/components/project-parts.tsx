@@ -1,6 +1,6 @@
 import { ArchiveControls, FileRows, FileTiles } from '@/components/file-rows'
 import { UploadForm } from '@/components/upload'
-import { Card, Empty, Health, Visibility } from '@/components/ui'
+import { btn, Card, Empty, Health, Visibility } from '@/components/ui'
 import { relativeTime, shortDate } from '@/lib/format'
 import type { Profile } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
@@ -52,7 +52,7 @@ export async function DocumentsPanel({ me, customerId, projectId, projects, tile
       <Card flush title="Documents" extra={`${docs.length} ${docs.length === 1 ? 'file' : 'files'}`}>
         <div className="flex flex-wrap items-start gap-2 border-b border-line-soft px-3 py-2.5">
           <details className="group min-w-0 flex-[1_1_100%]">
-            <summary className="btn h-8 w-fit cursor-pointer list-none text-xs">+ Upload a file</summary>
+            <summary className={btn('outline', 'h-8 w-fit cursor-pointer list-none text-xs')}>+ Upload a file</summary>
             <div className="mt-2 max-w-[520px]"><UploadForm customerId={customerId} projectId={projectId} projects={projects} folders={FOLDERS} staff={staff} /></div>
           </details>
         </div>

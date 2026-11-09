@@ -5,6 +5,8 @@ import { Lock, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { setDayHours, setLeave } from '@/app/_actions/work'
 import { cn } from '@/components/ui'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Input } from '@/components/ui/input'
 
 export type CellState = 'waiting' | 'approved' | 'billed' | 'returned' | null
 export type GridRow = {
@@ -89,10 +91,10 @@ export function WeekGrid({ days, rows: initial, options, today, leave: leaveInit
                 </span>
               ) : (
                 <span key={di} role="gridcell" className="relative">
-                  <input aria-label={label} inputMode="decimal" defaultValue={fmt(c.hours)} key={`${r.taskId}-${di}-${c.hours}`}
+                  <Input aria-label={label} inputMode="decimal" defaultValue={fmt(c.hours)} key={`${r.taskId}-${di}-${c.hours}`}
                     onBlur={(e) => commit(ri, di, e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                     title={c.state === 'returned' ? `Returned: ${c.note ?? ''}` : undefined}
-                    className={cn('input tabular h-8 w-full px-1 text-center', days[di]!.iso === today && 'bg-accent/40',
+                    className={cn('tabular h-8 w-full px-1 text-center', days[di]!.iso === today && 'bg-accent/40',
                       c.state === 'returned' && 'border-warn bg-warn-bg', saving === `${r.taskId}:${di}` && 'opacity-60')} />
                 </span>
               )
@@ -115,14 +117,14 @@ export function WeekGrid({ days, rows: initial, options, today, leave: leaveInit
         <div className={`row ${cols} bg-head font-medium`} role="row">
           <span role="rowheader">
             {extra.length ? (
-              <select aria-label="Add a task to this week" value="" className="input h-7 w-full max-w-[260px] text-xs"
+              <NativeSelect size="sm" aria-label="Add a task to this week" value="" className="h-7 text-xs" containerClassName="w-full max-w-[260px]"
                 onChange={(e) => {
                   const o = options.find((x) => x.taskId === e.target.value)
                   if (o) setRows([...rows, { ...o, cells: days.map(() => ({ hours: 0, state: null })) }])
                 }}>
                 <option value="">+ Add a task…</option>
                 {extra.map((o) => <option key={o.taskId} value={o.taskId}>{o.title} · {o.context}</option>)}
-              </select>
+              </NativeSelect>
             ) : <span className="flex items-center gap-1 text-xs text-muted-foreground"><Plus className="size-3" />All your open tasks are listed</span>}
           </span>
           {days.map((d, i) => <span key={d.iso} className={cn('tabular text-center', dayTotal(i) > 10 && 'text-warn-ink')} role="gridcell">{fmt(dayTotal(i)) || '–'}</span>)}

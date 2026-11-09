@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { createRequest } from '@/app/_actions/requests'
 import { ActionForm } from '@/components/forms'
 import { REQUEST_KINDS as KINDS, RequestFields, requestKind } from '@/components/request-fields'
-import { Card, cn } from '@/components/ui'
+import { btn, Card, cn } from '@/components/ui'
 import { requireCustomer } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
@@ -22,7 +22,7 @@ export default async function NewRequest({ searchParams }: { searchParams: Promi
       <nav aria-label="Request form" className="flex gap-1.5">
         {(Object.keys(KINDS) as (keyof typeof KINDS)[]).map((key) => (
           <Link key={key} href={key === 'request' ? '/portal/requests/new' : `/portal/requests/new?kind=${key}`} aria-current={key === kind ? 'page' : undefined}
-            className={cn('btn', key === kind && 'border-ink bg-head font-semibold')}>{KINDS[key].tab}</Link>
+            className={btn('outline', key === kind && 'border-ink bg-head font-semibold')}>{KINDS[key].tab}</Link>
         ))}
       </nav>
       <p className="m-0 text-[13px] text-muted-foreground">Tell us what you need. You will get a reference number straight away and can follow every step here.</p>

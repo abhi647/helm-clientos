@@ -2,6 +2,8 @@
 
 import { useActionState, useRef, useState } from 'react'
 import type { ActionResult } from '@/app/_actions/shared'
+import { btn } from '@/components/ui'
+import { Input } from '@/components/ui/input'
 
 type FormAction = (prev: ActionResult | null, form: FormData) => Promise<ActionResult>
 
@@ -47,14 +49,14 @@ export function TimesheetForm({ person, rows, approve, sendBack }: { person: str
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-line-soft px-3 py-2.5">
-        <button type="submit" formAction={runApprove} disabled={pending} className="btn btn-primary">{approving ? 'Approving…' : 'Approve ticked'}</button>
+        <button type="submit" formAction={runApprove} disabled={pending} className={btn('default')}>{approving ? 'Approving…' : 'Approve ticked'}</button>
         {returning ? (
           <>
-            <input name="note" required minLength={3} maxLength={500} autoFocus aria-label="What should change" placeholder="What should change, e.g. log the 3rd on the reporting task" className="input min-w-[260px] flex-1" />
-            <button type="submit" formAction={runReturn} disabled={pending} className="btn">{sending ? 'Returning…' : 'Return with this note'}</button>
-            <button type="button" onClick={() => setReturning(false)} className="btn btn-ghost">Cancel</button>
+            <Input name="note" required minLength={3} maxLength={500} autoFocus aria-label="What should change" placeholder="What should change, e.g. log the 3rd on the reporting task" className="min-w-[260px] flex-1" />
+            <button type="submit" formAction={runReturn} disabled={pending} className={btn('outline')}>{sending ? 'Returning…' : 'Return with this note'}</button>
+            <button type="button" onClick={() => setReturning(false)} className={btn('ghost')}>Cancel</button>
           </>
-        ) : <button type="button" onClick={() => setReturning(true)} disabled={pending} className="btn">Return ticked…</button>}
+        ) : <button type="button" onClick={() => setReturning(true)} disabled={pending} className={btn('outline')}>Return ticked…</button>}
         {state ? state.ok
           ? state.message ? <p role="status" className="m-0 text-xs font-medium text-good-ink">{state.message}</p> : null
           : <p role="alert" className="m-0 text-xs text-crit-ink">{state.error}</p> : null}

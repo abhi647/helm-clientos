@@ -90,7 +90,7 @@ export default async function TimesheetsPage() {
                 <span className="truncate text-xs text-muted-foreground">{where(e)} · {e.tasks.title}</span>
                 <span className="text-right font-mono text-xs">{+Number(e.hours).toFixed(2)}</span>
                 <span className="truncate text-xs text-muted-foreground">{e.approver?.full_name ? `by ${e.approver.full_name}` : ''} {relativeTime(e.approved_at!)}</span>
-                <ActionButton run={unapproveTime.bind(null, e.id)} className="btn-ghost h-7 text-xs">Undo</ActionButton>
+                <ActionButton run={unapproveTime.bind(null, e.id)} variant="ghost" className="h-7 text-xs">Undo</ActionButton>
               </div>
             ))}
           </Card>

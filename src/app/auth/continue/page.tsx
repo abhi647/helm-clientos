@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { BrandLockup } from '@/components/brand'
+import { btn } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Sign in', robots: { index: false, follow: false } }
 
@@ -22,7 +23,7 @@ export default async function ContinuePage({ searchParams }: { searchParams: Pro
         <input type="hidden" name="token_hash" value={token_hash} />
         <input type="hidden" name="type" value={type ?? 'email'} />
         <input type="hidden" name="next" value={next ?? '/'} />
-        <button type="submit" autoFocus className="btn btn-primary h-10 text-sm">{invite ? 'Open your workspace' : 'Continue'}</button>
+        <button type="submit" autoFocus className={btn('default', 'h-10 text-sm')}>{invite ? 'Open your workspace' : 'Continue'}</button>
       </form>
     </main>
   )

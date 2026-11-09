@@ -10,6 +10,9 @@ import { shortDate } from '@/lib/format'
 import { canManage, requireStaff } from '@/lib/session'
 import { deleteMeeting } from '@/app/_actions/delete'
 import { createClient } from '@/lib/supabase/server'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 
 export const metadata: Metadata = { title: 'Meeting' }
 
@@ -53,12 +56,12 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
               <ActionForm action={addMeetingAction} submit="Add action" primary={false} className="border-t border-line-soft p-3">
                 <input type="hidden" name="meeting_id" value={m.id} />
                 <div className="grid grid-cols-[minmax(0,1fr)_170px_140px] gap-2">
-                  <input name="text" required aria-label="Action" placeholder="e.g. Share the region master file" className="input" />
-                  <select name="assignee_id" aria-label="Owner" className="input" defaultValue="">
+                  <Input name="text" required aria-label="Action" placeholder="e.g. Share the region master file" className="w-auto" />
+                  <NativeSelect size="sm" name="assignee_id" aria-label="Owner"  defaultValue="">
                     <option value="">Unassigned</option>
                     {(people ?? []).map((p) => <option key={p.id} value={p.id}>{p.full_name}{p.kind === 'customer' ? ' (customer)' : ''}</option>)}
-                  </select>
-                  <input name="due_date" type="date" aria-label="Due date" className="input" />
+                  </NativeSelect>
+                  <Input name="due_date" type="date" aria-label="Due date" className="w-auto" />
                 </div>
               </ActionForm>
             </div>
@@ -70,12 +73,12 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
               <ActionForm action={addDecision} submit="Record decision" primary={false} className="border-t border-line-soft p-3">
                 <input type="hidden" name="project_id" value={project.id} />
                 <input type="hidden" name="meeting_id" value={m.id} />
-                <textarea name="decision" required rows={2} aria-label="Decision" className="textarea" placeholder="What was decided" />
+                <Textarea name="decision" required rows={2} aria-label="Decision"  placeholder="What was decided" />
                 <div className="grid grid-cols-[minmax(0,1fr)_200px] gap-2">
-                  <input name="decided_by" aria-label="Decided by" className="input" placeholder="Decided by (e.g. Michel + Rahul)" />
-                  <select name="visibility" aria-label="Visibility" defaultValue={m.visibility} className="input">
+                  <Input name="decided_by" aria-label="Decided by" className="w-auto" placeholder="Decided by (e.g. Michel + Rahul)" />
+                  <NativeSelect size="sm" name="visibility" aria-label="Visibility" defaultValue={m.visibility}>
                     <option value="shared">Shared with customer</option><option value="internal">Internal</option>
-                  </select>
+                  </NativeSelect>
                 </div>
               </ActionForm>
             ) : null}
@@ -90,14 +93,14 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
           <ActionForm action={saveMeetingNotes} submit="Save notes" resetOnSuccess={false} primary={false}>
             <input type="hidden" name="meeting_id" value={m.id} />
             <label className="label" htmlFor="n-att">Attendees</label>
-            <input id="n-att" name="attendees" defaultValue={m.attendees} className="input" />
+            <Input id="n-att" name="attendees" defaultValue={m.attendees} className="w-auto" />
             <label className="label" htmlFor="n-sum">Notes</label>
-            <textarea id="n-sum" name="summary" rows={12} defaultValue={m.summary} className="textarea" />
+            <Textarea id="n-sum" name="summary" rows={12} defaultValue={m.summary} />
             {m.visibility === 'shared' ? <p className="m-0 text-xs text-muted-foreground">The customer sees these notes.</p> : null}
           </ActionForm>
           {canManage(me) && project ? (
             <div className="mt-3 border-t border-line-soft pt-3">
-              <ActionButton run={deleteMeeting.bind(null, m.id, project.id)} className="btn-ghost text-crit-ink"
+              <ActionButton run={deleteMeeting.bind(null, m.id, project.id)} variant="ghost" className="text-crit-ink"
                 confirm={`Delete the meeting "${m.title}" and its notes and action lines? Tasks made from it and its decisions stay. This cannot be undone.`}>Delete meeting</ActionButton>
             </div>
           ) : null}

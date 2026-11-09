@@ -7,6 +7,7 @@ import { Card, Chip, Empty, PageHeader } from '@/components/ui'
 import { shortDate } from '@/lib/format'
 import { loadImportPlan } from '@/lib/integrations/backfill'
 import { requireStaff } from '@/lib/session'
+import { Input } from '@/components/ui/input'
 
 export const metadata: Metadata = { title: 'Import from HubSpot & Zoho' }
 export const dynamic = 'force-dynamic'
@@ -66,7 +67,7 @@ export default async function ImportPage() {
                             <span className="truncate" title={d.name}>{d.name}</span>
                             <span className="truncate text-xs text-muted-foreground">{d.stageLabel}</span>
                             <span className="font-mono text-xs text-muted-foreground">{d.invoiceNumber ?? '–'}</span>
-                            <input name={`p_${d.id}`} defaultValue={p.name} aria-label={`Project for ${d.name}`} className="input" />
+                            <Input name={`p_${d.id}`} defaultValue={p.name} aria-label={`Project for ${d.name}`} className="w-auto" />
                           </div>
                         ))}
                       </div>

@@ -4,7 +4,7 @@ import { deletePhase, deleteTask } from '@/app/_actions/delete'
 import { createTask, logTime, setBilledAs, setSpotlight, setTaskPhase, setTaskStatus, setTaskOwner } from '@/app/_actions/work'
 import { ActionButton, ActionForm, StatusSelect } from '@/components/forms'
 import { Thread } from '@/components/thread'
-import { Avatar, Chip, StatusLegend, TASK_STRIPE, TaskStatusChip, Visibility, cn } from '@/components/ui'
+import { Avatar, btn, Chip, cn, StatusLegend, TASK_STRIPE, TaskStatusChip, Visibility } from '@/components/ui'
 import type { Enums } from '@/lib/database.types'
 import { TASK_STATUS, isOverdue, shortDate, effort, effortShort, hrs } from '@/lib/format'
 import { EffortInput } from '@/components/effort-input'
@@ -14,6 +14,8 @@ import { PLAN_VIEWS, TaskFilters, TaskTable, ViewSwitch, asSort, asStatus, asVie
 import { CalendarLegend, PlanTimeline, TaskCalendar, type CalendarItem } from '@/components/viz'
 import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Input } from '@/components/ui/input'
 
 export const metadata: Metadata = { title: 'Project plan' }
 
@@ -134,9 +136,9 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
               <input type="hidden" name="project_id" value={id} />
               <input type="hidden" name="parent_id" value={t.id} />
               <input type="hidden" name="visibility" value={t.visibility} />
-              <input name="title" required placeholder="+ Add subtask" aria-label={`New subtask of ${t.title}`} className="input h-7 w-64 text-xs" />
-              <select name="assignee_id" aria-label={`Owner of the new subtask of ${t.title}`} defaultValue={t.assignee_id ?? ''} className="input h-7 w-40 py-0 text-xs"><option value="">Unassigned</option>{people.map((p) => <option key={p.id} value={p.id}>{p.full_name}{p.kind === 'customer' ? ' (customer)' : ''}</option>)}</select>
-              <input type="date" name="due_date" aria-label={`Due date of the new subtask of ${t.title}`} className="input h-7 w-36 text-xs" />
+              <Input name="title" required placeholder="+ Add subtask" aria-label={`New subtask of ${t.title}`} className="h-7 w-64 text-xs" />
+              <NativeSelect size="sm" name="assignee_id" aria-label={`Owner of the new subtask of ${t.title}`} defaultValue={t.assignee_id ?? ''} className="h-7 py-0 text-xs" containerClassName="w-40"><option value="">Unassigned</option>{people.map((p) => <option key={p.id} value={p.id}>{p.full_name}{p.kind === 'customer' ? ' (customer)' : ''}</option>)}</NativeSelect>
+              <Input type="date" name="due_date" aria-label={`Due date of the new subtask of ${t.title}`} className="h-7 w-36 text-xs" />
             </ActionForm>
           </div>
         ) : null}
@@ -175,8 +177,8 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
             ...people.filter((p) => p.id !== me.id).map((p) => ({ value: p.id, label: `${p.full_name}${p.kind === 'customer' ? ' (customer)' : ''}` }))] },
           { name: 'status', label: 'Status', value: statusF ?? '', options: statusFilterOptions },
         ]} />
-        <Link href={link({ open: openOnly ? undefined : '1' })} className={cn('btn', openOnly && 'border-brand bg-selected font-semibold')}>Open only</Link>
-        <Link href={link({ preview: preview ? undefined : '1', task: undefined })} className={cn('btn', preview && 'border-brand bg-selected font-semibold')}>{preview ? 'Exit customer preview' : 'Customer preview'}</Link>
+        <Link href={link({ open: openOnly ? undefined : '1' })} className={btn('outline', openOnly && 'border-brand bg-selected font-semibold')}>Open only</Link>
+        <Link href={link({ preview: preview ? undefined : '1', task: undefined })} className={btn('outline', preview && 'border-brand bg-selected font-semibold')}>{preview ? 'Exit customer preview' : 'Customer preview'}</Link>
         <div className="ml-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
           <span><b className="font-mono text-ink">{stats.total}</b> tasks</span>
           <span><b className="font-mono text-good-ink">{stats.done}</b> done</span>
@@ -185,21 +187,21 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
           {!preview ? <span><b className="font-mono text-ink">{+stats.logged.toFixed(2)} / {+stats.est.toFixed(2)} h</b> logged</span> : null}
         </div>
         <details className="relative ml-auto">
-          <summary className="btn btn-primary list-none">+ Add task</summary>
+          <summary className={btn('default', 'list-none')}>+ Add task</summary>
           <div className="absolute right-0 z-10 mt-1 w-[340px] rounded-md border border-line bg-white p-3 shadow-lg">
             <ActionForm action={createTask} submit="Add task">
               <input type="hidden" name="project_id" value={id} />
-              <input name="title" required placeholder="Task title" aria-label="Task title" className="input" />
+              <Input name="title" required placeholder="Task title" aria-label="Task title" className="w-auto" />
               {phases?.length ? (
-                <select name="phase_id" aria-label="Phase" className="input">
+                <NativeSelect size="sm" name="phase_id" aria-label="Phase">
                   {phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   <option value="new">+ New phase…</option>
-                </select>
+                </NativeSelect>
               ) : null}
-              <input name="new_phase" aria-label="New phase name" placeholder={phases?.length ? 'New phase name (with + New phase)' : 'Phase, e.g. Delivery'} defaultValue={phases?.length ? '' : 'Delivery'} maxLength={120} className="input" />
-              <select name="assignee_id" aria-label="Owner" className="input"><option value="">Unassigned</option>{people.map((p) => <option key={p.id} value={p.id}>{p.full_name}{p.kind === 'customer' ? ' (customer)' : ''}</option>)}</select>
-              <div className="flex flex-wrap gap-2"><input type="date" name="due_date" aria-label="Due date" className="input flex-1" /><EffortInput name="estimate" unitName="unit" units={units ?? ['day']} placeholder="Estimate" /></div>
-              <select name="visibility" aria-label="Visibility" defaultValue="shared" className="input"><option value="shared">Shared with customer</option><option value="internal">Internal</option></select>
+              <Input name="new_phase" aria-label="New phase name" placeholder={phases?.length ? 'New phase name (with + New phase)' : 'Phase, e.g. Delivery'} defaultValue={phases?.length ? '' : 'Delivery'} maxLength={120} className="w-auto" />
+              <NativeSelect size="sm" name="assignee_id" aria-label="Owner"><option value="">Unassigned</option>{people.map((p) => <option key={p.id} value={p.id}>{p.full_name}{p.kind === 'customer' ? ' (customer)' : ''}</option>)}</NativeSelect>
+              <div className="flex flex-wrap gap-2"><Input type="date" name="due_date" aria-label="Due date" className="flex-1" /><EffortInput name="estimate" unitName="unit" units={units ?? ['day']} placeholder="Estimate" /></div>
+              <NativeSelect size="sm" name="visibility" aria-label="Visibility" defaultValue="shared"><option value="shared">Shared with customer</option><option value="internal">Internal</option></NativeSelect>
             </ActionForm>
           </div>
         </details>
@@ -268,9 +270,9 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                         <input type="hidden" name="project_id" value={id} />
                         <input type="hidden" name="phase_id" value={phase.id} />
                         <input type="hidden" name="visibility" value={phase.visibility} />
-                        <input name="title" required placeholder={`+ Add task to ${phase.name}`} aria-label={`New task in ${phase.name}`} className="input h-7 w-64 text-xs" />
-                        <select name="assignee_id" aria-label={`Owner of the new task in ${phase.name}`} className="input h-7 w-40 py-0 text-xs"><option value="">Unassigned</option>{people.map((p) => <option key={p.id} value={p.id}>{p.full_name}{p.kind === 'customer' ? ' (customer)' : ''}</option>)}</select>
-                        <input type="date" name="due_date" aria-label={`Due date of the new task in ${phase.name}`} className="input h-7 w-36 text-xs" />
+                        <Input name="title" required placeholder={`+ Add task to ${phase.name}`} aria-label={`New task in ${phase.name}`} className="h-7 w-64 text-xs" />
+                        <NativeSelect size="sm" name="assignee_id" aria-label={`Owner of the new task in ${phase.name}`} className="h-7 py-0 text-xs" containerClassName="w-40"><option value="">Unassigned</option>{people.map((p) => <option key={p.id} value={p.id}>{p.full_name}{p.kind === 'customer' ? ' (customer)' : ''}</option>)}</NativeSelect>
+                        <Input type="date" name="due_date" aria-label={`Due date of the new task in ${phase.name}`} className="h-7 w-36 text-xs" />
                       </ActionForm>
                     </div>
                   ) : null}
@@ -301,7 +303,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                 return (
                   <div key={ph.id} className="row grid-cols-[minmax(0,1fr)_auto] text-xs">
                     <span className="truncate">{ph.name} <span className="text-muted-foreground">· {count} {count === 1 ? 'task' : 'tasks'}</span></span>
-                    <ActionButton run={deletePhase.bind(null, ph.id)} className="btn-ghost h-6 px-2 text-xs text-crit-ink"
+                    <ActionButton run={deletePhase.bind(null, ph.id)} variant="ghost" className="h-6 px-2 text-xs text-crit-ink"
                       confirm={`Delete the phase "${ph.name}"${count ? ` and its ${count} ${count === 1 ? 'task' : 'tasks'}` : ''}? This cannot be undone.`}>Delete</ActionButton>
                   </div>
                 )
@@ -348,7 +350,7 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                   <StatusSelect key={`owner-${sel.id}-${sel.assignee_id ?? ''}`} label="Task owner" value={sel.assignee_id ?? ''} onChange={setTaskOwner.bind(null, sel.id)}
                     options={[{ value: '', label: 'Unassigned' }, ...people.map((p) => ({ value: p.id, label: `${p.full_name}${p.kind === 'customer' ? ' (customer)' : ''}` }))]} />
                   <ActionButton run={setSpotlight.bind(null, sel.id, !sel.spotlight)}>{sel.spotlight ? 'Remove spotlight' : '★ Spotlight for customer'}</ActionButton>
-                  {canManage(me) ? <ActionButton run={deleteTask.bind(null, sel.id, id)} className="btn-ghost text-crit-ink"
+                  {canManage(me) ? <ActionButton run={deleteTask.bind(null, sel.id, id)} variant="ghost" className="text-crit-ink"
                     confirm={`Delete the ${sel.parent_id ? 'subtask' : 'task'} "${sel.title}"?${selSubs.length ? ` Its ${selSubs.length} ${selSubs.length === 1 ? 'subtask goes' : 'subtasks go'} with it, and` : ''} Its comments and unapproved time go with it. This cannot be undone.`}>{sel.parent_id ? 'Delete subtask' : 'Delete task'}</ActionButton> : null}
                 </div>
               ) : null}
@@ -369,9 +371,9 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                         <input type="hidden" name="project_id" value={id} />
                         <input type="hidden" name="parent_id" value={sel.id} />
                         <input type="hidden" name="visibility" value={sel.visibility} />
-                        <input name="title" required placeholder="Subtask title" aria-label="Subtask title" className="input" />
-                        <select name="assignee_id" aria-label="Owner of the new subtask" defaultValue={sel.assignee_id ?? ''} className="input"><option value="">Unassigned</option>{people.map((p) => <option key={p.id} value={p.id}>{p.full_name}{p.kind === 'customer' ? ' (customer)' : ''}</option>)}</select>
-                        <div className="flex flex-wrap gap-2"><input type="date" name="due_date" aria-label="Due date of the new subtask" className="input flex-1" /><EffortInput name="estimate" unitName="unit" units={units ?? ['day']} placeholder="Estimate" /></div>
+                        <Input name="title" required placeholder="Subtask title" aria-label="Subtask title" className="w-auto" />
+                        <NativeSelect size="sm" name="assignee_id" aria-label="Owner of the new subtask" defaultValue={sel.assignee_id ?? ''}><option value="">Unassigned</option>{people.map((p) => <option key={p.id} value={p.id}>{p.full_name}{p.kind === 'customer' ? ' (customer)' : ''}</option>)}</NativeSelect>
+                        <div className="flex flex-wrap gap-2"><Input type="date" name="due_date" aria-label="Due date of the new subtask" className="flex-1" /><EffortInput name="estimate" unitName="unit" units={units ?? ['day']} placeholder="Estimate" /></div>
                       </ActionForm>
                     </details>
                   ) : null}
@@ -383,11 +385,11 @@ export default async function Plan({ params, searchParams }: { params: Promise<{
                   <ActionForm action={logTime} submit="Log time" className="mt-2">
                     <input type="hidden" name="task_id" value={sel.id} />
                     <div className="flex gap-2">
-                      <span className="flex items-center gap-1.5"><input type="number" name="hours" min={0.25} max={24} step={0.25} required placeholder="Hours" aria-label="Hours worked" className="input w-20 font-mono" /><span className="text-xs text-muted-foreground">hours</span></span>
-                      <input type="date" name="worked_on" defaultValue={new Date().toISOString().slice(0, 10)} aria-label="Date" className="input flex-1" />
+                      <span className="flex items-center gap-1.5"><Input type="number" name="hours" min={0.25} max={24} step={0.25} required placeholder="Hours" aria-label="Hours worked" className="w-20 font-mono" /><span className="text-xs text-muted-foreground">hours</span></span>
+                      <Input type="date" name="worked_on" defaultValue={new Date().toISOString().slice(0, 10)} aria-label="Date" className="flex-1" />
                     </div>
                     <label className="flex items-center gap-1.5 text-xs"><input type="checkbox" name="billable" defaultChecked /> Billable</label>
-                    <input name="note" placeholder="Note (optional)" aria-label="Note" className="input" />
+                    <Input name="note" placeholder="Note (optional)" aria-label="Note" className="w-auto" />
                   </ActionForm>
                 </details>
               ) : null}

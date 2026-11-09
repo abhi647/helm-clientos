@@ -41,7 +41,7 @@ export async function Thread({ entityType, entityId, customerId, me, defaultShar
             {c.author?.kind === 'customer' && staff ? <span className="text-muted-foreground">(customer)</span> : null}
             <span className="text-muted-foreground">{relativeTime(c.created_at)}</span>
             {staff ? <span className="ml-auto"><Visibility value={c.visibility} /></span> : null}
-            {canDelete(c) ? <span className={staff ? '' : 'ml-auto'}><ActionButton run={deleteComment.bind(null, c.id)} className="btn-ghost h-5 px-1.5 text-[11px] text-muted-foreground" confirm="Delete this comment?">Delete</ActionButton></span> : null}
+            {canDelete(c) ? <span className={staff ? '' : 'ml-auto'}><ActionButton run={deleteComment.bind(null, c.id)} variant="ghost" className="h-5 px-1.5 text-[11px] text-muted-foreground" confirm="Delete this comment?">Delete</ActionButton></span> : null}
           </div>
           <p className="m-0 text-[13px] leading-relaxed whitespace-pre-wrap"><MentionText body={c.body} names={c.mentions.map((id) => nameOf.get(id)).filter((n): n is string => !!n)} /></p>
         </div>

@@ -25,14 +25,14 @@ export default async function Updates({ params }: { params: Promise<{ id: string
         <Card key={d.id} title={<>Draft · week of {shortDate(d.week_of)}</>} extra="Only Seven Billion can see drafts">
           <UpdateEditor action={saveWeeklyUpdate} update={d} />
           {canManage(me) || d.author_id === me.id ? (
-            <div className="mt-2"><ActionButton run={deleteUpdate.bind(null, d.id)} className="btn-ghost text-xs text-crit-ink" confirm="Delete this draft update?">Delete draft</ActionButton></div>
+            <div className="mt-2"><ActionButton run={deleteUpdate.bind(null, d.id)} variant="ghost" className="text-xs text-crit-ink" confirm="Delete this draft update?">Delete draft</ActionButton></div>
           ) : null}
         </Card>
       ))}
       {published.map((u) => (
         <div key={u.id} className="flex flex-col gap-1">
           <UpdateCard u={u} />
-          {canManage(me) ? <div className="self-end"><ActionButton run={deleteUpdate.bind(null, u.id)} className="btn-ghost h-6 px-2 text-xs text-crit-ink" confirm="Delete this published update? The customer will no longer see it. This cannot be undone.">Delete update</ActionButton></div> : null}
+          {canManage(me) ? <div className="self-end"><ActionButton run={deleteUpdate.bind(null, u.id)} variant="ghost" className="h-6 px-2 text-xs text-crit-ink" confirm="Delete this published update? The customer will no longer see it. This cannot be undone.">Delete update</ActionButton></div> : null}
         </div>
       ))}
       {!updates?.length ? <Card><Empty title="No updates yet">Create the first weekly update above.</Empty></Card> : null}

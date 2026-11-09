@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from 'clsx'
 import { Inbox, Lock, Users } from 'lucide-react'
 import { twMerge } from 'tailwind-merge'
+import { buttonVariants } from '@/components/ui/button'
 import { Card as ShadcnCard, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/overtrue/empty-state'
 import { PageHeader as OvertruePageHeader } from '@/components/overtrue/page-header'
@@ -10,6 +11,13 @@ import type { Enums } from '@/lib/database.types'
 import { HEALTH, TASK_STATUS, initials, label } from '@/lib/format'
 
 export const cn = (...v: ClassValue[]) => twMerge(clsx(v))
+
+/** shadcn's Button look for links, summaries and plain buttons: outline by default, taller to tap on phones. */
+export const btn = (variant: 'default' | 'outline' | 'ghost' | 'secondary' | 'destructive' | 'link' = 'outline', ...extra: ClassValue[]) =>
+  cn(buttonVariants({ variant, size: 'sm' }), 'cursor-pointer no-underline max-sm:h-10',
+    // links keep the button's text colour, not the link blue
+    variant === 'default' ? 'hover:text-primary-foreground' : variant === 'destructive' ? 'hover:text-white' : variant === 'link' ? '' : 'text-foreground hover:text-accent-foreground',
+    ...extra)
 
 // Helm's tones on overtrue's StatusBadge variants. Every status also carries a word, so colour is never the only signal.
 type Tone = 'good' | 'info' | 'warn' | 'crit' | 'review' | 'neutral' | 'dark'

@@ -5,7 +5,10 @@ import { Lock, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import type { ActionResult } from '@/app/_actions/shared'
 import { MentionTextarea, type Person } from '@/components/mention-textarea'
-import { cn } from '@/components/ui'
+import { btn, cn } from '@/components/ui'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 
 type FormAction = (prev: ActionResult | null, form: FormData) => Promise<ActionResult>
 
@@ -68,7 +71,7 @@ export function ActionForm({ action, children, submit, className, resetOnSuccess
     <form ref={ref} onSubmit={keepOnError(run, () => stoppedBy(guard))} className={cn('flex flex-col gap-2', className)}>
       {children}
       <div className="flex flex-wrap items-center gap-2">
-        <button type="submit" disabled={pending} className={cn('btn', primary && 'btn-primary')}>{pending ? 'Saving…' : submit}</button>
+        <button type="submit" disabled={pending} className={btn(primary ? 'default' : 'outline')}>{pending ? 'Saving…' : submit}</button>
         <Message state={state} />
       </div>
     </form>
@@ -116,7 +119,7 @@ export function CommentBox({ action, entityType, entityId, customerId, staff, de
         <span className="text-xs text-muted-foreground">
           {staff ? (vis === 'internal' ? 'Only Seven Billion will see this.' : 'The customer will see this and be notified.') : 'Seven Billion will be notified.'}
         </span>
-        <button type="submit" disabled={pending} className="btn ml-auto">{pending ? 'Posting…' : 'Post'}</button>
+        <button type="submit" disabled={pending} className={btn('outline', 'ml-auto')}>{pending ? 'Posting…' : 'Post'}</button>
       </div>
       <Message state={state} />
     </form>
@@ -124,14 +127,14 @@ export function CommentBox({ action, entityType, entityId, customerId, staff, de
 }
 
 /** Runs a server action from a button (no form fields), showing a pending state and the result. */
-export function ActionButton({ run, children, primary, className, confirm, guard }: {
-  run: () => Promise<ActionResult>; children: React.ReactNode; primary?: boolean; className?: string; confirm?: string; guard?: UnsavedGuard | UnsavedGuard[]
+export function ActionButton({ run, children, primary, variant, className, confirm, guard }: {
+  run: () => Promise<ActionResult>; children: React.ReactNode; primary?: boolean; variant?: 'ghost' | 'destructive'; className?: string; confirm?: string; guard?: UnsavedGuard | UnsavedGuard[]
 }) {
   const [pending, start] = useTransition()
   const [state, setState] = useState<ActionResult | null>(null)
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
-      <button type="button" disabled={pending} className={cn('btn', primary && 'btn-primary', className)}
+      <button type="button" disabled={pending} className={btn(variant ?? (primary ? 'default' : 'outline'), className)}
         onClick={() => {
           if (stoppedBy(guard)) return
           if (confirm && !window.confirm(confirm)) return
@@ -152,7 +155,7 @@ export function StatusSelect<T extends string>({ value, options, onChange, label
   const [error, setError] = useState<string | null>(null)
   return (
     <span className="inline-flex items-center gap-1">
-      <select aria-label={label} disabled={pending} defaultValue={value} className="input h-8 cursor-pointer py-0 pr-7 text-[13px] disabled:opacity-60"
+      <NativeSelect size="sm" aria-label={label} disabled={pending} defaultValue={value} className="h-8 cursor-pointer py-0 pr-7 text-[13px] disabled:opacity-60"
         onChange={(e) => {
           const el = e.target
           const before = value, after = el.value as T
@@ -167,7 +170,7 @@ export function StatusSelect<T extends string>({ value, options, onChange, label
           })
         }}>
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
+      </NativeSelect>
       {error ? <span role="alert" className="text-xs text-crit-ink">{error}</span> : null}
     </span>
   )
@@ -180,10 +183,10 @@ export function DecisionForm({ action, approvalId, idName = 'approval_id' }: { a
     <form onSubmit={keepOnError(run)} className="flex flex-col gap-2">
       <input type="hidden" name={idName} value={approvalId} />
       <label htmlFor={`c-${approvalId}`} className="label">Comment (needed to request changes)</label>
-      <textarea id={`c-${approvalId}`} name="comment" rows={2} className="textarea" placeholder="Optional for approval" />
+      <Textarea id={`c-${approvalId}`} name="comment" rows={2}  placeholder="Optional for approval" />
       <div className="flex flex-wrap gap-2">
-        <button type="submit" name="decision" value="approved" disabled={pending} className="btn btn-primary">Approve</button>
-        <button type="submit" name="decision" value="changes_requested" disabled={pending} className="btn">Request changes</button>
+        <button type="submit" name="decision" value="approved" disabled={pending} className={btn('default')}>Approve</button>
+        <button type="submit" name="decision" value="changes_requested" disabled={pending} className={btn('outline')}>Request changes</button>
       </div>
       <Message state={state} />
     </form>
@@ -202,7 +205,7 @@ export function ApproveForCustomer({ action, idName, id, label = 'Approve for th
       <summary className="cursor-pointer list-none text-xs font-semibold text-link">✓ {label}</summary>
       <ActionForm action={action} submit={label} className="mt-2" resetOnSuccess={false} guard={guard}>
         <input type="hidden" name={idName} value={id} />
-        <input name="note" maxLength={500} aria-label="How the customer agreed" placeholder="How they agreed, e.g. signed contract, call on 7 Oct (optional)" className="input" />
+        <Input name="note" maxLength={500} aria-label="How the customer agreed" placeholder="How they agreed, e.g. signed contract, call on 7 Oct (optional)" className="w-auto" />
         <p className="m-0 text-xs text-muted-foreground">{hint ?? 'The customer is told by email and it shows as approved by you for them.'}</p>
       </ActionForm>
     </details>

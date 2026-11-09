@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Card, Empty, Health, PageHeader, Progress } from '@/components/ui'
+import { DataGrid } from '@/components/data-grid'
+import { btn, Card, Chip, Empty, Health, PageHeader, Progress } from '@/components/ui'
 import { shortDate } from '@/lib/format'
 import { canManage, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
@@ -18,25 +19,34 @@ export default async function Projects() {
   return (
     <>
       <PageHeader title="Projects" meta={<span className="text-xs text-muted-foreground">{projects?.length ?? 0} projects</span>}
-        actions={canManage(me) ? <Link href="/projects/new" className="btn btn-primary">+ New project</Link> : null} />
+        actions={canManage(me) ? <Link href="/projects/new" className={btn('default')}>+ New project</Link> : null} />
       <div className="p-4">
-        <Card flush className="overflow-x-auto">
-          {projects?.length ? (
-            <div className="min-w-[860px]">
-              <div className="row row-head grid-cols-[150px_minmax(200px,1fr)_120px_110px_90px_150px_90px]"><span>Customer</span><span>Project</span><span>Health</span><span>Progress</span><span>PM</span><span>Dates</span><span>Status</span></div>
-              {projects.map((p) => (
-                <div key={p.id} className="row grid-cols-[150px_minmax(200px,1fr)_120px_110px_90px_150px_90px] hover:bg-head">
-                  <span className="truncate font-semibold">{p.customers?.name}</span>
-                  <Link href={`/projects/${p.id}`} className="truncate font-medium text-ink no-underline hover:underline">{p.name}</Link>
-                  <Health health={p.health} />
-                  <Progress value={prog.get(p.id) ?? 0} width={50} />
-                  <span className="truncate">{p.pm?.full_name ?? '–'}</span>
-                  <span className="font-mono text-xs text-muted-foreground">{shortDate(p.start_date)} → {shortDate(p.end_date)}</span>
-                  <span className="text-xs capitalize">{p.status.replace('_', ' ')}</span>
-                </div>
-              ))}
-            </div>
-          ) : <Empty title="No projects yet">Won deals in HubSpot arrive on Home ready to set up, or start one with New project.</Empty>}
+        <Card flush>
+          <DataGrid search searchLabel="Search projects" pageSize={25} label="Projects"
+            empty={<Empty title="No projects yet">Won deals in HubSpot arrive on Home ready to set up, or start one with New project.</Empty>}
+            columns={[
+              { key: 'customer', label: 'Customer', sortable: true, className: 'w-[160px]' },
+              { key: 'project', label: 'Project', sortable: true },
+              { key: 'health', label: 'Health', sortable: true, className: 'w-[140px]' },
+              { key: 'progress', label: 'Progress', sortable: true, className: 'w-[120px]' },
+              { key: 'pm', label: 'PM', sortable: true, className: 'w-[110px]' },
+              { key: 'dates', label: 'Dates', sortable: true, className: 'w-[150px]' },
+              { key: 'status', label: 'Status', sortable: true, className: 'w-[100px]' },
+            ]}
+            rows={(projects ?? []).map((p) => ({
+              id: p.id, href: `/projects/${p.id}`,
+              values: { customer: p.customers?.name, project: p.name, health: ['at_risk', 'needs_attention', 'on_track'].indexOf(p.health), progress: prog.get(p.id) ?? 0,
+                pm: p.pm?.full_name, dates: p.start_date, status: p.status },
+              cells: {
+                customer: <span className="block truncate font-semibold">{p.customers?.name}</span>,
+                project: <Link href={`/projects/${p.id}`} className="block truncate font-medium text-foreground no-underline hover:underline">{p.name}</Link>,
+                health: <Health health={p.health} />,
+                progress: <Progress value={prog.get(p.id) ?? 0} width={50} />,
+                pm: <span className="block truncate">{p.pm?.full_name ?? '–'}</span>,
+                dates: <span className="font-mono text-xs text-muted-foreground">{shortDate(p.start_date)} → {shortDate(p.end_date)}</span>,
+                status: <Chip tone={p.status === 'active' ? 'info' : p.status === 'completed' ? 'good' : 'neutral'} className="capitalize">{p.status.replace('_', ' ')}</Chip>,
+              },
+            }))} />
         </Card>
       </div>
     </>

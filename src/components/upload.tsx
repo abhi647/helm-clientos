@@ -4,6 +4,8 @@ import { useState, useTransition } from 'react'
 import { addDocumentVersion, recordDocument } from '@/app/_actions/collab'
 import { ACCEPT, ALLOWED_LABEL, MAX_FILE_BYTES as MAX, fileType } from '@/lib/files'
 import { createClient } from '@/lib/supabase/client'
+import { btn } from '@/components/ui'
+import { NativeSelect } from '@/components/ui/native-select'
 
 /** Why storage refused an upload, in words the person can act on. */
 function uploadFailed(err: { message?: string; statusCode?: string } | null | undefined, short = false): string {
@@ -47,16 +49,16 @@ export function UploadForm({ customerId, projectId, requestId, projects, folders
       })
     }}>
       {projectId ? null : (
-        <select name="project_id" aria-label="Project" className="input"><option value="">No project</option>{(projects ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+        <NativeSelect size="sm" name="project_id" aria-label="Project"><option value="">No project</option>{(projects ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</NativeSelect>
       )}
       <input type="file" name="file" required aria-label="File" accept={ACCEPT} className="text-xs" />
       <span className="text-[11px] text-muted-foreground">{ALLOWED_LABEL}, up to 50 MB. Every file is security-checked before anyone can open it.</span>
-      <select name="folder" defaultValue="02-requirements" aria-label="Folder" className="input">{Object.entries(folders).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+      <NativeSelect size="sm" name="folder" defaultValue="02-requirements" aria-label="Folder">{Object.entries(folders).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</NativeSelect>
       {staff ? (
-        <select name="visibility" defaultValue={defaultShared ? 'shared' : 'internal'} aria-label="Visibility" className="input"><option value="internal">Internal (Seven Billion only)</option><option value="shared">Shared with customer</option></select>
+        <NativeSelect size="sm" name="visibility" defaultValue={defaultShared ? 'shared' : 'internal'} aria-label="Visibility"><option value="internal">Internal (Seven Billion only)</option><option value="shared">Shared with customer</option></NativeSelect>
       ) : <p className="m-0 text-xs text-muted-foreground">Files you upload are shared with your Seven Billion team.</p>}
       <div className="flex flex-wrap items-center gap-2">
-        <button type="submit" disabled={pending} className="btn btn-primary">{pending ? 'Uploading…' : 'Upload'}</button>
+        <button type="submit" disabled={pending} className={btn('default')}>{pending ? 'Uploading…' : 'Upload'}</button>
         {msg ? <span role={msg.ok ? 'status' : 'alert'} className={msg.ok ? 'text-xs font-medium text-good-ink' : 'text-xs text-crit-ink'}>{msg.text}</span> : null}
       </div>
     </form>

@@ -10,11 +10,12 @@ import { DetailList } from '@/components/overtrue/detail-list'
 import { ResourceProgress } from '@/components/overtrue/resource-progress'
 import { StatementsTable, type StatementRow } from '@/components/statements-table'
 import { UnbilledTime } from '@/components/time-billing'
-import { Card, Chip, Empty, Stat, cn } from '@/components/ui'
+import { btn, Card, Chip, cn, Empty, Stat } from '@/components/ui'
 import { Ticks } from '@/components/viz'
 import { hrs, money, shortDate } from '@/lib/format'
 import { canSeeFinance, requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { Input } from '@/components/ui/input'
 
 export const metadata: Metadata = { title: 'Billing' }
 
@@ -162,7 +163,7 @@ export default async function ProjectBilling({ params, searchParams }: { params:
                   <ActionForm action={setContractValue} submit="Save" resetOnSuccess={false}>
                     <input type="hidden" name="project_id" value={id} />
                     <label className="label" htmlFor="cv-in">Contract value ({currency}), from the SOW</label>
-                    <input id="cv-in" name="contract_value" defaultValue={card.contract_value ?? ''} inputMode="decimal" className="input tabular" placeholder="Empty: not set" />
+                    <Input id="cv-in" name="contract_value" defaultValue={card.contract_value ?? ''} inputMode="decimal" className="w-auto tabular" placeholder="Empty: not set" />
                   </ActionForm>
                 </div>
               </details>
@@ -173,11 +174,11 @@ export default async function ProjectBilling({ params, searchParams }: { params:
           {open && ['draft', 'changes_requested'].includes(open.status) && open.rate_card_lines.length ? (
             <>
               <ActionButton run={submitRateCard.bind(null, open.id)} primary confirm="Send these rates to the customer for approval? They can't be edited while the customer reviews them.">Send to customer</ActionButton>
-              {open.status === 'draft' && live ? <ActionButton run={discardRateCard.bind(null, open.id)} className="btn-ghost" confirm="Discard these draft rates and keep the approved ones?">Discard draft</ActionButton> : null}
+              {open.status === 'draft' && live ? <ActionButton run={discardRateCard.bind(null, open.id)} variant="ghost" confirm="Discard these draft rates and keep the approved ones?">Discard draft</ActionButton> : null}
             </>
           ) : null}
-          {model && card && !showWizard && open?.status !== 'pending' ? <Link href="?setup=1" className="btn">{open ? 'Edit set-up' : 'Change set-up'}</Link> : null}
-          {showWizard && model && card ? <Link href="?" className="btn btn-ghost">Cancel</Link> : null}
+          {model && card && !showWizard && open?.status !== 'pending' ? <Link href="?setup=1" className={btn('outline')}>{open ? 'Edit set-up' : 'Change set-up'}</Link> : null}
+          {showWizard && model && card ? <Link href="?" className={btn('ghost')}>Cancel</Link> : null}
         </span>
         {open?.status === 'changes_requested' && open.decision_note ? (
           <p role="alert" className="m-0 w-full rounded-md bg-warn-bg px-2.5 py-1.5 text-xs text-warn-ink"><b>The customer asked for changes:</b> {open.decision_note}</p>
@@ -281,8 +282,8 @@ export default async function ProjectBilling({ params, searchParams }: { params:
             <ActionForm action={createStatement} submit="Create statement for the period" resetOnSuccess={false}>
               <input type="hidden" name="project_id" value={id} />
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <label className="flex items-center gap-1.5">From <input type="date" name="period_start" required defaultValue={chosen.start} className="input" /></label>
-                <label className="flex items-center gap-1.5">to <input type="date" name="period_end" required defaultValue={chosen.end} className="input" /></label>
+                <label className="flex items-center gap-1.5">From <Input type="date" name="period_start" required defaultValue={chosen.start} className="w-auto" /></label>
+                <label className="flex items-center gap-1.5">to <Input type="date" name="period_end" required defaultValue={chosen.end} className="w-auto" /></label>
                 <span>Tasks done in the period fill the counts; type the rest on the draft.</span>
               </div>
             </ActionForm>
@@ -308,8 +309,8 @@ export default async function ProjectBilling({ params, searchParams }: { params:
               <ActionForm action={createStatement} submit={`Create statement for ${chosen.name}`} resetOnSuccess={false}>
                 <input type="hidden" name="project_id" value={id} />
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <label className="flex items-center gap-1.5">From <input type="date" name="period_start" required defaultValue={chosen.start} className="input" /></label>
-                  <label className="flex items-center gap-1.5">to <input type="date" name="period_end" required defaultValue={chosen.end} className="input" /></label>
+                  <label className="flex items-center gap-1.5">From <Input type="date" name="period_start" required defaultValue={chosen.start} className="w-auto" /></label>
+                  <label className="flex items-center gap-1.5">to <Input type="date" name="period_end" required defaultValue={chosen.end} className="w-auto" /></label>
                   <span>Only approved hours are billed; anything still waiting stays for the next statement.</span>
                 </div>
               </ActionForm>

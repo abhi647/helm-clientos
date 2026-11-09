@@ -5,6 +5,7 @@ import { UserMenu } from '@/components/shell/user-menu'
 import { requireCustomer } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 import { BrandMark } from '@/components/brand'
+import { btn } from '@/components/ui'
 
 /** The customer portal: a deliberately simple navigation that never exposes internal structure. */
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -29,7 +30,7 @@ export default async function PortalLayout({ children }: { children: React.React
             { href: '/portal/requests', label: 'Requests' }, { href: '/portal/meetings', label: 'Meetings' },
             { href: '/portal/decisions', label: 'Decisions' }, { href: '/portal/documents', label: 'Documents' }, { href: '/portal/feedback', label: 'Feedback' }, ...(hasHours ? [{ href: '/portal/hours', label: 'Hours' }] : []), ...(me.customer_role === 'customer_exec' || me.can_view_invoices ? [{ href: '/portal/billing', label: 'Billing' }] : []), ...(me.can_view_invoices ? [{ href: '/portal/invoices', label: 'Invoices' }] : []),
           ]} /></div>
-          <Link href="/portal/requests/new" className="btn btn-primary flex-none gap-1 max-sm:size-10 max-sm:px-0" aria-label="New request"><Plus aria-hidden className="size-4" /><span className="max-sm:hidden">New request</span></Link>
+          <Link href="/portal/requests/new" className={btn('default', 'flex-none gap-1 max-sm:size-10 max-sm:px-0')} aria-label="New request"><Plus aria-hidden className="size-4" /><span className="max-sm:hidden">New request</span></Link>
           <UserMenu profile={me} base="/portal" />
         </div>
       </header>

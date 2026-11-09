@@ -5,6 +5,7 @@ import { ActionForm } from '@/components/forms'
 import { Card } from '@/components/ui'
 import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { Input } from '@/components/ui/input'
 
 export const metadata: Metadata = { title: 'Project settings' }
 
@@ -41,7 +42,7 @@ export default async function ProjectSettings({ params }: { params: Promise<{ id
                 with their comments, approvals, decisions, updates and logged time, for the customer too. This cannot be undone.
                 To keep it but take it off the active lists, mark it Completed instead.
               </p>
-              <input name="confirm" required autoComplete="off" aria-label="Type the project name to confirm" placeholder={`Type ${p.name} to confirm`} className="input" />
+              <Input name="confirm" required autoComplete="off" aria-label="Type the project name to confirm" placeholder={`Type ${p.name} to confirm`} className="w-auto" />
             </ActionForm>
           </details>
         )}

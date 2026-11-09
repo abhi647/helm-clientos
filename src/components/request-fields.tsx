@@ -1,3 +1,6 @@
+import { NativeSelect } from '@/components/ui/native-select'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 // The request form fields, shared by the customer portal and by staff logging a request on a customer's behalf.
 export const REQUEST_TYPES: [string, string][] = [['requirement', 'Requirement'], ['enhancement', 'Enhancement'], ['change_request', 'Change request'], ['bug', 'Something is not working'], ['new_report', 'New report'], ['data_request', 'Data request'], ['access_request', 'Access request'], ['support', 'Support'], ['other', 'Other']]
 
@@ -14,14 +17,14 @@ export function RequestFields({ kind, projects }: { kind: RequestKind; projects:
   const K = REQUEST_KINDS[kind]
   return (
     <>
-      <label className="flex flex-col gap-1"><span className="label">Title</span><input name="title" required minLength={3} maxLength={200} placeholder={K.title} className="input h-9 text-sm" /></label>
-      <label className="flex flex-col gap-1"><span className="label">{K.what}</span><textarea name="what" required rows={4} className="textarea text-sm" /></label>
-      <label className="flex flex-col gap-1"><span className="label">{K.why}</span><textarea name="why" rows={3} className="textarea text-sm" placeholder="Helps us prioritise and get it right" /></label>
+      <label className="flex flex-col gap-1"><span className="label">Title</span><Input name="title" required minLength={3} maxLength={200} placeholder={K.title} className="w-auto h-9 text-sm" /></label>
+      <label className="flex flex-col gap-1"><span className="label">{K.what}</span><Textarea name="what" required rows={4} className="text-sm" /></label>
+      <label className="flex flex-col gap-1"><span className="label">{K.why}</span><Textarea name="why" rows={3} className="text-sm" placeholder="Helps us prioritise and get it right" /></label>
       <div className="grid gap-2 sm:grid-cols-2">
-        <label className="flex flex-col gap-1"><span className="label">Type</span><select name="type" key={kind} defaultValue={K.type} className="input h-9">{REQUEST_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-        <label className="flex flex-col gap-1"><span className="label">Project</span><select name="project_id" className="input h-9"><option value="">Not sure / general</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-        <label className="flex flex-col gap-1"><span className="label">Priority</span><select name="priority" defaultValue="normal" className="input h-9"><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical (business stopped)</option></select></label>
-        <label className="flex flex-col gap-1"><span className="label">Wanted by</span><input type="date" name="desired_date" className="input h-9" /></label>
+        <label className="flex flex-col gap-1"><span className="label">Type</span><NativeSelect size="sm" name="type" key={kind} defaultValue={K.type} className="h-9">{REQUEST_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</NativeSelect></label>
+        <label className="flex flex-col gap-1"><span className="label">Project</span><NativeSelect size="sm" name="project_id" className="h-9"><option value="">Not sure / general</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</NativeSelect></label>
+        <label className="flex flex-col gap-1"><span className="label">Priority</span><NativeSelect size="sm" name="priority" defaultValue="normal" className="h-9"><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical (business stopped)</option></NativeSelect></label>
+        <label className="flex flex-col gap-1"><span className="label">Wanted by</span><Input type="date" name="desired_date" className="w-auto h-9" /></label>
       </div>
     </>
   )

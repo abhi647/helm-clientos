@@ -8,6 +8,8 @@ import { isoDaysAgo, relativeTime } from '@/lib/format'
 import { PAGE_KINDS, kindLabel } from '@/lib/page-templates'
 import { requireStaff } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Input } from '@/components/ui/input'
 
 export const metadata: Metadata = { title: 'Docs' }
 
@@ -54,11 +56,11 @@ export default async function ProjectDocs({ params }: { params: Promise<{ id: st
             ))}
           </fieldset>
           <label className="label" htmlFor="pg-title">Title</label>
-          <input id="pg-title" name="title" required maxLength={200} className="input" placeholder="Scope of work: Sales analytics" />
+          <Input id="pg-title" name="title" required maxLength={200} className="w-auto" placeholder="Scope of work: Sales analytics" />
           {meetings?.length ? (
             <>
               <label className="label" htmlFor="pg-meeting">Meeting (for notes)</label>
-              <select id="pg-meeting" name="meeting_id" className="input"><option value="">None</option>{meetings.map((m) => <option key={m.id} value={m.id}>{m.title} · {m.held_on}</option>)}</select>
+              <NativeSelect size="sm" id="pg-meeting" name="meeting_id"><option value="">None</option>{meetings.map((m) => <option key={m.id} value={m.id}>{m.title} · {m.held_on}</option>)}</NativeSelect>
             </>
           ) : null}
         </ActionForm>
