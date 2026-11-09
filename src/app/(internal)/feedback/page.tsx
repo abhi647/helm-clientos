@@ -79,7 +79,7 @@ export default async function FeedbackHome({ searchParams }: { searchParams: Pro
                   ref: <Link href={`/feedback/${f.id}`} className="font-mono text-xs text-muted-foreground no-underline hover:underline">{f.number}</Link>,
                   type: <FeedbackKindChip kind={f.kind} />,
                   customer: <span className="block max-w-[140px] truncate">{f.customers?.name}</span>,
-                  body: <span className="block max-w-[360px] truncate">{f.source === 'csat' ? <b className="font-semibold text-crit-ink">Low score · </b> : null}{f.body}</span>,
+                  body: <Link href={`/feedback/${f.id}`} className="block max-w-[360px] truncate text-foreground no-underline hover:underline">{f.source === 'csat' ? <b className="font-semibold text-crit-ink">Low score · </b> : null}{f.body}</Link>,
                   owner: <span className="block truncate text-xs">{f.owner?.full_name ?? <span className="text-muted-foreground">Unassigned</span>}</span>,
                   status: <FeedbackStatusChip status={f.status} />,
                   age: <span className="font-mono text-xs text-muted-foreground">{ageInDays(f.created_at)}</span>,
