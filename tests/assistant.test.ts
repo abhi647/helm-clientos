@@ -33,8 +33,9 @@ describe('assistant tools', () => {
   it('treats exactly the changing tools as proposals, and nothing deletes, approves or bills', async () => {
     const { helmTools } = await import('@/lib/mcp/tools')
     const writes = helmTools().filter((t) => t.write).map((t) => t.name).sort()
-    expect(writes).toEqual(['add_comment', 'create_request', 'create_task', 'log_time', 'set_request_stage', 'update_task'])
-    expect(helmTools().some((t) => /delete|approve|bill|invoice/.test(t.name))).toBe(false)
+    expect(writes).toEqual(['add_comment', 'create_request', 'create_task', 'log_time', 'set_billed_as', 'set_request_stage', 'update_task'])
+    // labelling what work is billed as is allowed; nothing creates statements, invoices or sales orders, or deletes or approves
+    expect(helmTools().some((t) => /delete|approve|invoice|statement|sales_?order|run_billing/.test(t.name))).toBe(false)
   })
 
   it('describes a proposal in plain words without ids', async () => {
@@ -44,6 +45,19 @@ describe('assistant tools', () => {
     const line = summarise(log, { task_id: '00000000-0000-0000-0000-000000000000', hours: 3, worked_on: '2026-11-09' })
     expect(line).toContain('hours: 3')
     expect(line).not.toContain('00000000')
+  })
+
+  it('set_billed_as only acts when the name on the confirm card is the real task', async () => {
+    const { runHelmTool } = await import('@/lib/mcp/tools')
+    const rahul = await as('rahul@example.com')
+    const { data: { user } } = await rahul.auth.getUser()
+    const { data: task } = await rahul.from('tasks').select('id, title').is('parent_id', null).limit(1).single()
+    const helm = { db: rahul, me: { id: user!.id } as never, staff: true, manager: true }
+    const wrong = await runHelmTool(helm as never, 'set_billed_as', { task_id: task!.id, name: 'Something else', billing_line_id: null, billed_as: 'Not billed separately' })
+    expect(wrong.ok ? '' : wrong.error).toContain(`is called "${task!.title}"`)
+    // a line that is not on the project's rate card is refused too
+    const stray = await runHelmTool(helm as never, 'set_billed_as', { task_id: task!.id, name: task!.title, billing_line_id: '00000000-0000-4000-8000-000000000000', billed_as: 'Weekly Report' })
+    expect(stray.ok ? '' : stray.error).toContain('not on this project')
   })
 
   it('rejects input that does not match a tool before anything runs', async () => {

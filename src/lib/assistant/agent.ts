@@ -62,7 +62,7 @@ const toolList = () => (toolCache ??= helmTools().map((t) => ({
 
 /** A plain-words line for a proposal card, from the tool's title and the values it was given. */
 export function summarise(tool: HelmTool, input: Record<string, unknown>): string {
-  const skip = new Set(['project_id', 'task_id', 'request_id', 'parent_task_id', 'phase_id', 'assignee_id', 'owner_id', 'entity_id'])
+  const skip = new Set(['project_id', 'task_id', 'request_id', 'parent_task_id', 'phase_id', 'assignee_id', 'owner_id', 'entity_id', 'billing_line_id'])
   const parts = Object.entries(input).filter(([k, v]) => !skip.has(k) && v != null && v !== '')
     .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${typeof v === 'string' ? v : typeof v === 'boolean' ? (v ? 'yes' : 'no') : JSON.stringify(v)}`)
   return `${tool.title}${parts.length ? ` · ${parts.join(' · ')}` : ''}`.slice(0, 480)

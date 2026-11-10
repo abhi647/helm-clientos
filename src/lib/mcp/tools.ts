@@ -207,13 +207,21 @@ function defineHelmTools() {
       parent_task_id: id.optional().describe('makes this a subtask of that task'),
       assignee_id: id.optional(), start_date: date.optional(), due_date: date.optional(),
       visibility: z.enum(['shared', 'internal']).default('shared').describe('shared: the customer sees it; internal: team only'),
-    }),
-    description: 'Adds a task (or a subtask) to a project plan. Seven Billion team only. Find people ids with list_people.',
+      status: z.enum(TASK_STATUS).optional().describe('default todo'),
+      billing_line_id: id.optional().describe('what the task is billed as: a line id from list_billing_lines. Default: its phase\'s line'),
+      billed_as: z.string().trim().max(120).optional().describe('the name of that billing line, exactly as list_billing_lines gives it (shown to the person confirming)'),
+    }).refine((x) => !x.billing_line_id === !x.billed_as, { message: 'Pass billing_line_id and billed_as together.' }),
+    description: 'Adds a task (or a subtask) to a project plan, optionally with its status and what it is billed as. Seven Billion team only. Find people ids with list_people and billing lines with list_billing_lines.',
   }, async (h, a) => {
     staffOnly(h)
     const { db, me } = h
     const { data: project } = await db.from('projects').select('customer_id').eq('id', a.project_id).maybeSingle()
     if (!project) return problem('No such project, or you cannot see it.')
+    if (a.billing_line_id) {
+      if (a.parent_task_id) return problem('A subtask is billed through its task: set the billing line on the task instead.')
+      const bad = await billingLine(db, a.project_id, a.billing_line_id, a.billed_as!)
+      if (bad) return problem(bad)
+    }
     let phase_id: string | null = null
     if (a.parent_task_id) {
       const { data: parent } = await db.from('tasks').select('phase_id, project_id').eq('id', a.parent_task_id).maybeSingle()
@@ -241,8 +249,13 @@ function defineHelmTools() {
       project_id: a.project_id, customer_id: project.customer_id, phase_id, parent_id: a.parent_task_id ?? null, title: a.title,
       description: a.description, assignee_id: a.assignee_id ?? null, owner_side, start_date: a.start_date ?? null, due_date: a.due_date ?? null,
       visibility: a.visibility, created_by: me.id, position: 999,
+      ...(a.status ? { status: a.status, completed_at: a.status === 'done' ? new Date().toISOString() : null } : {}),
     }).select(TASK_FIELDS).single()
     if (error || !task) return dbProblem(error)
+    if (a.billing_line_id) {
+      const { error: be } = await db.rpc('set_billed_as', { p_task: task.id, p_phase: null, p_line: a.billing_line_id } as never)
+      if (be) return { created: taskOut(task as unknown as TaskRow, true), billing: `Not set: ${be.message}` }
+    }
     return { created: taskOut(task as unknown as TaskRow, true) }
   })
 
@@ -277,6 +290,52 @@ function defineHelmTools() {
     if (error) return dbProblem(error)
     if (!data) return problem('No such task, or you cannot change it.')
     return { updated: taskOut(data as unknown as TaskRow, true) }
+  })
+
+  // a billing line, checked against the name shown on the confirm card, so the card never says one thing and does another
+  const billingLine = async (db: Helm['db'], projectId: string, lineId: string, name: string) => {
+    const { data } = await db.rpc('billing_lines', { p_project: projectId })
+    const line = ((data ?? []) as { id: string; label: string }[]).find((l) => l.id === lineId)
+    if (!line) return 'That billing line is not on this project\'s rate card. Use list_billing_lines.'
+    if (line.label.trim().toLowerCase() !== name.trim().toLowerCase()) return `That line is called "${line.label}", not "${name}".`
+    return null
+  }
+
+  tool('list_billing_lines', {
+    title: 'List billing lines', input: z.object({ project_id: id }),
+    description: 'What work on a project can be billed as: the lines of its rate card, by name (no rates), e.g. "Weekly Report". Use the ids with set_billed_as or create_task. Seven Billion team only.',
+  }, async (h, a) => {
+    staffOnly(h)
+    const { data, error } = await h.db.rpc('billing_lines', { p_project: a.project_id })
+    if (error) return dbProblem(error)
+    return ((data ?? []) as { id: string; label: string; current: boolean }[]).map((l) => ({ id: l.id, name: l.label, current: l.current }))
+  })
+
+  tool('set_billed_as', {
+    title: 'Set what a task is billed as', write: true,
+    input: z.object({
+      task_id: id.optional(), phase_id: id.optional(),
+      name: z.string().trim().min(1).max(200).describe('the task title or phase name, exactly as it is in Helm (shown to the person confirming)'),
+      billing_line_id: id.nullable().describe('a line id from list_billing_lines; null: not billed separately (a task then follows its phase)'),
+      billed_as: z.string().trim().max(120).describe('the name of that billing line as list_billing_lines gives it, or "Not billed separately"'),
+    }).refine((x) => !!x.task_id !== !!x.phase_id, { message: 'Pass either task_id or phase_id.' }),
+    description: 'Sets the rate card line a task or a whole phase is billed as, e.g. Weekly Report or Monthly Report. It only labels the work; it never creates a statement or invoice. Subtasks are billed through their task. Seven Billion team only.',
+  }, async (h, a) => {
+    staffOnly(h)
+    const { db } = h
+    // what it is, checked against the name on the card
+    const { data: target } = a.task_id
+      ? await db.from('tasks').select('project_id, title, parent_id').eq('id', a.task_id).maybeSingle()
+      : await db.from('phases').select('project_id, title:name, parent_id:id').eq('id', a.phase_id!).maybeSingle()
+    if (!target) return problem(`No such ${a.task_id ? 'task' : 'phase'}, or you cannot see it.`)
+    if (target.title.trim() !== a.name.trim()) return problem(`That ${a.task_id ? 'task' : 'phase'} is called "${target.title}", not "${a.name}".`)
+    if (a.task_id && target.parent_id) return problem('A subtask is billed through its task: set the billing line on the task instead.')
+    if (a.billing_line_id) {
+      const bad = await billingLine(db, target.project_id, a.billing_line_id, a.billed_as)
+      if (bad) return problem(bad)
+    }
+    const { error } = await db.rpc('set_billed_as', { p_task: a.task_id ?? null, p_phase: a.phase_id ?? null, p_line: a.billing_line_id } as never)
+    return error ? dbProblem(error) : `"${a.name}" is now billed as ${a.billing_line_id ? a.billed_as : 'its phase (not billed separately)'}.`
   })
 
   tool('log_time', {
